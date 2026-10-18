@@ -1,1 +1,9 @@
-.devcontainer/
+node_modules/
+dist/
+.env
+runs/
+targets/*/repo/
+reports/
+.stryker-tmp/
+playwright-report/
+test-results/
