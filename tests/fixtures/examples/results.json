@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "execId": "x-07",
+  "startedAt": "2026-10-28T09:00:00Z",
+  "finishedAt": "2026-10-28T09:04:10Z",
+  "environment": {
+    "healthChecks": [
+      {
+        "name": "backend",
+        "url": "http://localhost:3000/api/product/list",
+        "ok": true,
+        "elapsedMs": 4100
+      },
+      {
+        "name": "frontend",
+        "url": "http://localhost:8080",
+        "ok": true,
+        "elapsedMs": 46900
+      }
+    ],
+    "seed": [
+      {
+        "request": "POST /api/auth/register",
+        "status": 200,
+        "ok": true
+      }
+    ]
+  },
+  "summary": {
+    "total": 40,
+    "passed": 36,
+    "failed": 3,
+    "errored": 1
+  },
+  "results": [
+    {
+      "testCaseId": "TC-004",
+      "status": "failed",
+      "durationMs": 2300,
+      "error": {
+        "message": "E1\n\nExpected: visible\nReceived: hidden",
+        "expectationId": "E1",
+        "stack": "..."
+      },
+      "artifacts": {
+        "screenshot": "artifacts/TC-004/screenshot.png",
+        "trace": "artifacts/TC-004/trace.zip",
+        "dom": "artifacts/TC-004/dom.html",
+        "network": "artifacts/TC-004/network.json",
+        "console": "artifacts/TC-004/console.log"
+      }
+    }
+  ]
+}

@@ -292,6 +292,89 @@ export type ScriptManifest = z.infer<typeof ScriptManifest>;
 export type ScriptManifestEntry = z.infer<typeof ScriptManifestEntry>;
 
 // ---------------------------------------------------------------------------
+// Module 4 — execution request and results.json
+// ---------------------------------------------------------------------------
+
+/** Env values for an override: a string sets the variable, null removes it. */
+const EnvOverride = z.record(z.string(), z.string().nullable());
+
+/** Values merged over the target config for one execution (used by environment variants). */
+export const ConfigOverride = z.strictObject({
+  backend: z.strictObject({ env: EnvOverride.optional() }).optional(),
+  frontend: z.strictObject({ env: EnvOverride.optional() }).optional(),
+  lifecycle: z.strictObject({ startupTimeoutMs: z.number().int().positive().optional() }).optional(),
+});
+
+export const ExecutionRequest = z.object({
+  execId: ExecId,
+  ref: z.string().min(1),
+  scriptsDir: RelPath.optional(),
+  configOverride: ConfigOverride.optional(),
+  skipSeed: z.boolean().optional(),
+});
+
+export const TestStatus = z.enum(['passed', 'failed', 'errored']);
+
+export const HealthCheckResult = z.object({
+  name: z.string().min(1),
+  url: z.url(),
+  ok: z.boolean(),
+  elapsedMs: DurationMs,
+});
+
+export const SeedResult = z.object({
+  request: z.string().min(1),
+  /** null when no HTTP response came back (e.g. connection refused). */
+  status: z.number().int().nullable(),
+  ok: z.boolean(),
+});
+
+export const TestArtifacts = z.object({
+  screenshot: RelPath.optional(),
+  trace: RelPath.optional(),
+  dom: RelPath.optional(),
+  network: RelPath.optional(),
+  console: RelPath.optional(),
+});
+
+export const TestResult = z.object({
+  testCaseId: ScriptTestId,
+  status: TestStatus,
+  durationMs: DurationMs,
+  error: z
+    .object({
+      message: z.string(),
+      expectationId: ExpectationId.nullable().optional(),
+      stack: z.string().optional(),
+    })
+    .optional(),
+  artifacts: TestArtifacts,
+});
+
+export const ExecutionResults = z.object({
+  schemaVersion: SchemaVersion,
+  execId: ExecId,
+  startedAt: Timestamp,
+  finishedAt: Timestamp,
+  environment: z.object({
+    healthChecks: z.array(HealthCheckResult),
+    seed: z.array(SeedResult),
+  }),
+  summary: z.object({
+    total: z.number().int().nonnegative(),
+    passed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    errored: z.number().int().nonnegative(),
+  }),
+  results: z.array(TestResult),
+});
+
+export type ConfigOverride = z.infer<typeof ConfigOverride>;
+export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
+export type ExecutionResults = z.infer<typeof ExecutionResults>;
+export type TestResult = z.infer<typeof TestResult>;
+
+// ---------------------------------------------------------------------------
 // run.json
 // ---------------------------------------------------------------------------
 
