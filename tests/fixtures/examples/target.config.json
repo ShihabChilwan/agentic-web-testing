@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0",
+  "name": "mern-ecommerce",
+  "repoPath": "targets/mern-ecommerce/repo",
+  "repoUrl": "https://github.com/mohamedsamara/mern-ecommerce",
+  "goldenRef": "golden",
+  "backend": {
+    "cwd": "server",
+    "install": "npm ci",
+    "start": "npm start",
+    "baseUrl": "http://localhost:3000",
+    "apiPrefix": "/api",
+    "healthCheckUrl": "http://localhost:3000/api/product/list",
+    "env": {
+      "PORT": "3000",
+      "MONGO_URI": "mongodb://mongo:27017/mern_ecommerce_test",
+      "JWT_SECRET": "test-secret",
+      "CLIENT_URL": "http://localhost:8080",
+      "BASE_API_URL": "api"
+    },
+    "disabledServices": {
+      "MAILCHIMP_KEY": "",
+      "MAILGUN_KEY": "",
+      "GOOGLE_CLIENT_ID": "",
+      "FACEBOOK_APP_ID": "",
+      "AWS_ACCESS_KEY_ID": "",
+      "AWS_SECRET_ACCESS_KEY": ""
+    }
+  },
+  "frontend": {
+    "cwd": "client",
+    "install": "npm ci",
+    "start": "npm run dev",
+    "baseUrl": "http://localhost:8080",
+    "healthCheckUrl": "http://localhost:8080",
+    "env": {
+      "API_URL": "http://localhost:3000/api",
+      "NODE_OPTIONS": "--openssl-legacy-provider"
+    }
+  },
+  "lifecycle": {
+    "reset": "mongosh \"mongodb://mongo:27017/mern_ecommerce_test\" --quiet --eval \"db.dropDatabase()\"",
+    "resetCwd": ".",
+    "seedCommand": "npm run seed:db admin@example.com admin123",
+    "seedCwd": ".",
+    "startupTimeoutMs": 180000
+  },
+  "fixtures": {
+    "users": {
+      "admin": {
+        "email": "admin@example.com",
+        "password": "admin123",
+        "role": "admin"
+      },
+      "alice": {
+        "email": "alice@example.test",
+        "password": "Passw0rd!alice",
+        "firstName": "Alice",
+        "lastName": "Test",
+        "role": "member"
+      },
+      "bob": {
+        "email": "bob@example.test",
+        "password": "Passw0rd!bob",
+        "firstName": "Bob",
+        "lastName": "Test",
+        "role": "member"
+      }
+    }
+  },
+  "seed": [
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "body": {
+        "email": "{{fixtures.users.alice.email}}",
+        "firstName": "{{fixtures.users.alice.firstName}}",
+        "lastName": "{{fixtures.users.alice.lastName}}",
+        "password": "{{fixtures.users.alice.password}}",
+        "isSubscribed": false
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "body": {
+        "email": "{{fixtures.users.bob.email}}",
+        "firstName": "{{fixtures.users.bob.firstName}}",
+        "lastName": "{{fixtures.users.bob.lastName}}",
+        "password": "{{fixtures.users.bob.password}}",
+        "isSubscribed": false
+      }
+    }
+  ],
+  "sourceHints": {
+    "include": [
+      "README.md",
+      "server/**",
+      "client/app/**"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/*.test.*",
+      "**/dist/**",
+      "**/build/**"
+    ]
+  },
+  "forbiddenPaths": []
+}

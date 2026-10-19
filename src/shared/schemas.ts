@@ -57,6 +57,63 @@ export type ReasoningEffort = z.infer<typeof ReasoningEffort>;
 export type LLMProvider = z.infer<typeof LLMProvider>;
 
 // ---------------------------------------------------------------------------
+// Target configuration — hand-written, so unknown keys are rejected
+// ---------------------------------------------------------------------------
+
+const ServiceConfig = z.strictObject({
+  cwd: z.string(),
+  install: z.string().min(1),
+  start: z.string().min(1),
+  baseUrl: z.url(),
+  healthCheckUrl: z.url(),
+  env: EnvMap,
+});
+
+export const FixtureUser = z.looseObject({
+  email: z.string().min(1),
+  password: z.string().min(1),
+  role: z.string().min(1),
+});
+
+export const SeedRequest = z.strictObject({
+  method: HttpMethod,
+  path: z.string().startsWith('/'),
+  body: z.unknown().optional(),
+});
+
+export const TargetConfig = z.strictObject({
+  schemaVersion: SchemaVersion,
+  name: z.string().regex(/^[a-z0-9-]+$/, 'target name must be lowercase letters, digits and dashes'),
+  repoPath: RelPath,
+  repoUrl: z.url(),
+  goldenRef: z.string().min(1),
+  backend: ServiceConfig.extend({
+    apiPrefix: z.string(),
+    disabledServices: EnvMap.default({}),
+  }),
+  frontend: ServiceConfig,
+  lifecycle: z.strictObject({
+    reset: z.string().min(1),
+    resetCwd: z.string(),
+    seedCommand: z.string().min(1).optional(),
+    seedCwd: z.string().optional(),
+    startupTimeoutMs: z.number().int().positive(),
+  }),
+  fixtures: z.looseObject({
+    users: z.record(z.string(), FixtureUser),
+  }),
+  seed: z.array(SeedRequest),
+  sourceHints: z.strictObject({
+    include: z.array(z.string()),
+    exclude: z.array(z.string()),
+  }),
+  forbiddenPaths: z.array(z.string()),
+});
+
+export type TargetConfig = z.infer<typeof TargetConfig>;
+export type FixtureUser = z.infer<typeof FixtureUser>;
+
+// ---------------------------------------------------------------------------
 // LLM call log — one line of runs/<runId>/llm-calls.jsonl
 // ---------------------------------------------------------------------------
 
