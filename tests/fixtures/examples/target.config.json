@@ -95,6 +95,11 @@
       }
     }
   ],
+  "seedCheck": {
+    "method": "GET",
+    "path": "/api/product/list?sortOrder=%7B%22_id%22%3A-1%7D&min=1&max=2500&rating=0&page=1&limit=10",
+    "expect": { "status": 200, "nonEmptyArrayAt": "products" }
+  },
   "sourceHints": {
     "include": ["README.md", "server/**", "client/app/**"],
     "exclude": ["**/node_modules/**", "**/*.test.*", "**/dist/**", "**/build/**"]

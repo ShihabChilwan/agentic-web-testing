@@ -18,7 +18,22 @@ describe('target.config.json', () => {
     );
   });
 
-  it('rejects a target missing backend or frontend', () => {
+  it('validates the optional seedCheck', () => {
+    expect(TargetConfig.parse(config).seedCheck?.expect.nonEmptyArrayAt).toBe('products');
+    const { seedCheck: _s, ...noCheck } = config;
+    expect(TargetConfig.parse(noCheck).seedCheck).toBeUndefined();
+    const withExpect = (expect: unknown) => ({ ...config, seedCheck: { ...config.seedCheck, expect } });
+    expect(errorPaths(TargetConfig, withExpect({ status: 200, nonEmptyArrayAt: 'a..b' }))).toContain(
+      'seedCheck.expect.nonEmptyArrayAt',
+    );
+    expect(errorPaths(TargetConfig, withExpect({ status: 200, minItems: 1 }))).toContain('seedCheck.expect');
+    expect(errorPaths(TargetConfig, withExpect({}))).toContain('seedCheck.expect.status');
+    expect(errorPaths(TargetConfig, { ...config, seedCheck: { ...config.seedCheck, path: 'api/x' } })).toContain(
+      'seedCheck.path',
+    );
+  });
+
+    it('rejects a target missing backend or frontend', () => {
     const { frontend: _f, ...noFrontend } = config;
     expect(errorPaths(TargetConfig, noFrontend)).toContain('frontend');
   });

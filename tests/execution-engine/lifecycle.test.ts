@@ -5,7 +5,12 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startTarget, withTarget, type StartOptions } from '../../src/modules/execution-engine/lifecycle.js';
+import {
+  isCleanStart,
+  startTarget,
+  withTarget,
+  type StartOptions,
+} from '../../src/modules/execution-engine/lifecycle.js';
 import { isPortInUse } from '../../src/modules/execution-engine/ports.js';
 import { TargetConfig } from '../../src/shared/schemas.js';
 
@@ -21,6 +26,11 @@ http.createServer((req, res) => {
   req.on('data', (c) => (body += c));
   req.on('end', () => {
     if (body) fs.appendFileSync('requests.log', body + '\\n');
+    if (req.url === '/items' || req.url === '/empty') {
+      const seeded = req.url === '/items' && fs.existsSync('requests.log');
+      const items = seeded ? fs.readFileSync('requests.log', 'utf8').trim().split('\\n') : [];
+      return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data: { items } }));
+    }
     res.writeHead(200).end('ok');
   });
 }).listen(Number(process.env.PORT), '127.0.0.1');
@@ -112,6 +122,7 @@ beforeAll(async () => {
   git('add', '.');
   git('commit', '--quiet', '-m', 'fake app');
   git('branch', 'golden');
+  git('branch', 'variant');
 });
 
 afterAll(async () => {
@@ -213,6 +224,68 @@ describe('startTarget', () => {
     setTimeout(() => controller.abort(), 500);
     await expect(startTarget(neverReady, options({ signal: controller.signal }))).rejects.toThrow(/aborted/);
     expect(await portsFree()).toBe(true);
+  });
+
+  const itemsCheck = (path: string) => ({ method: 'GET', path, expect: { status: 200, nonEmptyArrayAt: 'data.items' } });
+
+  it('passes the seed check when the seeded data is there and records it', async () => {
+    const config = makeConfig((c) => (c.seedCheck = itemsCheck('/items')));
+    await withTarget(config, options(), async (target) => {
+      expect(target.seedCheck).toEqual({ ok: true, status: 200, detail: 'ok' });
+    });
+    expect(await readFile(path.join(logsDir, 'setup.log'), 'utf8')).toContain('[seed check] GET /items: ok');
+  });
+
+  it('on a clean start, a failed seed check fails the start and stops the services', async () => {
+    const config = makeConfig((c) => (c.seedCheck = itemsCheck('/empty')));
+    await expect(startTarget(config, options())).rejects.toThrow(
+      'Seed check failed: GET /empty: expected a non-empty array at "data.items", got an empty one',
+    );
+    expect(await portsFree()).toBe(true);
+  });
+
+  it('on any other start, a failed seed check is recorded and the start continues', async () => {
+    const config = makeConfig((c) => (c.seedCheck = itemsCheck('/empty')));
+    const failed = { ok: false, status: 200, detail: 'expected a non-empty array at "data.items", got an empty one' };
+    const nonClean: Partial<StartOptions>[] = [
+      { ref: 'variant' },
+      { configOverride: { backend: { env: { MAIL_KEY: 'x' } } } },
+      { generationRef: 'variant' }, // golden is then not this run's generation ref
+    ];
+    for (const extra of nonClean) {
+      await withTarget(config, options(extra), async (target) => {
+        expect(target.seedCheck).toEqual(failed);
+        expect(target.healthChecks.every((c) => c.ok)).toBe(true);
+      });
+    }
+    expect(await portsFree()).toBe(true);
+  });
+
+  it('skips the seed check when the backend is unhealthy or seeding is skipped', async () => {
+    const deadBackend = makeConfig((c) => {
+      c.seedCheck = itemsCheck('/empty');
+      c.backend.start = 'exit 1';
+    });
+    await withTarget(deadBackend, options(), async (target) => {
+      expect(target.healthChecks[0]?.ok).toBe(false);
+      expect(target).not.toHaveProperty('seedCheck');
+    });
+    const config = makeConfig((c) => (c.seedCheck = itemsCheck('/empty')));
+    await withTarget(config, options({ skipSeed: true }), async (target) => {
+      expect(target).not.toHaveProperty('seedCheck');
+    });
+  });
+
+  it('isCleanStart: generation ref, no override, no skipSeed', () => {
+    const config = makeConfig();
+    expect(isCleanStart(config, options())).toBe(true);
+    expect(isCleanStart(config, options({ ref: 'variant', generationRef: 'variant' }))).toBe(true);
+    expect(isCleanStart(config, options({ ref: 'variant' }))).toBe(false);
+    expect(isCleanStart(config, options({ configOverride: {} }))).toBe(true); // changes nothing
+    expect(isCleanStart(config, options({ configOverride: { backend: { env: {} } } }))).toBe(true);
+    expect(isCleanStart(config, options({ configOverride: { backend: { env: { JWT_SECRET: null } } } }))).toBe(false);
+    expect(isCleanStart(config, options({ configOverride: { lifecycle: { startupTimeoutMs: 5000 } } }))).toBe(false);
+    expect(isCleanStart(config, options({ skipSeed: true }))).toBe(false);
   });
 
   it('fails when the reset command fails, before starting anything', async () => {

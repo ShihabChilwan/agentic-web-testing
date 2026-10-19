@@ -3,14 +3,20 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import type { ConfigOverride, HealthCheckResult, SeedResult, TargetConfig } from '../../shared/schemas.js';
+import type {
+  ConfigOverride,
+  HealthCheckResult,
+  SeedCheckResult,
+  SeedResult,
+  TargetConfig,
+} from '../../shared/schemas.js';
 import { childEnv, formatEnvFile, serviceEnv, type ServiceName } from './env.js';
 import { waitForHealthy } from './health.js';
 import { installIfNeeded } from './install.js';
 import { fillPlaceholders } from './placeholders.js';
 import { assertPortsFree } from './ports.js';
 import { runCommand, startService, stopProcessGroup, type ServiceProcess } from './processes.js';
-import { sendSeedRequests } from './seed.js';
+import { runSeedCheck, sendSeedRequests } from './seed.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +34,8 @@ export interface StartOptions {
   logsDir: string;
   configOverride?: ConfigOverride;
   skipSeed?: boolean;
+  /** The run's generation ref (defaults to the config's goldenRef); a start at this ref with no override is "clean". */
+  generationRef?: string;
   /** Aborting stops whatever is running and makes startTarget throw (after stopping the services). */
   signal?: AbortSignal;
   /** Progress messages for a human. */
@@ -38,6 +46,8 @@ export interface RunningTarget {
   commit: string;
   healthChecks: HealthCheckResult[];
   seed: SeedResult[];
+  /** Absent when the target has no seedCheck or the check was skipped. */
+  seedCheck?: SeedCheckResult;
   services: ServiceProcess[];
   /** Stops every service's process group. Safe to call more than once. */
   stop(): Promise<void>;
@@ -53,14 +63,31 @@ async function git(repoDir: string, args: string[]): Promise<string> {
   }
 }
 
+/** True when the override sets or removes anything (an empty override changes nothing). */
+function changesConfig(override?: ConfigOverride): boolean {
+  if (!override) return false;
+  const envKeys = Object.keys(override.backend?.env ?? {}).length + Object.keys(override.frontend?.env ?? {}).length;
+  return envKeys > 0 || override.lifecycle?.startupTimeoutMs !== undefined;
+}
+
+/** The generation ref with nothing changed: Stage 1, dry runs and the golden execution. */
+export function isCleanStart(config: TargetConfig, options: StartOptions): boolean {
+  return (
+    options.ref === (options.generationRef ?? config.goldenRef) &&
+    !changesConfig(options.configOverride) &&
+    !options.skipSeed
+  );
+}
+
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error('Target start was aborted');
 }
 
 /**
  * SPEC §7.1 steps 1–6: checkout, install when the lockfile changed, reset, seed command,
- * start backend and frontend, health checks, seed requests. Health-check and seed failures
- * are recorded, not thrown. If anything throws, the services already started are stopped first.
+ * start backend and frontend, health checks, seed requests, seed check. Health-check and seed-request
+ * failures are recorded, not thrown; a failed seed check throws only on a clean start (isCleanStart).
+ * If anything throws, the services already started are stopped first.
  */
 export async function startTarget(config: TargetConfig, options: StartOptions): Promise<RunningTarget> {
   const { repoDir, logsDir, configOverride, signal } = options;
@@ -156,7 +183,26 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     throwIfAborted(signal);
 
     const seed = options.skipSeed ? [] : await sendSeedRequests(config.backend.baseUrl, config.seed, config.fixtures);
-    return { commit, healthChecks, seed, services, stop };
+
+    // A seed script can fail and still exit 0, so one request proves the data is there. Skipped when the
+    // backend is unhealthy: then the broken environment itself is what the tests should see.
+    let seedCheck: SeedCheckResult | undefined;
+    const backendHealthy = healthChecks.find((c) => c.name === 'backend')?.ok === true;
+    if (config.seedCheck && !options.skipSeed && backendHealthy) {
+      const { method, path: checkPath } = config.seedCheck;
+      seedCheck = await runSeedCheck(config.backend.baseUrl, config.seedCheck, config.fixtures);
+      appendFileSync(setupLog, `[seed check] ${method} ${checkPath}: ${seedCheck.detail}\n`);
+      if (!seedCheck.ok) {
+        const message = `Seed check failed: ${method} ${checkPath}: ${seedCheck.detail}`;
+        // Only a clean start can blame the seed. On a variant or an environment fault, the app's own bug
+        // may be what broke the check, so it is recorded and the tests still run.
+        if (isCleanStart(config, options)) throw new Error(`${message}. See ${setupLog}`);
+        log(`Warning: ${message}; recorded, continuing`);
+      } else {
+        log('Seed check passed');
+      }
+    }
+    return { commit, healthChecks, seed, ...(seedCheck && { seedCheck }), services, stop };
   } catch (err) {
     await stop();
     throw err;

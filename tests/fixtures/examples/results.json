@@ -24,7 +24,12 @@
         "status": 200,
         "ok": true
       }
-    ]
+    ],
+    "seedCheck": {
+      "ok": true,
+      "status": 200,
+      "detail": "ok"
+    }
   },
   "summary": {
     "total": 40,

@@ -83,6 +83,18 @@ export const SeedRequest = z.strictObject({
   body: z.unknown().optional(),
 });
 
+/** One request after seeding that proves the seed worked; a failed check stops the start. */
+export const SeedCheck = z.strictObject({
+  method: HttpMethod,
+  path: z.string().startsWith('/'),
+  body: z.unknown().optional(),
+  expect: z.strictObject({
+    status: z.number().int().min(100).max(599),
+    /** Dot path into the JSON response (e.g. `products` or `data.items`) that must hold a non-empty array. */
+    nonEmptyArrayAt: z.string().regex(/^[^.]+(\.[^.]+)*$/, 'expected a dot path like products or data.items').optional(),
+  }),
+});
+
 export const TargetConfig = z.strictObject({
   schemaVersion: SchemaVersion,
   name: z.string().regex(/^[a-z0-9-]+$/, 'target name must be lowercase letters, digits and dashes'),
@@ -105,6 +117,7 @@ export const TargetConfig = z.strictObject({
     users: z.record(z.string(), FixtureUser),
   }),
   seed: z.array(SeedRequest),
+  seedCheck: SeedCheck.optional(),
   sourceHints: z.strictObject({
     include: z.array(z.string()),
     exclude: z.array(z.string()),
@@ -114,6 +127,7 @@ export const TargetConfig = z.strictObject({
 
 export type TargetConfig = z.infer<typeof TargetConfig>;
 export type FixtureUser = z.infer<typeof FixtureUser>;
+export type SeedCheck = z.infer<typeof SeedCheck>;
 
 // ---------------------------------------------------------------------------
 // LLM call log — one line of runs/<runId>/llm-calls.jsonl
@@ -351,6 +365,15 @@ export const SeedResult = z.object({
   ok: z.boolean(),
 });
 
+/** Outcome of the target's seedCheck (§1.2); recorded on every start where the check ran. */
+export const SeedCheckResult = z.object({
+  ok: z.boolean(),
+  /** null when no HTTP response came back. */
+  status: z.number().int().nullable(),
+  /** "ok", or what was wrong (status, response excerpt or missing array). */
+  detail: z.string(),
+});
+
 export const TestArtifacts = z.object({
   screenshot: RelPath.optional(),
   trace: RelPath.optional(),
@@ -381,6 +404,8 @@ export const ExecutionResults = z.object({
   environment: z.object({
     healthChecks: z.array(HealthCheckResult),
     seed: z.array(SeedResult),
+    /** Absent when the target has no seedCheck or the check was skipped. */
+    seedCheck: SeedCheckResult.optional(),
   }),
   summary: z.object({
     total: z.number().int().nonnegative(),
@@ -397,6 +422,7 @@ export type ExecutionResults = z.infer<typeof ExecutionResults>;
 export type TestResult = z.infer<typeof TestResult>;
 export type HealthCheckResult = z.infer<typeof HealthCheckResult>;
 export type SeedResult = z.infer<typeof SeedResult>;
+export type SeedCheckResult = z.infer<typeof SeedCheckResult>;
 
 // ---------------------------------------------------------------------------
 // Module 5 — diagnoses.json

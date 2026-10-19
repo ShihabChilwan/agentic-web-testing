@@ -32,6 +32,17 @@ describe('results.json', () => {
     expect(ExecutionResults.safeParse(r).success).toBe(true);
   });
 
+  it('accepts results with or without a seed check, including one with no response', () => {
+    const r = structuredClone(results);
+    expect(ExecutionResults.parse(r).environment.seedCheck).toEqual({ ok: true, status: 200, detail: 'ok' });
+    r.environment.seedCheck = { ok: false, status: null, detail: 'no response (connect ECONNREFUSED)' };
+    expect(ExecutionResults.safeParse(r).success).toBe(true);
+    delete r.environment.seedCheck;
+    expect(ExecutionResults.safeParse(r).success).toBe(true);
+    r.environment.seedCheck = { ok: false, status: 200 };
+    expect(errorPaths(ExecutionResults, r)).toContain('environment.seedCheck.detail');
+  });
+
   it('rejects unknown statuses and unsafe execution ids', () => {
     const r = structuredClone(results);
     r.results[0].status = 'skipped';

@@ -68,7 +68,12 @@ try {
   for (const seed of target.seed) {
     console.log(`seed    ${seed.ok ? 'ok  ' : 'FAIL'}  ${String(seed.status ?? 'no response').padEnd(9)} ${seed.request}`);
   }
-  const allOk = target.healthChecks.every((c) => c.ok) && target.seed.every((s) => s.ok);
+  if (target.seedCheck) {
+    const { ok, status, detail } = target.seedCheck;
+    console.log(`check   ${ok ? 'ok  ' : 'FAIL'}  ${String(status ?? 'no response').padEnd(9)} seed check: ${detail}`);
+  }
+  const allOk =
+    target.healthChecks.every((c) => c.ok) && target.seed.every((s) => s.ok) && target.seedCheck?.ok !== false;
   if (!allOk) process.exitCode = 1;
 
   if (values.hold && !controller.signal.aborted) {
