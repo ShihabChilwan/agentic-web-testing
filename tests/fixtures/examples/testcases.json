@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-10-24T10:20:00Z",
+  "testCases": [
+    {
+      "id": "TC-004",
+      "requirementIds": [
+        "REQ-002"
+      ],
+      "title": "Login with a wrong password is rejected",
+      "layer": "ui",
+      "category": "error-handling",
+      "priority": "high",
+      "preconditions": [
+        "fixture user alice exists"
+      ],
+      "fixturesUsed": [
+        "users.alice"
+      ],
+      "steps": [
+        "Open /login",
+        "Enter alice's email and a wrong password",
+        "Submit the form"
+      ],
+      "expected": [
+        {
+          "id": "E1",
+          "description": "An error message is visible"
+        },
+        {
+          "id": "E2",
+          "description": "The URL still ends with /login",
+          "value": "/login"
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "requirementsTotal": 42,
+    "requirementsCovered": 40,
+    "uncovered": [
+      {
+        "requirementId": "REQ-017",
+        "reason": "Requires email delivery (third-party integration, out of scope)."
+      }
+    ]
+  }
+}

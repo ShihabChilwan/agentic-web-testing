@@ -203,6 +203,57 @@ export type Prd = z.infer<typeof Prd>;
 export type PrdRequirement = z.infer<typeof PrdRequirement>;
 
 // ---------------------------------------------------------------------------
+// Module 2 — testcases.json
+// ---------------------------------------------------------------------------
+
+export const MAX_TEST_CASES = 150;
+export const MAX_TEST_CASES_PER_REQUIREMENT = 4;
+
+export const TestLayer = z.enum(['api', 'ui']);
+export const TestCategory = z.enum(['functional', 'boundary', 'error-handling', 'auth', 'e2e-journey']);
+
+export const Expectation = z.object({
+  id: ExpectationId,
+  description: z.string().min(1),
+  value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+});
+
+export const TestCase = z.object({
+  id: TestCaseId,
+  requirementIds: z.array(RequirementId).min(1),
+  title: z.string().min(1),
+  layer: TestLayer,
+  category: TestCategory,
+  priority: Priority,
+  preconditions: z.array(z.string()),
+  fixturesUsed: z.array(z.string()),
+  steps: z.array(z.string().min(1)).min(1),
+  expected: z.array(Expectation).min(1),
+});
+
+export const TestCaseCoverage = z.object({
+  requirementsTotal: z.number().int().nonnegative(),
+  requirementsCovered: z.number().int().nonnegative(),
+  uncovered: z.array(
+    z.object({
+      requirementId: RequirementId,
+      reason: z.string().min(1),
+    }),
+  ),
+});
+
+export const TestCases = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  testCases: z.array(TestCase).max(MAX_TEST_CASES),
+  coverage: TestCaseCoverage,
+});
+
+export type TestCase = z.infer<typeof TestCase>;
+export type TestCases = z.infer<typeof TestCases>;
+export type Expectation = z.infer<typeof Expectation>;
+
+// ---------------------------------------------------------------------------
 // run.json
 // ---------------------------------------------------------------------------
 
