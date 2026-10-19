@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "mern-ecommerce-20261024-100000",
+  "target": "mern-ecommerce",
+  "generationRef": "golden",
+  "generationCommit": "abc1234",
+  "createdAt": "2026-10-24T10:00:00Z",
+  "llm": {
+    "provider": "openai-compatible",
+    "models": {
+      "prd": "openai/gpt-oss-120b",
+      "cases": "openai/gpt-oss-120b",
+      "scripts": "openai/gpt-oss-120b",
+      "analyzer": "openai/gpt-oss-120b"
+    },
+    "temperature": 1,
+    "topP": 1,
+    "reasoningEffort": {
+      "prd": "medium",
+      "cases": "low",
+      "scripts": "medium",
+      "analyzer": "high"
+    },
+    "concurrency": 4
+  },
+  "stages": {
+    "prd": {
+      "status": "done",
+      "startedAt": "2026-10-24T10:00:00Z",
+      "finishedAt": "2026-10-24T10:05:00Z"
+    },
+    "cases": {
+      "status": "done",
+      "startedAt": "2026-10-24T10:05:00Z",
+      "finishedAt": "2026-10-24T10:12:00Z"
+    },
+    "scripts": {
+      "status": "running",
+      "startedAt": "2026-10-24T10:12:00Z"
+    }
+  },
+  "executions": [
+    {
+      "execId": "golden",
+      "ref": "golden",
+      "commit": "abc1234",
+      "executeStatus": "done",
+      "analyzeStatus": "pending"
+    }
+  ]
+}

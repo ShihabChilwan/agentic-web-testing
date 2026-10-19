@@ -1,0 +1,13 @@
+{
+  "ts": "2026-10-24T10:00:00Z",
+  "purpose": "prd",
+  "provider": "openai-compatible",
+  "model": "openai/gpt-oss-120b",
+  "reasoningEffort": "medium",
+  "inputTokens": 5120,
+  "outputTokens": 890,
+  "latencyMs": 7400,
+  "ok": true,
+  "attempts": 1,
+  "costUsd": null
+}
