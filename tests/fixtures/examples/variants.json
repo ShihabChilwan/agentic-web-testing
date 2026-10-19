@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "goldenRef": "golden",
+  "goldenCommit": "abc1234",
+  "method": "stryker",
+  "seed": 20261024,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "branch": "bug-001",
+      "patch": "variants/bug-001.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        39,
+        39
+      ],
+      "original": "if (!isMatch) {",
+      "mutated": "if (isMatch) {",
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "env-01",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "MONGO_URI": "mongodb://mongo:27999/mern_ecommerce_test"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "Backend cannot reach the database.",
+      "expectedClassification": "environment_issue"
+    }
+  ]
+}

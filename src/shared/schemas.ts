@@ -489,3 +489,79 @@ export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
 export type RunExecution = z.infer<typeof RunExecution>;
 export type RunManifest = z.infer<typeof RunManifest>;
+
+// ---------------------------------------------------------------------------
+// targets/<name>/variants.json — written by the evaluation harness or by hand
+// ---------------------------------------------------------------------------
+
+export const CodeVariant = z.strictObject({
+  id: CodeVariantId,
+  kind: z.literal('code'),
+  branch: z.string().min(1),
+  patch: RelPath,
+  layer: z.enum(['backend', 'frontend']),
+  /** null only for hand-seeded bugs (method "manual"). */
+  mutator: z.string().min(1).nullable(),
+  file: RelPath,
+  lines: LineRange,
+  original: z.string(),
+  mutated: z.string(),
+  expectedClassification: Classification,
+});
+
+export const EnvironmentVariant = z.strictObject({
+  id: EnvVariantId,
+  kind: z.literal('environment'),
+  configOverride: ConfigOverride.optional(),
+  skipSeed: z.boolean().default(false),
+  description: z.string().min(1),
+  expectedClassification: Classification,
+});
+
+export const Variant = z.discriminatedUnion('kind', [CodeVariant, EnvironmentVariant]);
+
+export const Variants = z
+  .strictObject({
+    schemaVersion: SchemaVersion,
+    target: z.string().min(1),
+    goldenRef: z.string().min(1),
+    goldenCommit: CommitSha,
+    method: z.enum(['stryker', 'manual']),
+    /** null only for method "manual". */
+    seed: z.number().int().nullable(),
+    variants: z.array(Variant),
+  })
+  .superRefine((v, ctx) => {
+    if (v.method === 'manual') return;
+    if (v.seed === null) {
+      ctx.addIssue({ code: 'custom', message: 'seed may be null only when method is "manual"', path: ['seed'] });
+    }
+    v.variants.forEach((variant, i) => {
+      if (variant.kind === 'code' && variant.mutator === null) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'mutator may be null only when method is "manual"',
+          path: ['variants', i, 'mutator'],
+        });
+      }
+    });
+  });
+
+export type Variant = z.infer<typeof Variant>;
+export type Variants = z.infer<typeof Variants>;
+
+// ---------------------------------------------------------------------------
+// One-prompt ablation submission
+// ---------------------------------------------------------------------------
+
+export const OnePromptScript = z.object({
+  id: OnePromptScriptId,
+  title: z.string().min(1),
+  code: z.string().min(1),
+});
+
+export const OnePromptSubmission = z.object({
+  scripts: z.array(OnePromptScript).min(1).max(MAX_TEST_CASES),
+});
+
+export type OnePromptScript = z.infer<typeof OnePromptScript>;
