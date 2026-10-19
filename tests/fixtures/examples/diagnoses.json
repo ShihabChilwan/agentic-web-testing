@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "execId": "x-07",
+  "mode": "full",
+  "generatedAt": "2026-10-28T09:06:00Z",
+  "diagnoses": [
+    {
+      "id": "DX-001",
+      "testCaseIds": [
+        "TC-004",
+        "TC-005"
+      ],
+      "classification": "app_defect",
+      "confidence": 0.8,
+      "summary": "Login accepts an incorrect password.",
+      "rootCause": "The password check in the login handler is inverted, so a mismatched password is treated as correct.",
+      "location": {
+        "file": "server/routes/api/auth.js",
+        "lines": [
+          38,
+          40
+        ]
+      },
+      "evidence": [
+        {
+          "source": "network",
+          "detail": "POST /api/auth/login with a wrong password returned 200."
+        },
+        {
+          "source": "code",
+          "detail": "auth.js:39 continues when the password does not match."
+        }
+      ],
+      "violatedRequirementIds": [
+        "REQ-002"
+      ],
+      "suggestedFix": {
+        "description": "Negate the comparison so a mismatch returns 400.",
+        "patch": "--- a/server/routes/api/auth.js\n+++ b/server/routes/api/auth.js\n..."
+      },
+      "toolCalls": 9,
+      "durationMs": 41000
+    }
+  ]
+}

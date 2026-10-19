@@ -375,6 +375,65 @@ export type ExecutionResults = z.infer<typeof ExecutionResults>;
 export type TestResult = z.infer<typeof TestResult>;
 
 // ---------------------------------------------------------------------------
+// Module 5 — diagnoses.json
+// ---------------------------------------------------------------------------
+
+export const Classification = z.enum(['app_defect', 'environment_issue', 'test_defect', 'inconclusive']);
+export const EvidenceSource = z.enum([
+  'network',
+  'console',
+  'dom',
+  'server_log',
+  'code',
+  'requirement',
+  'test',
+  'environment',
+]);
+export const DiagnosisMode = z.enum(['full', 'no-tools']);
+
+export const Diagnosis = z
+  .object({
+    id: DiagnosisId,
+    testCaseIds: z.array(ScriptTestId).min(1),
+    classification: Classification,
+    confidence: z.number().min(0).max(1),
+    summary: z.string().min(1),
+    rootCause: z.string().min(1),
+    location: Evidence.nullish(),
+    evidence: z.array(
+      z.object({
+        source: EvidenceSource,
+        detail: z.string().min(1),
+      }),
+    ),
+    violatedRequirementIds: z.array(RequirementId),
+    suggestedFix: z
+      .object({
+        description: z.string().min(1),
+        patch: z.string().optional(),
+      })
+      .nullish(),
+    toolCalls: z.number().int().nonnegative(),
+    durationMs: DurationMs,
+  })
+  .refine((d) => d.classification !== 'app_defect' || d.location != null, {
+    message: 'location is required for app_defect',
+    path: ['location'],
+  });
+
+export const Diagnoses = z.object({
+  schemaVersion: SchemaVersion,
+  execId: ExecId,
+  mode: DiagnosisMode,
+  generatedAt: Timestamp,
+  diagnoses: z.array(Diagnosis),
+});
+
+export type Classification = z.infer<typeof Classification>;
+export type Diagnosis = z.infer<typeof Diagnosis>;
+export type Diagnoses = z.infer<typeof Diagnoses>;
+
+// ---------------------------------------------------------------------------
 // run.json
 // ---------------------------------------------------------------------------
 
