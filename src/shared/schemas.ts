@@ -254,6 +254,44 @@ export type TestCases = z.infer<typeof TestCases>;
 export type Expectation = z.infer<typeof Expectation>;
 
 // ---------------------------------------------------------------------------
+// Module 3 — scripts/manifest.json (also used by the one-prompt ablation)
+// ---------------------------------------------------------------------------
+
+export const ScriptStatus = z.enum(['validated', 'invalid']);
+export const ValidationOutcome = z.enum(['passed', 'assertion_failed']);
+export const AttemptStage = z.enum(['typecheck', 'lock-check', 'dry-run']);
+
+export const ScriptAttempt = z.object({
+  attempt: z.number().int().min(1),
+  stage: AttemptStage,
+  error: z.string().nullable(),
+  durationMs: DurationMs,
+});
+
+export const ScriptManifestEntry = z
+  .object({
+    testCaseId: ScriptTestId,
+    file: RelPath,
+    status: ScriptStatus,
+    validationOutcome: ValidationOutcome.nullable(),
+    attempts: z.number().int().min(1),
+    attemptLog: z.array(ScriptAttempt).min(1),
+  })
+  .refine((s) => (s.status === 'validated') === (s.validationOutcome !== null), {
+    message: 'validationOutcome must be set for validated scripts and null for invalid ones',
+    path: ['validationOutcome'],
+  });
+
+export const ScriptManifest = z.object({
+  schemaVersion: SchemaVersion,
+  generationRef: z.string().min(1),
+  scripts: z.array(ScriptManifestEntry),
+});
+
+export type ScriptManifest = z.infer<typeof ScriptManifest>;
+export type ScriptManifestEntry = z.infer<typeof ScriptManifestEntry>;
+
+// ---------------------------------------------------------------------------
 // run.json
 // ---------------------------------------------------------------------------
 

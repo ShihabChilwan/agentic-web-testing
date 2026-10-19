@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "generationRef": "golden",
+  "scripts": [
+    {
+      "testCaseId": "TC-004",
+      "file": "scripts/TC-004.spec.ts",
+      "status": "validated",
+      "validationOutcome": "passed",
+      "attempts": 2,
+      "attemptLog": [
+        {
+          "attempt": 1,
+          "stage": "dry-run",
+          "error": "locator getByRole('button', { name: 'Login' }) not found",
+          "durationMs": 8200
+        },
+        {
+          "attempt": 2,
+          "stage": "dry-run",
+          "error": null,
+          "durationMs": 3100
+        }
+      ]
+    }
+  ]
+}
