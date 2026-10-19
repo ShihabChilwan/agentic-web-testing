@@ -68,7 +68,7 @@ export class RunLLMClient implements LLMClient {
         if (withEffort && isReasoningEffortRejection(err)) {
           this.reasoningEffortRejected = true;
           (this.deps.warn ?? console.warn)(
-            'The model endpoint rejected reasoning_effort; continuing without it for the rest of this run.',
+            'The model endpoint rejected the reasoning effort parameter; continuing without it for the rest of this run.',
           );
           requests++;
           return await provider.chat(resolved);
@@ -89,15 +89,24 @@ export class RunLLMClient implements LLMClient {
 
     try {
       const response = await withRetry(send, this.deps.retry ?? DEFAULT_RETRY);
-      const cost = costUsd(this.deps.pricing, model, response.usage);
-      budget.add(response.usage.inputTokens + response.usage.outputTokens, cost);
+      const { usage } = response;
+      // Prefer the exact cost the provider reports; fall back to config/pricing.json.
+      const priced = costUsd(this.deps.pricing, model, usage);
+      const cost = usage.costUsd ?? priced;
+      const costSource = usage.costUsd !== undefined ? 'provider' : priced !== null ? 'pricing' : null;
+      budget.add(usage.inputTokens + usage.outputTokens, cost);
       await appendCallLog(this.deps.callLogFile, {
         ...logBase(),
-        inputTokens: response.usage.inputTokens,
-        outputTokens: response.usage.outputTokens,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
         ok: true,
         attempts: requests,
         costUsd: cost,
+        costSource,
+        ...(usage.cachedInputTokens !== undefined ? { cachedInputTokens: usage.cachedInputTokens } : {}),
+        ...(usage.reasoningTokens !== undefined ? { reasoningTokens: usage.reasoningTokens } : {}),
+        ...(response.upstreamProvider ? { upstreamProvider: response.upstreamProvider } : {}),
+        ...(response.systemFingerprint ? { systemFingerprint: response.systemFingerprint } : {}),
       });
       return response;
     } catch (err) {
@@ -110,6 +119,7 @@ export class RunLLMClient implements LLMClient {
         ok: false,
         attempts: Math.max(requests, 1),
         costUsd: null,
+        costSource: null,
         error: safe.message,
       });
       throw safe;
@@ -125,9 +135,17 @@ export class RunLLMClient implements LLMClient {
   }
 }
 
-/** A 400 whose message names reasoning_effort: the endpoint does not accept the parameter. */
+/**
+ * A 400 whose message names the reasoning effort parameter (`reasoning_effort`, or
+ * `reasoning.effort` / an unsupported `reasoning` field): the endpoint does not accept it.
+ */
 export function isReasoningEffortRejection(err: unknown): boolean {
-  return err instanceof LLMRequestError && err.status === 400 && /reasoning[_ ]effort/i.test(err.message);
+  if (!(err instanceof LLMRequestError) || err.status !== 400) return false;
+  return (
+    /reasoning[_ .]effort/i.test(err.message) ||
+    /\breasoning\b.*\b(unsupported|not supported|unrecognized|not allowed|unknown)\b/i.test(err.message) ||
+    /\b(unsupported|unrecognized|unknown)\b.*\breasoning\b/i.test(err.message)
+  );
 }
 
 /**
@@ -161,6 +179,8 @@ function createProvider(config: LLMConfig): ChatProvider {
     baseUrl: config.baseUrl,
     apiKey: config.apiKey,
     extraHeaders: config.extraHeaders,
+    extraBody: config.extraBody,
+    reasoningParam: config.reasoningParam,
     timeoutMs: config.timeoutMs,
   });
 }

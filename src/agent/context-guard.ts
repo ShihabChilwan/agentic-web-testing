@@ -34,8 +34,15 @@ export interface GuardResult {
 /** Rough token count: about 4 characters per token. */
 export const estimateTokens = (chars: number) => Math.ceil(chars / 4);
 
+/** Reasoning sent back with an assistant message: the text, or the structured details if larger. */
+function reasoningChars(message: Message): number {
+  if (message.role !== 'assistant') return 0;
+  const details = message.reasoningDetails ? JSON.stringify(message.reasoningDetails).length : 0;
+  return Math.max(message.reasoning?.length ?? 0, details);
+}
+
 export function messageChars(message: Message): number {
-  let chars = message.role === 'assistant' ? (message.reasoning?.length ?? 0) : 0;
+  let chars = reasoningChars(message);
   for (const block of message.content) {
     if (block.type === 'text') chars += block.text.length;
     else if (block.type === 'tool_result') chars += block.content.length;
@@ -98,9 +105,11 @@ export function guardContext(input: GuardInput): GuardResult {
     for (const messageIndex of older) {
       if (estimate < target) break;
       const m = messages[messageIndex]!;
-      if (m.role !== 'assistant' || !m.reasoning) continue;
-      const removedChars = m.reasoning.length;
+      if (m.role !== 'assistant' || (!m.reasoning && !m.reasoningDetails)) continue;
+      // Both forms carry the same reasoning, so they are dropped together.
+      const removedChars = reasoningChars(m);
       delete m.reasoning;
+      delete m.reasoningDetails;
       estimate -= removedChars / 4;
       trims.push({ kind: 'reasoning', messageIndex, removedChars });
     }

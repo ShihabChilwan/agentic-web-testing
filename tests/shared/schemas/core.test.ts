@@ -28,6 +28,17 @@ describe('llm-calls.jsonl line', () => {
     expect(LLMCallLogLine.safeParse(failed).success).toBe(true);
   });
 
+  it('accepts lines without the optional provider fields (older logs, endpoints that report none)', () => {
+    const { costSource: _c, cachedInputTokens: _t, reasoningTokens: _r, upstreamProvider: _u, systemFingerprint: _f, ...plain } = line;
+    expect(LLMCallLogLine.safeParse({ ...plain, costUsd: null }).success).toBe(true);
+    expect(LLMCallLogLine.safeParse({ ...plain, costUsd: null, costSource: null }).success).toBe(true);
+  });
+
+  it('rejects an unknown cost source and negative token counts', () => {
+    expect(errorPaths(LLMCallLogLine, { ...line, costSource: 'guess' })).toContain('costSource');
+    expect(errorPaths(LLMCallLogLine, { ...line, reasoningTokens: -1 })).toContain('reasoningTokens');
+  });
+
   it('requires attempts and a UTC timestamp', () => {
     const { attempts: _a, ...noAttempts } = line;
     expect(errorPaths(LLMCallLogLine, noAttempts)).toContain('attempts');
@@ -40,6 +51,15 @@ describe('run.json', () => {
 
   it('accepts the reference example', () => {
     expect(RunManifest.safeParse(run).success).toBe(true);
+  });
+
+  it('accepts run.json with or without upstream providers', () => {
+    expect(RunManifest.parse(run).llm.upstreamProviders).toEqual(['Near AI']);
+    const r = structuredClone(run);
+    delete r.llm.upstreamProviders;
+    expect(RunManifest.safeParse(r).success).toBe(true);
+    r.llm.upstreamProviders = [''];
+    expect(errorPaths(RunManifest, r)).toContain('llm.upstreamProviders.0');
   });
 
   it('accepts a failed stage and a failed execution with errors', () => {

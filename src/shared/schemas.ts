@@ -145,6 +145,13 @@ export const LLMCallLogLine = z.object({
   ok: z.boolean(),
   attempts: z.number().int().min(1),
   costUsd: z.number().nonnegative().nullable(),
+  /** provider: exact cost reported in the response; pricing: computed from config/pricing.json; null: unknown. */
+  costSource: z.enum(['provider', 'pricing']).nullable().optional(),
+  cachedInputTokens: TokenCount.optional(),
+  reasoningTokens: TokenCount.optional(),
+  /** Upstream provider that served the call, when a router reports it (e.g. OpenRouter). */
+  upstreamProvider: z.string().min(1).optional(),
+  systemFingerprint: z.string().min(1).optional(),
   error: z.string().optional(),
 });
 
@@ -525,6 +532,8 @@ export const RunManifest = z.object({
     topP: z.number().gt(0).max(1),
     reasoningEffort: PerModule(ReasoningEffort),
     concurrency: z.number().int().positive(),
+    /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Near AI"]). */
+    upstreamProviders: z.array(z.string().min(1)).optional(),
   }),
   stages: z.strictObject({
     prd: StageState.optional(),

@@ -23,7 +23,7 @@ describe('parseLLMConfig', () => {
       temperature: 1.0,
       topP: 1.0,
       reasoningEffort: 'medium',
-      reasoningEfforts: { prd: 'medium', cases: 'low', scripts: 'medium', analyzer: 'high' },
+      reasoningEfforts: { prd: 'medium', cases: 'low', scripts: 'medium', analyzer: 'medium' },
       concurrency: 4,
       contextTokens: 131072,
       timeoutMs: 1_200_000,
@@ -93,11 +93,37 @@ describe('per-purpose settings', () => {
 
   it('uses module overrides for module purposes', () => {
     expect(modelFor(config, 'scripts')).toBe('scripts-model');
-    expect(reasoningEffortFor(config, 'analyzer')).toBe('high');
+    expect(reasoningEffortFor(config, 'analyzer')).toBe('medium');
   });
 
   it('falls back to the defaults for other purposes', () => {
     expect(modelFor(config, 'one-prompt')).toBe('openai/gpt-oss-120b');
     expect(reasoningEffortFor(config, 'one-prompt')).toBe('low');
+  });
+});
+
+describe('LLM_EXTRA_BODY and LLM_REASONING_PARAM', () => {
+  it('defaults to an empty extra body', () => {
+    expect(parseLLMConfig(minimal).extraBody).toEqual({});
+    expect(parseLLMConfig({ ...minimal, LLM_EXTRA_BODY: '' }).extraBody).toEqual({});
+  });
+
+  it('parses a JSON object, e.g. provider pinning', () => {
+    const body = { provider: { only: ['near-ai/fp4'], allow_fallbacks: false } };
+    expect(parseLLMConfig({ ...minimal, LLM_EXTRA_BODY: JSON.stringify(body) }).extraBody).toEqual(body);
+  });
+
+  it('rejects invalid JSON, non-objects and fields the client sets', () => {
+    expect(configError({ ...minimal, LLM_EXTRA_BODY: '{provider' })).toMatch(/LLM_EXTRA_BODY: must be a JSON object/);
+    expect(configError({ ...minimal, LLM_EXTRA_BODY: '[1,2]' })).toContain('LLM_EXTRA_BODY');
+    expect(configError({ ...minimal, LLM_EXTRA_BODY: '"text"' })).toContain('LLM_EXTRA_BODY');
+    expect(configError({ ...minimal, LLM_EXTRA_BODY: '{"model":"x"}' })).toMatch(/must not set "model"/);
+    expect(configError({ ...minimal, LLM_EXTRA_BODY: '{"reasoning":{"effort":"high"}}' })).toMatch(/"reasoning"/);
+  });
+
+  it('accepts both reasoning formats and rejects others', () => {
+    expect(parseLLMConfig({ ...minimal, LLM_REASONING_PARAM: 'reasoning_object' }).reasoningParam).toBe('reasoning_object');
+    expect(parseLLMConfig({ ...minimal, LLM_REASONING_PARAM: 'reasoning_effort' }).reasoningParam).toBe('reasoning_effort');
+    expect(configError({ ...minimal, LLM_REASONING_PARAM: 'effort' })).toContain('LLM_REASONING_PARAM');
   });
 });

@@ -233,3 +233,98 @@ describe('OpenAICompatibleProvider errors', () => {
     expect((await errorOf(provider(stub.fetch, 20).chat(request))).kind).toBe('timeout');
   });
 });
+
+describe('OpenAICompatibleProvider: extra body, reasoning format and optional response fields', () => {
+  const pinned = { provider: { only: ['near-ai/fp4'], allow_fallbacks: false } };
+
+  it('merges LLM_EXTRA_BODY into every request body', async () => {
+    const stub = stubFetch([{ body: completion({ content: 'hi' }) }, { body: completion({ content: 'hi' }) }]);
+    const p = new OpenAICompatibleProvider({
+      baseUrl: 'http://model.test/v1',
+      apiKey: 'k',
+      extraHeaders: {},
+      extraBody: pinned,
+      timeoutMs: 5_000,
+      fetch: stub.fetch,
+    });
+    await p.chat(request);
+    await p.chat(request);
+    for (const sent of stub.captured) {
+      expect(sent.body).toMatchObject({ ...pinned, model: 'openai/gpt-oss-120b', reasoning_effort: 'high' });
+    }
+  });
+
+  it('sends reasoning: { effort } in the reasoning_object format', async () => {
+    const stub = stubFetch([{ body: completion({ content: 'hi' }) }, { body: completion({ content: 'hi' }) }]);
+    const p = new OpenAICompatibleProvider({
+      baseUrl: 'http://model.test/v1',
+      apiKey: 'k',
+      extraHeaders: {},
+      reasoningParam: 'reasoning_object',
+      timeoutMs: 5_000,
+      fetch: stub.fetch,
+    });
+    await p.chat(request);
+    expect(stub.captured[0]?.body.reasoning).toEqual({ effort: 'high' });
+    expect(stub.captured[0]?.body).not.toHaveProperty('reasoning_effort');
+    const { reasoningEffort: _r, ...withoutEffort } = request;
+    await p.chat(withoutEffort);
+    expect(stub.captured[1]?.body).not.toHaveProperty('reasoning');
+  });
+
+  it('reads provider, fingerprint, cost, cached and reasoning tokens, and reasoning_details', async () => {
+    const details = [{ type: 'reasoning.text', text: 'Step 1…', format: 'openai-responses-v1', index: 0 }];
+    const body = {
+      ...completion({ content: 'hi', reasoning: 'Step 1…', reasoning_details: details }),
+      provider: 'Near AI',
+      system_fingerprint: 'fp_abc123',
+      usage: {
+        prompt_tokens: 120,
+        completion_tokens: 30,
+        total_tokens: 150,
+        cost: 0.000042,
+        prompt_tokens_details: { cached_tokens: 64 },
+        completion_tokens_details: { reasoning_tokens: 25 },
+      },
+    };
+    const response = await provider(stubFetch([{ body }]).fetch).chat(request);
+    expect(response).toMatchObject({
+      reasoning: 'Step 1…',
+      reasoningDetails: details,
+      upstreamProvider: 'Near AI',
+      systemFingerprint: 'fp_abc123',
+      usage: { inputTokens: 120, outputTokens: 30, cachedInputTokens: 64, reasoningTokens: 25, costUsd: 0.000042 },
+    });
+  });
+
+  it('leaves the optional fields out when the response has none', async () => {
+    const response = await provider(stubFetch([{ body: completion({ content: 'hi' }) }]).fetch).chat(request);
+    expect(response.usage).toEqual({ inputTokens: 120, outputTokens: 30 });
+    for (const key of ['reasoningDetails', 'upstreamProvider', 'systemFingerprint']) {
+      expect(response).not.toHaveProperty(key);
+    }
+  });
+
+  it('sends reasoning_details back exactly as received, alongside reasoning', async () => {
+    const details = [
+      { type: 'reasoning.text', text: 'Read it.', format: 'openai-responses-v1', index: 0, signature: null },
+    ];
+    const stub = stubFetch([{ body: completion({ content: 'done' }) }]);
+    await provider(stub.fetch).chat({
+      ...request,
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'Start.' }] },
+        {
+          role: 'assistant',
+          reasoning: 'Read it.',
+          reasoningDetails: details,
+          content: [{ type: 'tool_call', id: 'call-1', name: 'read_file', input: { path: 'a' } }],
+        },
+        { role: 'user', content: [{ type: 'tool_result', toolCallId: 'call-1', content: 'x' }] },
+      ],
+    });
+    const assistant = (stub.captured[0]?.body.messages as Array<Record<string, unknown>>)[2];
+    expect(assistant).toMatchObject({ role: 'assistant', reasoning_content: 'Read it.' });
+    expect(assistant?.reasoning_details).toEqual(details);
+  });
+});

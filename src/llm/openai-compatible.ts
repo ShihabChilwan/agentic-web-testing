@@ -5,6 +5,7 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions';
+import type { ReasoningParam } from '../shared/config.js';
 import { errorKindForStatus, LLMRequestError } from './errors.js';
 import type {
   ChatProvider,
@@ -20,6 +21,9 @@ export interface OpenAICompatibleOptions {
   baseUrl: string;
   apiKey: string | undefined;
   extraHeaders: Record<string, string>;
+  /** Merged into every request body; config validation keeps it off the fields set here. */
+  extraBody?: Record<string, unknown>;
+  reasoningParam?: ReasoningParam;
   timeoutMs: number;
   /** For tests: a stub in place of the global fetch. */
   fetch?: typeof fetch;
@@ -37,8 +41,12 @@ export class OpenAICompatibleProvider implements ChatProvider {
   private readonly client: OpenAI;
   /** Sent back under the same name the server used, once we have seen one. */
   private reasoningField: ReasoningField = 'reasoning_content';
+  private readonly extraBody: Record<string, unknown>;
+  private readonly reasoningParam: ReasoningParam;
 
   constructor(options: OpenAICompatibleOptions) {
+    this.extraBody = options.extraBody ?? {};
+    this.reasoningParam = options.reasoningParam ?? 'reasoning_effort';
     this.client = new OpenAI({
       baseURL: options.baseUrl,
       // The SDK falls back to OPENAI_API_KEY and refuses to start without a key; self-hosted endpoints may need none.
@@ -51,15 +59,22 @@ export class OpenAICompatibleProvider implements ChatProvider {
   }
 
   async chat(req: ProviderRequest): Promise<ChatResponse> {
-    const body: ChatCompletionCreateParamsNonStreaming = {
+    const effort = req.reasoningEffort
+      ? this.reasoningParam === 'reasoning_object'
+        ? { reasoning: { effort: req.reasoningEffort } }
+        : { reasoning_effort: req.reasoningEffort }
+      : {};
+    // The SDK sends unknown body fields as they are.
+    const body = {
+      ...this.extraBody,
       model: req.model,
       messages: [{ role: 'system', content: req.system }, ...req.messages.flatMap((m) => this.toOpenAI(m))],
       max_completion_tokens: req.maxTokens,
       temperature: req.temperature,
       top_p: req.topP,
-      ...(req.reasoningEffort ? { reasoning_effort: req.reasoningEffort } : {}),
+      ...effort,
       ...(req.tools?.length ? { tools: req.tools.map(toOpenAITool) } : {}),
-    };
+    } as ChatCompletionCreateParamsNonStreaming;
 
     const started = Date.now();
     let completion: ChatCompletion;
@@ -93,6 +108,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
           : {}),
       };
       if (message.reasoning) out[this.reasoningField] = message.reasoning;
+      if (message.reasoningDetails) out.reasoning_details = message.reasoningDetails;
       return [out];
     }
 
@@ -115,7 +131,11 @@ export class OpenAICompatibleProvider implements ChatProvider {
   private fromOpenAI(completion: ChatCompletion, latencyMs: number): ChatResponse {
     const choice = completion.choices[0];
     if (!choice) throw new LLMRequestError('response contained no choices', 'client');
-    const message = choice.message as typeof choice.message & { reasoning_content?: string; reasoning?: string };
+    const message = choice.message as typeof choice.message & {
+      reasoning_content?: string;
+      reasoning?: string;
+      reasoning_details?: unknown;
+    };
 
     let reasoning: string | undefined;
     if (typeof message.reasoning_content === 'string' && message.reasoning_content.length > 0) {
@@ -133,18 +153,33 @@ export class OpenAICompatibleProvider implements ChatProvider {
       content.push({ type: 'tool_call', id: call.id, name: call.function.name, input: parseArguments(call.function.arguments) });
     }
 
+    const reasoningDetails = Array.isArray(message.reasoning_details) ? message.reasoning_details : undefined;
     const hasToolCalls = content.some((b) => b.type === 'tool_call');
     const stopReason: StopReason = hasToolCalls ? 'tool_call' : choice.finish_reason === 'length' ? 'max_tokens' : 'end';
+
+    // Optional fields some endpoints add (OpenRouter: provider, usage.cost); read only when present.
+    const extra = completion as ChatCompletion & { provider?: unknown };
+    const usage = completion.usage as
+      | (NonNullable<ChatCompletion['usage']> & { cost?: unknown })
+      | undefined;
+    const cached = usage?.prompt_tokens_details?.cached_tokens;
+    const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens;
 
     return {
       content,
       ...(reasoning ? { reasoning } : {}),
+      ...(reasoningDetails ? { reasoningDetails } : {}),
       stopReason,
       usage: {
-        inputTokens: completion.usage?.prompt_tokens ?? 0,
-        outputTokens: completion.usage?.completion_tokens ?? 0,
+        inputTokens: usage?.prompt_tokens ?? 0,
+        outputTokens: usage?.completion_tokens ?? 0,
+        ...(typeof cached === 'number' ? { cachedInputTokens: cached } : {}),
+        ...(typeof reasoningTokens === 'number' ? { reasoningTokens } : {}),
+        ...(typeof usage?.cost === 'number' && usage.cost >= 0 ? { costUsd: usage.cost } : {}),
       },
       model: completion.model,
+      ...(typeof extra.provider === 'string' && extra.provider ? { upstreamProvider: extra.provider } : {}),
+      ...(completion.system_fingerprint ? { systemFingerprint: completion.system_fingerprint } : {}),
       latencyMs,
     };
   }

@@ -10,7 +10,7 @@ const DEFAULT_REASONING_EFFORT: Record<ModulePurpose, Effort> = {
   prd: 'medium',
   cases: 'low',
   scripts: 'medium',
-  analyzer: 'high',
+  analyzer: 'medium',
 };
 
 export interface LLMConfig {
@@ -18,18 +18,43 @@ export interface LLMConfig {
   baseUrl: string | undefined;
   apiKey: string | undefined;
   extraHeaders: Record<string, string>;
+  /** Merged into every request body (e.g. provider routing); never overrides a field the client sets. */
+  extraBody: Record<string, unknown>;
   model: string;
   models: Record<ModulePurpose, string>;
   temperature: number;
   topP: number;
   reasoningEffort: Effort;
   reasoningEfforts: Record<ModulePurpose, Effort>;
+  reasoningParam: ReasoningParam;
   concurrency: number;
   contextTokens: number;
   timeoutMs: number;
   maxTokensPerRun: number;
   maxCostUsdPerRun: number;
 }
+
+/**
+ * How reasoning effort is sent: top-level `reasoning_effort` (OpenAI, vLLM) or
+ * `reasoning: { effort }` (OpenRouter's unified reasoning object).
+ */
+export const REASONING_PARAMS = ['reasoning_effort', 'reasoning_object'] as const;
+export type ReasoningParam = (typeof REASONING_PARAMS)[number];
+
+/** Request fields the client sets itself; LLM_EXTRA_BODY may not change them. */
+export const RESERVED_BODY_FIELDS = [
+  'model',
+  'messages',
+  'tools',
+  'tool_choice',
+  'max_tokens',
+  'max_completion_tokens',
+  'temperature',
+  'top_p',
+  'reasoning_effort',
+  'reasoning',
+  'stream',
+] as const;
 
 export class ConfigError extends Error {
   override name = 'ConfigError';
@@ -57,12 +82,36 @@ const extraHeaders = z.preprocess(
   z.record(z.string(), z.string(), { error: 'must be a JSON object of header names to string values' }),
 );
 
+const extraBody = z.preprocess(
+  (v, ctx) => {
+    if (v === undefined || v === '') return {};
+    try {
+      return JSON.parse(String(v));
+    } catch {
+      ctx.addIssue({ code: 'custom', message: 'must be a JSON object' });
+      return z.NEVER;
+    }
+  },
+  z
+    .record(z.string(), z.unknown(), { error: 'must be a JSON object' })
+    .refine((body) => !Array.isArray(body), 'must be a JSON object')
+    .superRefine((body, ctx) => {
+      for (const key of Object.keys(body)) {
+        if ((RESERVED_BODY_FIELDS as readonly string[]).includes(key)) {
+          ctx.addIssue({ code: 'custom', message: `must not set "${key}"; the client sets it (use the LLM_ settings)` });
+        }
+      }
+    }),
+);
+
 const EnvSchema = z.object({
   LLM_PROVIDER: withDefault(LLMProvider, 'openai-compatible'),
   LLM_BASE_URL: optionalString.pipe(z.url().optional()),
   LLM_MODEL: withDefault(z.string().min(1), 'openai/gpt-oss-120b'),
   LLM_API_KEY: optionalString,
   LLM_EXTRA_HEADERS: extraHeaders,
+  LLM_EXTRA_BODY: extraBody,
+  LLM_REASONING_PARAM: withDefault(z.enum(REASONING_PARAMS), 'reasoning_effort'),
   LLM_TEMPERATURE: number(1.0).pipe(z.number().min(0).max(2)),
   LLM_TOP_P: number(1.0).pipe(z.number().gt(0).max(1)),
   LLM_REASONING_EFFORT: withDefault(ReasoningEffort, 'medium'),
@@ -101,6 +150,7 @@ export function parseLLMConfig(env: Record<string, string | undefined>): LLMConf
     baseUrl: e.LLM_BASE_URL,
     apiKey: e.LLM_API_KEY,
     extraHeaders: e.LLM_EXTRA_HEADERS,
+    extraBody: e.LLM_EXTRA_BODY,
     model: e.LLM_MODEL,
     models: {
       prd: e.LLM_MODEL_PRD ?? e.LLM_MODEL,
@@ -117,6 +167,7 @@ export function parseLLMConfig(env: Record<string, string | undefined>): LLMConf
       scripts: e.LLM_REASONING_EFFORT_SCRIPTS ?? DEFAULT_REASONING_EFFORT.scripts,
       analyzer: e.LLM_REASONING_EFFORT_ANALYZER ?? DEFAULT_REASONING_EFFORT.analyzer,
     },
+    reasoningParam: e.LLM_REASONING_PARAM,
     concurrency: e.LLM_CONCURRENCY,
     contextTokens: e.LLM_CONTEXT_TOKENS,
     timeoutMs: e.LLM_TIMEOUT_MS,

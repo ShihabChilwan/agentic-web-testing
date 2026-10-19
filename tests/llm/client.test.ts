@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { RunBudget } from '../../src/llm/budget.js';
-import { readCallLog } from '../../src/llm/call-log.js';
-import { createLLMClient, RunLLMClient } from '../../src/llm/client.js';
+import { readCallLog, upstreamProvidersSeen } from '../../src/llm/call-log.js';
+import { createLLMClient, isReasoningEffortRejection, RunLLMClient } from '../../src/llm/client.js';
 import { LLMBudgetExceededError, LLMRequestError } from '../../src/llm/errors.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { FakeStep } from '../../src/llm/fake.js';
@@ -20,6 +20,8 @@ const config = parseLLMConfig({
   LLM_EXTRA_HEADERS: JSON.stringify({ 'Modal-Secret': SECRETS.header }),
   LLM_MODEL_ANALYZER: 'analyzer-model',
   LLM_CONCURRENCY: '2',
+  // Differs from the analyzer default (medium), so the tests show the per-purpose value is used.
+  LLM_REASONING_EFFORT: 'low',
 });
 
 const request: ChatRequest = {
@@ -51,7 +53,7 @@ describe('RunLLMClient settings', () => {
   it('resolves model, sampling and reasoning effort per purpose', async () => {
     const { client, provider } = await setup([FakeLLMClient.text('ok')]);
     await client.chat(request);
-    expect(provider.requests[0]).toMatchObject({ model: 'analyzer-model', temperature: 1, topP: 1, reasoningEffort: 'high' });
+    expect(provider.requests[0]).toMatchObject({ model: 'analyzer-model', temperature: 1, topP: 1, reasoningEffort: 'medium' });
   });
 
   it('lets the request override reasoning effort and sampling', async () => {
@@ -74,7 +76,7 @@ describe('RunLLMClient call log', () => {
         purpose: 'analyzer',
         provider: 'openai-compatible',
         model: 'analyzer-model',
-        reasoningEffort: 'high',
+        reasoningEffort: 'medium',
         inputTokens: 1_000_000,
         outputTokens: 500_000,
         ok: true,
@@ -122,7 +124,7 @@ describe('RunLLMClient reasoning_effort rejection', () => {
     const { client, provider, warnings, log } = await setup([rejection(), FakeLLMClient.text('a'), FakeLLMClient.text('b')]);
     await client.chat(request);
     await client.chat(request);
-    expect(provider.requests.map((r) => r.reasoningEffort)).toEqual(['high', undefined, undefined]);
+    expect(provider.requests.map((r) => r.reasoningEffort)).toEqual(['medium', undefined, undefined]);
     expect(warnings).toHaveLength(1);
     expect((await log()).map((l) => [l.reasoningEffort, l.attempts])).toEqual([
       [null, 2],
@@ -205,5 +207,84 @@ describe('createLLMClient', () => {
     await expect(
       createLLMClient(anthropic, { callLogFile: path.join(dir, 'l.jsonl'), pricingFile: path.join(dir, 'p.json') }),
     ).rejects.toThrow(/not implemented/);
+  });
+});
+
+describe('RunLLMClient: provider-reported cost, tokens and provider', () => {
+  const pricing: Pricing = { schemaVersion: '1.0', models: { 'analyzer-model': { inputUsdPerMTok: 1, outputUsdPerMTok: 2 } } };
+
+  it('uses the provider-reported cost over pricing.json and logs the extra fields', async () => {
+    const { client, log } = await setup(
+      [
+        FakeLLMClient.text('ok', {
+          usage: { inputTokens: 1000, outputTokens: 200, cachedInputTokens: 512, reasoningTokens: 150, costUsd: 0.00021 },
+          upstreamProvider: 'Near AI',
+          systemFingerprint: 'fp_1',
+        }),
+      ],
+      { pricing },
+    );
+    await client.chat(request);
+    expect((await log())[0]).toMatchObject({
+      costUsd: 0.00021,
+      costSource: 'provider',
+      cachedInputTokens: 512,
+      reasoningTokens: 150,
+      upstreamProvider: 'Near AI',
+      systemFingerprint: 'fp_1',
+    });
+  });
+
+  it('falls back to pricing.json, then to null', async () => {
+    const priced = await setup([FakeLLMClient.text('ok', { usage: { inputTokens: 1_000_000, outputTokens: 0 } })], { pricing });
+    await priced.client.chat(request);
+    expect((await priced.log())[0]).toMatchObject({ costUsd: 1, costSource: 'pricing' });
+    const unpriced = await setup([FakeLLMClient.text('ok')]);
+    await unpriced.client.chat(request);
+    const line = (await unpriced.log())[0];
+    expect(line).toMatchObject({ costUsd: null, costSource: null });
+    for (const key of ['cachedInputTokens', 'reasoningTokens', 'upstreamProvider', 'systemFingerprint']) {
+      expect(line).not.toHaveProperty(key);
+    }
+  });
+
+  it('logs costSource null on a failed call', async () => {
+    const { client, log } = await setup([new LLMRequestError('bad request', 'client', 400)]);
+    await expect(client.chat(request)).rejects.toThrow();
+    expect((await log())[0]).toMatchObject({ ok: false, costUsd: null, costSource: null });
+  });
+
+  it('applies the cost cap to provider-reported cost', async () => {
+    const budget = new RunBudget({ maxTokens: 1_000_000, maxCostUsd: 0.01 });
+    const { client, provider } = await setup(
+      [FakeLLMClient.text('ok', { usage: { inputTokens: 10, outputTokens: 10, costUsd: 0.02 } }), FakeLLMClient.text('never')],
+      { budget },
+    );
+    await client.chat(request);
+    await expect(client.chat(request)).rejects.toBeInstanceOf(LLMBudgetExceededError);
+    expect(provider.requests).toHaveLength(1);
+  });
+
+  it('rebuilds the cost total from provider-reported costs in an existing log', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'llm-client-'));
+    const callLogFile = path.join(dir, 'llm-calls.jsonl');
+    const line = {
+      ts: '2026-10-24T10:00:00.000Z', purpose: 'prd', provider: 'openai-compatible', model: 'm', reasoningEffort: 'medium',
+      inputTokens: 10, outputTokens: 10, latencyMs: 5, ok: true, attempts: 1, costUsd: 0.5, costSource: 'provider',
+      upstreamProvider: 'Near AI',
+    };
+    await writeFile(callLogFile, `${JSON.stringify(line)}\n${JSON.stringify({ ...line, upstreamProvider: 'Other' })}\n`);
+    const { lines } = await readCallLog(callLogFile);
+    expect(RunBudget.fromCallLog({ maxTokens: 1000, maxCostUsd: 2 }, lines).costUsd).toBe(1);
+    expect(upstreamProvidersSeen(lines)).toEqual(['Near AI', 'Other']);
+  });
+
+  it('recognises a rejection of either reasoning format', () => {
+    const err = (m: string) => new LLMRequestError(m, 'client', 400);
+    expect(isReasoningEffortRejection(err('Unrecognized request argument: reasoning_effort'))).toBe(true);
+    expect(isReasoningEffortRejection(err('reasoning.effort must be one of low, medium, high'))).toBe(true);
+    expect(isReasoningEffortRejection(err('Unsupported parameter: reasoning'))).toBe(true);
+    expect(isReasoningEffortRejection(err('messages[2].content is required'))).toBe(false);
+    expect(isReasoningEffortRejection(new LLMRequestError('reasoning_effort', 'server', 500))).toBe(false);
   });
 });

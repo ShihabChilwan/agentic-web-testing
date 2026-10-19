@@ -23,6 +23,8 @@ export function outputLimit(maxTokensPerCall: number, contextTokens: number, inp
 
 export const BUDGET_EXHAUSTED_MESSAGE = 'Budget exhausted. Submit your result now.';
 export const NUDGE_MESSAGE = 'Use a tool or submit your result.';
+export const OUT_OF_SPACE_MESSAGE =
+  'Your last reply ran out of space before you acted. Think less and call a tool or submit now.';
 
 /** JSON Schema for a tool input, without the `$schema` header (saves tokens on every call). */
 export function toJsonSchema(schema: ZodType): Record<string, unknown> {
@@ -127,11 +129,13 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
         role: 'assistant',
         content: response.content,
         ...(response.reasoning ? { reasoning: response.reasoning } : {}),
+        ...(response.reasoningDetails ? { reasoningDetails: response.reasoningDetails } : {}),
       });
       await transcript.write('response', {
         turn: turns,
         content: response.content,
         reasoning: response.reasoning,
+        reasoningDetails: response.reasoningDetails,
         stopReason: response.stopReason,
         usage: response.usage,
         latencyMs: response.latencyMs,
@@ -140,8 +144,10 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
       const calls = response.content.filter((b): b is ToolCallBlock => b.type === 'tool_call');
       if (calls.length === 0) {
         if (finalTurn) throw new AgentBudgetError('Budget exhausted and no result was submitted', details());
-        addUserBlocks([{ type: 'text', text: NUDGE_MESSAGE }]);
-        await transcript.write('nudge', { text: NUDGE_MESSAGE });
+        // A reply cut off by the output limit (usually by long reasoning) is a failed turn: ask for less thinking.
+        const nudge = response.stopReason === 'max_tokens' ? OUT_OF_SPACE_MESSAGE : NUDGE_MESSAGE;
+        addUserBlocks([{ type: 'text', text: nudge }]);
+        await transcript.write('nudge', { text: nudge, stopReason: response.stopReason });
         continue;
       }
 

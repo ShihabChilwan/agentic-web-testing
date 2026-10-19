@@ -35,3 +35,8 @@ export async function readCallLog(file: string): Promise<{ lines: LLMCallLogLine
   }
   return { lines, skipped };
 }
+
+/** Distinct upstream providers in a call log, sorted; for run.json `llm.upstreamProviders`. */
+export function upstreamProvidersSeen(lines: readonly LLMCallLogLine[]): string[] {
+  return [...new Set(lines.flatMap((l) => (l.upstreamProvider ? [l.upstreamProvider] : [])))].sort();
+}

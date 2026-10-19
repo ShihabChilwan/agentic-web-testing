@@ -104,3 +104,23 @@ describe('guardContext', () => {
     expect(ids.some((id) => ['c1', 'c2', 'c3'].includes(id))).toBe(false);
   });
 });
+
+describe('guardContext: structured reasoning details', () => {
+  it('counts reasoning details and drops them together with the reasoning text', () => {
+    const messages = conversation(8, 10).map((m) =>
+      m.role === 'assistant'
+        ? { ...m, reasoning: 'short', reasoningDetails: [{ type: 'reasoning.text', text: 'r'.repeat(8_000) }] }
+        : m,
+    );
+    const result = guardContext({ messages, baseTokens: 0, baseMessageCount: 0, contextTokens: 16_000 });
+    const dropped = result.trims.filter((t) => t.kind === 'reasoning');
+    expect(dropped.length).toBeGreaterThan(0);
+    for (const trim of dropped) {
+      const m = result.messages[trim.messageIndex]!;
+      expect(m.role === 'assistant' && (m.reasoning ?? m.reasoningDetails)).toBeFalsy();
+      expect(trim.removedChars).toBeGreaterThan(8_000);
+    }
+    const kept = result.messages.filter((m) => m.role === 'assistant').slice(-4);
+    expect(kept.every((m) => m.role === 'assistant' && m.reasoningDetails?.length === 1)).toBe(true);
+  });
+});

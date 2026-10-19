@@ -19,9 +19,12 @@
       "prd": "medium",
       "cases": "low",
       "scripts": "medium",
-      "analyzer": "high"
+      "analyzer": "medium"
     },
-    "concurrency": 4
+    "concurrency": 4,
+    "upstreamProviders": [
+      "Near AI"
+    ]
   },
   "stages": {
     "prd": {

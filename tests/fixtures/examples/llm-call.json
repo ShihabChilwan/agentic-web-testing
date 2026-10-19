@@ -9,5 +9,10 @@
   "latencyMs": 7400,
   "ok": true,
   "attempts": 1,
-  "costUsd": null
+  "costUsd": 0.00079,
+  "costSource": "provider",
+  "cachedInputTokens": 4096,
+  "reasoningTokens": 610,
+  "upstreamProvider": "Near AI",
+  "systemFingerprint": "fp_example"
 }

@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/', 'dist/', 'runs/', 'targets/', 'reports/', '.stryker-tmp/', 'dashboard/', 'deploy/'],
+    ignores: ['node_modules/', 'dist/', 'runs/', 'targets/', 'reports/', '.stryker-tmp/', 'dashboard/'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

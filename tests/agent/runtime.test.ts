@@ -6,6 +6,7 @@ import { z } from 'zod';
 import {
   BUDGET_EXHAUSTED_MESSAGE,
   NUDGE_MESSAGE,
+  OUT_OF_SPACE_MESSAGE,
   outputLimit,
   runAgent,
   TOOL_OUTPUT_LIMIT,
@@ -216,6 +217,30 @@ describe('runAgent: nudges and context', () => {
     expect(result.turns).toBe(2);
   });
 
+  it('treats a reply cut off by the output limit without a tool call as a failed turn', async () => {
+    const cutOff = FakeLLMClient.text('', { stopReason: 'max_tokens', content: [], reasoning: 'r'.repeat(500) });
+    const llm = new FakeLLMClient([cutOff, submit({ answer: 'x' })]);
+    const transcriptDir = await mkdtemp(path.join(tmpdir(), 'agent-cutoff-'));
+    const result = await runAgent(options(), deps(llm, { transcriptDir }));
+    expect(lastUserText(llm.requests[1])).toEqual([OUT_OF_SPACE_MESSAGE]);
+    expect(result.turns).toBe(2);
+    expect(result.toolCalls).toBe(0);
+    const [file] = await readdir(transcriptDir);
+    const events = (await readFile(path.join(transcriptDir, file!), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+    expect(events.find((e) => e.type === 'nudge')).toMatchObject({ text: OUT_OF_SPACE_MESSAGE, stopReason: 'max_tokens' });
+  });
+
+  it('keeps the normal nudge when a cut-off reply still called a tool', async () => {
+    const llm = new FakeLLMClient([
+      FakeLLMClient.toolCall('echo', { text: 'hi' }, { stopReason: 'max_tokens' }),
+      submit({ answer: 'x' }),
+    ]);
+    const result = await runAgent(options(), deps(llm));
+    expect(lastToolResults(llm.requests[1])).toHaveLength(1);
+    expect(lastUserText(llm.requests[1])).not.toContain(OUT_OF_SPACE_MESSAGE);
+    expect(result.toolCalls).toBe(1);
+  });
+
   it('trims old tool results before a call when the context fills up', async () => {
     const big: AgentTool<{ text: string }> = { ...echo, run: async () => 'y'.repeat(3_000) };
     const steps = Array.from({ length: 8 }, (_, i) =>
@@ -290,5 +315,23 @@ describe('runAgent: setup errors', () => {
     const arraySubmit = { name: 'submit_answer', description: 'd', schema: z.array(z.string()) };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(runAgent({ ...options(), submit: arraySubmit } as any, deps(new FakeLLMClient()))).rejects.toThrow(/object/);
+  });
+});
+
+describe('runAgent: structured reasoning details', () => {
+  it('keeps reasoning details on the assistant message, sends them back, and writes them to the transcript', async () => {
+    const details = [{ type: 'reasoning.text', text: 'Use echo first.', format: 'openai-responses-v1', index: 0 }];
+    const llm = new FakeLLMClient([
+      FakeLLMClient.toolCall('echo', { text: 'hi' }, { reasoning: 'Use echo first.', reasoningDetails: details }),
+      submit({ answer: '42' }),
+    ]);
+    const transcriptDir = await mkdtemp(path.join(tmpdir(), 'agent-details-'));
+    await runAgent(options(), deps(llm, { transcriptDir }));
+    const assistant = llm.requests[1]?.messages.find((m): m is Extract<Message, { role: 'assistant' }> => m.role === 'assistant');
+    expect(assistant?.reasoningDetails).toEqual(details);
+    expect(assistant?.reasoning).toBe('Use echo first.');
+    const [file] = await readdir(transcriptDir);
+    const events = (await readFile(path.join(transcriptDir, file!), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+    expect(events.find((e) => e.type === 'response')?.reasoningDetails).toEqual(details);
   });
 });
