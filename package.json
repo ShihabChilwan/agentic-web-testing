@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "agent": "tsx src/cli.ts agent",
     "eval": "tsx src/cli.ts eval",
-    "llm:ping": "tsx src/llm/ping.ts"
+    "llm:ping": "tsx src/llm/ping.ts",
+    "target:up": "tsx src/modules/execution-engine/target-up.ts"
   },
   "dependencies": {
     "commander": "^14.0.3",

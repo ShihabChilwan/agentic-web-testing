@@ -10,7 +10,7 @@
     "start": "npm start",
     "baseUrl": "http://localhost:3000",
     "apiPrefix": "/api",
-    "healthCheckUrl": "http://localhost:3000/api/product/list",
+    "healthCheckUrl": "http://localhost:3000/api/category/list",
     "env": {
       "PORT": "3000",
       "MONGO_URI": "mongodb://mongo:27017/mern_ecommerce_test",
@@ -20,38 +20,41 @@
     },
     "disabledServices": {
       "MAILCHIMP_KEY": "",
+      "MAILCHIMP_LIST_KEY": "",
       "MAILGUN_KEY": "",
+      "MAILGUN_DOMAIN": "",
+      "MAILGUN_EMAIL_SENDER": "",
       "GOOGLE_CLIENT_ID": "",
-      "FACEBOOK_APP_ID": "",
+      "GOOGLE_CLIENT_SECRET": "",
+      "FACEBOOK_CLIENT_ID": "",
+      "FACEBOOK_CLIENT_SECRET": "",
       "AWS_ACCESS_KEY_ID": "",
-      "AWS_SECRET_ACCESS_KEY": ""
+      "AWS_SECRET_ACCESS_KEY": "",
+      "AWS_BUCKET_NAME": "",
+      "AWS_EC2_METADATA_DISABLED": "true"
     }
   },
   "frontend": {
     "cwd": "client",
     "install": "npm ci",
-    "start": "npm run dev",
+    "start": "npm run dev -- --host 127.0.0.1",
     "baseUrl": "http://localhost:8080",
     "healthCheckUrl": "http://localhost:8080",
     "env": {
-      "API_URL": "http://localhost:3000/api",
-      "NODE_OPTIONS": "--openssl-legacy-provider"
-    }
+      "API_URL": "http://localhost:3000/api"
+    },
+    "envFile": ".env"
   },
   "lifecycle": {
     "reset": "mongosh \"mongodb://mongo:27017/mern_ecommerce_test\" --quiet --eval \"db.dropDatabase()\"",
     "resetCwd": ".",
-    "seedCommand": "npm run seed:db admin@example.com admin123",
-    "seedCwd": ".",
+    "seedCommand": "node --require \"{{targetDir}}/seed-deterministic.cjs\" utils/seed.js admin@example.com admin123",
+    "seedCwd": "server",
     "startupTimeoutMs": 180000
   },
   "fixtures": {
     "users": {
-      "admin": {
-        "email": "admin@example.com",
-        "password": "admin123",
-        "role": "admin"
-      },
+      "admin": { "email": "admin@example.com", "password": "admin123", "role": "admin" },
       "alice": {
         "email": "alice@example.test",
         "password": "Passw0rd!alice",
@@ -93,17 +96,8 @@
     }
   ],
   "sourceHints": {
-    "include": [
-      "README.md",
-      "server/**",
-      "client/app/**"
-    ],
-    "exclude": [
-      "**/node_modules/**",
-      "**/*.test.*",
-      "**/dist/**",
-      "**/build/**"
-    ]
+    "include": ["README.md", "server/**", "client/app/**"],
+    "exclude": ["**/node_modules/**", "**/*.test.*", "**/dist/**", "**/build/**"]
   },
   "forbiddenPaths": []
 }

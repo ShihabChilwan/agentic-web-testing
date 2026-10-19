@@ -67,6 +67,8 @@ const ServiceConfig = z.strictObject({
   baseUrl: z.url(),
   healthCheckUrl: z.url(),
   env: EnvMap,
+  /** Also write the env to this file (relative to `cwd`) before start, for apps that read a .env file. */
+  envFile: RelPath.optional(),
 });
 
 export const FixtureUser = z.looseObject({
@@ -393,6 +395,8 @@ export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;
 export type TestResult = z.infer<typeof TestResult>;
+export type HealthCheckResult = z.infer<typeof HealthCheckResult>;
+export type SeedResult = z.infer<typeof SeedResult>;
 
 // ---------------------------------------------------------------------------
 // Module 5 — diagnoses.json
