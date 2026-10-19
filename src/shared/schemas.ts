@@ -135,6 +135,26 @@ export const LLMCallLogLine = z.object({
 export type LLMCallLogLine = z.infer<typeof LLMCallLogLine>;
 
 // ---------------------------------------------------------------------------
+// config/pricing.json — optional; without it every costUsd is null
+// ---------------------------------------------------------------------------
+
+export const Pricing = z.strictObject({
+  schemaVersion: SchemaVersion,
+  /** Token prices per model id, in US dollars per million tokens. */
+  models: z.record(
+    z.string().min(1),
+    z.strictObject({
+      inputUsdPerMTok: z.number().nonnegative(),
+      outputUsdPerMTok: z.number().nonnegative(),
+    }),
+  ),
+  /** Hourly rate of the GPU serving the self-hosted model, for the cost estimate in evaluation. */
+  gpuUsdPerHour: z.number().nonnegative().optional(),
+});
+
+export type Pricing = z.infer<typeof Pricing>;
+
+// ---------------------------------------------------------------------------
 // Module 1 — prd.json
 // ---------------------------------------------------------------------------
 
