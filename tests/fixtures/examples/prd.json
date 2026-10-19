@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "sourceRef": "golden",
+  "generatedAt": "2026-10-24T10:00:00Z",
+  "features": [
+    {
+      "id": "F-01",
+      "name": "Authentication",
+      "description": "Users can register, log in and stay logged in."
+    }
+  ],
+  "apiEndpoints": [
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "authRequired": false,
+      "summary": "Logs in with email and password and returns a token.",
+      "request": {
+        "body": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      "responses": [
+        {
+          "status": 200,
+          "description": "success with token"
+        },
+        {
+          "status": 400,
+          "description": "wrong email or password"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "server/routes/api/auth.js",
+          "lines": [
+            12,
+            60
+          ]
+        }
+      ]
+    }
+  ],
+  "uiRoutes": [
+    {
+      "path": "/login",
+      "summary": "Login form",
+      "authRequired": false,
+      "evidence": [
+        {
+          "file": "client/app/containers/Login/index.js",
+          "lines": [
+            1,
+            120
+          ]
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-002",
+      "featureId": "F-01",
+      "layer": "e2e",
+      "statement": "Logging in with a wrong password is rejected and an error message is shown.",
+      "acceptanceCriteria": [
+        "The user stays on the login page",
+        "An error message is visible"
+      ],
+      "priority": "high",
+      "evidence": [
+        {
+          "file": "server/routes/api/auth.js",
+          "lines": [
+            30,
+            45
+          ]
+        }
+      ]
+    }
+  ],
+  "assumptions": [
+    "Validation errors use status 400 (inferred from the handlers)."
+  ],
+  "openQuestions": [
+    "Unclear whether email matching is case-sensitive."
+  ]
+}

@@ -135,6 +135,74 @@ export const LLMCallLogLine = z.object({
 export type LLMCallLogLine = z.infer<typeof LLMCallLogLine>;
 
 // ---------------------------------------------------------------------------
+// Module 1 — prd.json
+// ---------------------------------------------------------------------------
+
+export const PrdFeature = z.object({
+  id: FeatureId,
+  name: z.string().min(1),
+  description: z.string().min(1),
+});
+
+export const PrdApiEndpoint = z.object({
+  method: HttpMethod,
+  path: z.string().startsWith('/'),
+  authRequired: z.boolean(),
+  summary: z.string().min(1),
+  request: z
+    .object({
+      body: z.unknown().optional(),
+      query: z.unknown().optional(),
+      params: z.unknown().optional(),
+    })
+    .optional(),
+  responses: z
+    .array(
+      z.object({
+        status: z.number().int().min(100).max(599),
+        description: z.string().min(1),
+      }),
+    )
+    .min(1),
+  evidence: z.array(Evidence).min(1),
+});
+
+export const PrdUiRoute = z.object({
+  path: z.string().startsWith('/'),
+  summary: z.string().min(1),
+  authRequired: z.boolean(),
+  evidence: z.array(Evidence).min(1),
+});
+
+export const RequirementLayer = z.enum(['api', 'ui', 'e2e']);
+
+export const PrdRequirement = z.object({
+  id: RequirementId,
+  featureId: FeatureId,
+  layer: RequirementLayer,
+  statement: z.string().min(1),
+  acceptanceCriteria: z.array(z.string().min(1)).min(1),
+  priority: Priority,
+  evidence: z.array(Evidence).min(1),
+});
+
+export const Prd = z.object({
+  schemaVersion: SchemaVersion,
+  target: z.string().min(1),
+  sourceRef: z.string().min(1),
+  generatedAt: Timestamp,
+  features: z.array(PrdFeature).min(1),
+  apiEndpoints: z.array(PrdApiEndpoint),
+  uiRoutes: z.array(PrdUiRoute),
+  requirements: z.array(PrdRequirement).min(1),
+  assumptions: z.array(z.string()),
+  openQuestions: z.array(z.string()),
+});
+
+export type Prd = z.infer<typeof Prd>;
+export type PrdRequirement = z.infer<typeof PrdRequirement>;
+
+// ---------------------------------------------------------------------------
 // run.json
 // ---------------------------------------------------------------------------
 
