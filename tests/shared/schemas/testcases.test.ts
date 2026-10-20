@@ -22,7 +22,18 @@ describe('testcases.json', () => {
     }
   });
 
-  it('rejects layers other than api and ui', () => {
+  it('requires a reasonKind on uncovered entries and defaults partial to an empty list', () => {
+    const c = structuredClone(cases);
+    expect(TestCases.parse(c).coverage.partial).toEqual([
+      { requirementId: 'REQ-004', reason: 'The success email after registration cannot be checked: email is disabled.' },
+    ]);
+    delete c.coverage.partial;
+    expect(TestCases.parse(c).coverage.partial).toEqual([]);
+    c.coverage.uncovered[0].reasonKind = 'too-hard';
+    expect(errorPaths(TestCases, c)).toContain('coverage.uncovered.0.reasonKind');
+  });
+
+    it('rejects layers other than api and ui', () => {
     const c = structuredClone(cases);
     c.testCases[0].layer = 'e2e';
     expect(errorPaths(TestCases, c)).toContain('testCases.0.layer');

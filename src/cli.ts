@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
+import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
+import { inspectStage } from './modules/inspect.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
 import { runPaths } from './shared/paths.js';
 import path from 'node:path';
@@ -52,7 +54,49 @@ agent
     }
   });
 
-for (const stage of ['cases', 'scripts', 'execute', 'analyze', 'all']) {
+agent
+  .command('cases')
+  .description('Generate testcases.json from the run\'s prd.json')
+  .option('--run <runId>', 'run to use (default: the newest run with a prd.json)')
+  .action(async (opts: { run?: string }) => {
+    try {
+      const result = await generateTestCases({ ...(opts.run ? { runId: opts.run } : {}), log: (m) => console.log(m) });
+      console.log(`testcases.json: ${result.file}`);
+      for (const line of describeCasesSummary(result)) console.log(line);
+    } catch (err) {
+      console.error(`cases failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+agent
+  .command('inspect')
+  .description('List a stage\'s sessions with their rejected submits and tool calls (read-only)')
+  .requiredOption('--stage <stage>', 'prd or cases')
+  .option('--run <runId>', 'run to inspect (default: the newest run with transcripts for the stage)')
+  .option('--session <n>', 'show one session in full, with the model\'s reasoning', (v) => Number.parseInt(v, 10))
+  .option('--all', 'also list sessions from earlier runs of the stage')
+  .action(async (opts: { stage: string; run?: string; session?: number; all?: boolean }) => {
+    if (opts.stage !== 'prd' && opts.stage !== 'cases') {
+      console.error('--stage must be prd or cases');
+      process.exitCode = 1;
+      return;
+    }
+    try {
+      const lines = await inspectStage({
+        stage: opts.stage,
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.session !== undefined ? { session: opts.session } : {}),
+        ...(opts.all ? { all: true } : {}),
+      });
+      for (const line of lines) console.log(line);
+    } catch (err) {
+      console.error(`inspect failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+for (const stage of ['scripts', 'execute', 'analyze', 'all']) {
   agent
     .command(stage)
     .allowUnknownOption()

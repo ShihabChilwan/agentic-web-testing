@@ -53,6 +53,11 @@ export interface ToolStats {
   errors: number;
 }
 
+export interface SubmitStats {
+  invalidInput: number;
+  checkFailed: number;
+}
+
 export interface AgentResult<O> {
   output: O;
   /** Calls to tools that count toward the budget. */
@@ -60,6 +65,8 @@ export interface AgentResult<O> {
   /** Calls to tools with `countsTowardBudget: false`. */
   uncountedToolCalls: number;
   toolStats: Record<string, ToolStats>;
+  /** Rejected submits: input that failed the submit schema, or output that failed `validate`. */
+  submitStats: SubmitStats;
   /** True when `maxToolCalls` was reached. */
   budgetExhausted: boolean;
   turns: number;
@@ -72,6 +79,7 @@ interface AgentErrorDetails {
   toolCalls: number;
   uncountedToolCalls: number;
   toolStats: Record<string, ToolStats>;
+  submitStats: SubmitStats;
   budgetExhausted: boolean;
   turns: number;
   usage: Usage;

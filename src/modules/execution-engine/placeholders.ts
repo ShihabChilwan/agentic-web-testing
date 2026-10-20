@@ -19,17 +19,25 @@ function lookup(context: Record<string, unknown>, key: string): string | number 
 /**
  * Replaces `{{a.b.c}}` placeholders in strings, recursing into arrays and objects.
  * A string that is exactly one placeholder takes the value's own type (e.g. a number);
- * placeholders inside longer strings are inserted as text.
+ * placeholders inside longer strings are inserted as text. With `encode` (e.g. for URL paths)
+ * every inserted value is text passed through it.
  */
-export function fillPlaceholders<T>(value: T, context: Record<string, unknown>): T {
+export function fillPlaceholders<T>(
+  value: T,
+  context: Record<string, unknown>,
+  { encode }: { encode?: (text: string) => string } = {},
+): T {
   if (typeof value === 'string') {
     const whole = WHOLE_PLACEHOLDER.exec(value);
-    if (whole) return lookup(context, whole[1]!) as T;
-    return value.replace(PLACEHOLDER, (_m, key: string) => String(lookup(context, key))) as T;
+    if (whole && !encode) return lookup(context, whole[1]!) as T;
+    const text = (key: string) => String(lookup(context, key));
+    return value.replace(PLACEHOLDER, (_m, key: string) => (encode ? encode(text(key)) : text(key))) as T;
   }
-  if (Array.isArray(value)) return value.map((v) => fillPlaceholders(v, context)) as T;
+  if (Array.isArray(value)) return value.map((v) => fillPlaceholders(v, context, { ...(encode ? { encode } : {}) })) as T;
   if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fillPlaceholders(v, context)])) as T;
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, fillPlaceholders(v, context, { ...(encode ? { encode } : {}) })]),
+    ) as T;
   }
   return value;
 }

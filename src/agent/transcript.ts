@@ -1,4 +1,4 @@
-import { appendFile, mkdir, open } from 'node:fs/promises';
+import { appendFile, mkdir, open, readdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -29,6 +29,22 @@ export class Transcript {
         if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       }
     }
+  }
+
+  /**
+   * Moves `<purpose>-<n>.jsonl` files left by an earlier run of the same stage into
+   * `previous-<UTC timestamp>/`, so a rerun's sessions start again at 1 and never mix with the old ones.
+   * Returns the folder, or null when there was nothing to move.
+   */
+  static async archive(dir: string, purpose: string, now: Date = new Date()): Promise<string | null> {
+    const pattern = new RegExp(`^${purpose}-\\d+\\.jsonl$`);
+    const old = (await readdir(dir).catch(() => [] as string[])).filter((f) => pattern.test(f));
+    if (old.length === 0) return null;
+    const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+    const target = path.join(dir, `previous-${stamp}`);
+    await mkdir(target, { recursive: true });
+    for (const f of old) await rename(path.join(dir, f), path.join(target, f));
+    return target;
   }
 
   write(type: string, data: Record<string, unknown>): Promise<void> {

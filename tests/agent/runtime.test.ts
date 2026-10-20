@@ -427,3 +427,30 @@ describe('runAgent: per-tool counts', () => {
     expect((err as AgentSubmitError).details).toMatchObject({ toolStats: { echo: { calls: 1 } }, budgetExhausted: true });
   });
 });
+
+describe('runAgent: submit counts', () => {
+  it('counts submits that fail the schema and submits that fail validate, separately', async () => {
+    const llm = new FakeLLMClient([submit({ answer: 7 }), submit({ answer: 'bad' }), submit({ answer: 'good' })]);
+    const result = await runAgent(
+      options({ submit: { name: 'submit_answer', description: 'Submit', schema: Output, validate: (o) => (o.answer === 'bad' ? ['no'] : []) } }),
+      deps(llm),
+    );
+    expect(result.submitStats).toEqual({ invalidInput: 1, checkFailed: 1 });
+  });
+});
+
+describe('Transcript.archive', () => {
+  it('moves a stage\'s earlier transcripts into previous-<timestamp>/ and leaves other stages alone', async () => {
+    const { Transcript } = await import('../../src/agent/transcript.js');
+    const { writeFile } = await import('node:fs/promises');
+    const dir = await mkdtemp(path.join(tmpdir(), 'archive-'));
+    for (const f of ['cases-1.jsonl', 'cases-2.jsonl', 'prd-1.jsonl']) await writeFile(path.join(dir, f), '{}\n');
+    const moved = await Transcript.archive(dir, 'cases', new Date('2026-10-24T09:00:00.123Z'));
+    expect(path.basename(moved!)).toBe('previous-20261024T090000Z');
+    expect((await readdir(dir)).sort()).toEqual(['prd-1.jsonl', 'previous-20261024T090000Z']);
+    expect((await readdir(moved!)).sort()).toEqual(['cases-1.jsonl', 'cases-2.jsonl']);
+    expect(await Transcript.archive(dir, 'cases')).toBeNull();
+    const next = await Transcript.create(dir, 'cases');
+    expect(path.basename(next.file!)).toBe('cases-1.jsonl');
+  });
+});

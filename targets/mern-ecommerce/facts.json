@@ -1,0 +1,349 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
+  "observedAt": "2026-10-20T22:55:34.115Z",
+  "facts": [
+    {
+      "name": "productList",
+      "request": {
+        "method": "GET",
+        "path": "/api/product/list?sortOrder=%7B%22_id%22%3A-1%7D&min=1&max=2500&rating=0&page=1&limit=10",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "products": [
+          {
+            "name": "Generic Steel Gloves",
+            "slug": "generic-steel-gloves",
+            "price": 237,
+            "quantity": 24,
+            "brand": {
+              "name": "Monahan and Sons"
+            }
+          },
+          {
+            "name": "Practical Fresh Car",
+            "slug": "practical-fresh-car",
+            "price": 515,
+            "quantity": 60,
+            "brand": {
+              "name": "Willms and Sons"
+            }
+          },
+          {
+            "name": "Modern Rubber Ball",
+            "slug": "modern-rubber-ball",
+            "price": 236,
+            "quantity": 74,
+            "brand": {
+              "name": "Volkman Group"
+            }
+          },
+          {
+            "name": "Handmade Plastic Fish",
+            "slug": "handmade-plastic-fish",
+            "price": 868,
+            "quantity": 55,
+            "brand": {
+              "name": "Yost and Sons"
+            }
+          },
+          {
+            "name": "Handmade Rubber Bike",
+            "slug": "handmade-rubber-bike",
+            "price": 200,
+            "quantity": 9,
+            "brand": {
+              "name": "Schamberger, Russel and Moen"
+            }
+          }
+        ],
+        "count": 100,
+        "totalPages": 10,
+        "currentPage": 1
+      },
+      "truncated": true
+    },
+    {
+      "name": "productItem",
+      "request": {
+        "method": "GET",
+        "path": "/api/product/item/generic-steel-gloves",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "product": {
+          "name": "Generic Steel Gloves",
+          "slug": "generic-steel-gloves",
+          "sku": "A5aEojYogR",
+          "price": 237,
+          "quantity": 24,
+          "taxable": false,
+          "brand": {
+            "name": "Monahan and Sons",
+            "slug": "monahan-and-sons"
+          }
+        }
+      },
+      "truncated": false
+    },
+    {
+      "name": "productSearch",
+      "request": {
+        "method": "GET",
+        "path": "/api/product/list/search/Generic%20Steel%20Gloves",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "products": [
+          {
+            "name": "Generic Steel Gloves",
+            "price": 237,
+            "slug": "generic-steel-gloves"
+          }
+        ]
+      },
+      "truncated": false
+    },
+    {
+      "name": "productNotFound",
+      "request": {
+        "method": "GET",
+        "path": "/api/product/item/no-such-product",
+        "as": null
+      },
+      "status": 404,
+      "body": {
+        "message": "No product found."
+      },
+      "truncated": false
+    },
+    {
+      "name": "categoryList",
+      "request": {
+        "method": "GET",
+        "path": "/api/category/list",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "categories": [
+          {
+            "name": "Tools",
+            "slug": "tools",
+            "isActive": true
+          },
+          {
+            "name": "Music",
+            "slug": "music",
+            "isActive": true
+          },
+          {
+            "name": "Kids",
+            "slug": "kids",
+            "isActive": true
+          },
+          {
+            "name": "Industrial",
+            "slug": "industrial",
+            "isActive": true
+          },
+          {
+            "name": "Home",
+            "slug": "home",
+            "isActive": true
+          }
+        ]
+      },
+      "truncated": true
+    },
+    {
+      "name": "brandList",
+      "request": {
+        "method": "GET",
+        "path": "/api/brand/list",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "brands": [
+          {
+            "name": "Monahan and Sons",
+            "slug": "monahan-and-sons",
+            "isActive": true
+          },
+          {
+            "name": "Leannon - Durgan",
+            "slug": "leannon-durgan",
+            "isActive": true
+          },
+          {
+            "name": "Huels, Tremblay and Walter",
+            "slug": "huels-tremblay-and-walter",
+            "isActive": true
+          },
+          {
+            "name": "Willms and Sons",
+            "slug": "willms-and-sons",
+            "isActive": true
+          },
+          {
+            "name": "Littel - Gorczany",
+            "slug": "littel-gorczany",
+            "isActive": true
+          }
+        ]
+      },
+      "truncated": true
+    },
+    {
+      "name": "productsAsAdmin",
+      "request": {
+        "method": "GET",
+        "path": "/api/product",
+        "as": "users.admin"
+      },
+      "status": 200,
+      "body": {
+        "products": [
+          {
+            "name": "Recycled Concrete Towels",
+            "slug": "recycled-concrete-towels"
+          },
+          {
+            "name": "Electronic Fresh Table",
+            "slug": "electronic-fresh-table"
+          },
+          {
+            "name": "Rustic Granite Hat",
+            "slug": "rustic-granite-hat"
+          }
+        ]
+      },
+      "truncated": true
+    },
+    {
+      "name": "meAsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/user/me",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "user": {
+          "email": "alice@example.test",
+          "firstName": "Alice",
+          "lastName": "Test",
+          "role": "ROLE MEMBER",
+          "provider": "Email"
+        }
+      },
+      "truncated": false
+    },
+    {
+      "name": "meNoToken",
+      "request": {
+        "method": "GET",
+        "path": "/api/user/me",
+        "as": null
+      },
+      "status": 401,
+      "body": "Unauthorized",
+      "truncated": false
+    },
+    {
+      "name": "merchantsNoToken",
+      "request": {
+        "method": "GET",
+        "path": "/api/merchant",
+        "as": null
+      },
+      "status": 401,
+      "body": "Unauthorized",
+      "truncated": false
+    },
+    {
+      "name": "merchantsAsMember",
+      "request": {
+        "method": "GET",
+        "path": "/api/merchant",
+        "as": "users.alice"
+      },
+      "status": 403,
+      "body": "You are not allowed to make this request.",
+      "truncated": false
+    },
+    {
+      "name": "productsAsMember",
+      "request": {
+        "method": "GET",
+        "path": "/api/product",
+        "as": "users.alice"
+      },
+      "status": 403,
+      "body": "You are not allowed to make this request.",
+      "truncated": false
+    },
+    {
+      "name": "loginWrongPassword",
+      "request": {
+        "method": "POST",
+        "path": "/api/auth/login",
+        "as": null
+      },
+      "status": 400,
+      "body": {
+        "success": false,
+        "error": "Password Incorrect"
+      },
+      "truncated": false
+    },
+    {
+      "name": "ordersAsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/order/me",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "orders": [],
+        "totalPages": 0,
+        "currentPage": 1,
+        "count": 0
+      },
+      "truncated": false
+    },
+    {
+      "name": "wishlistAsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/wishlist",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "wishlist": []
+      },
+      "truncated": false
+    },
+    {
+      "name": "addressesAsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/address",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "addresses": []
+      },
+      "truncated": false
+    }
+  ]
+}

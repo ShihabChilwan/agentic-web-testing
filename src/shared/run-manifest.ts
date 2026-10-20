@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readCallLog, upstreamProvidersSeen } from '../llm/call-log.js';
 import type { LLMConfig } from './config.js';
@@ -87,4 +87,17 @@ export async function setStage(runDir: string, stage: StageName, state: StageSta
 /** `Name: message` for run.json, from any thrown value. */
 export function errorSummary(err: unknown): string {
   return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+}
+
+/** The newest run (by run id, which ends in its UTC timestamp) whose folder contains `file`, or null. */
+export async function latestRunWith(file: string, runsDir: string = RUNS_DIR): Promise<string | null> {
+  const names = await readdir(runsDir).catch(() => [] as string[]);
+  const runs = names
+    .filter((n) => /-\d{8}-\d{6}$/.test(n))
+    .sort((a, b) => a.slice(-15).localeCompare(b.slice(-15)) || a.localeCompare(b));
+  for (const name of runs.reverse()) {
+    const ok = await access(path.join(runsDir, name, file)).then(() => true, () => false);
+    if (ok) return name;
+  }
+  return null;
 }

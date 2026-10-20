@@ -4,7 +4,7 @@ import type { ChatResponse, Message, TextBlock, ToolCallBlock, ToolDef, ToolResu
 import { estimateTokens, guardContext } from './context-guard.js';
 import { Transcript } from './transcript.js';
 import { AgentBudgetError, AgentSubmitError } from './types.js';
-import type { AgentDeps, AgentResult, AgentTool, RunAgentOptions, ToolStats } from './types.js';
+import type { AgentDeps, AgentResult, AgentTool, RunAgentOptions, SubmitStats, ToolStats } from './types.js';
 
 export const TOOL_OUTPUT_LIMIT = 20_000;
 export const SUBMIT_ATTEMPTS = 3;
@@ -89,6 +89,7 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
   let toolCalls = 0;
   let uncountedToolCalls = 0;
   const toolStats: Record<string, ToolStats> = {};
+  const submitStats: SubmitStats = { invalidInput: 0, checkFailed: 0 };
   const runCounted = async (tool: AgentTool<unknown> | undefined, call: ToolCallBlock) => {
     const { result, outcome } = await runTool(tool, call);
     const stats = (toolStats[call.name] ??= { calls: 0, invalidInput: 0, errors: 0 });
@@ -109,6 +110,7 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
     toolCalls,
     uncountedToolCalls,
     toolStats: structuredClone(toolStats),
+    submitStats: { ...submitStats },
     budgetExhausted: toolCalls >= maxToolCalls,
     turns,
     usage: { ...usage },
@@ -201,7 +203,9 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
             };
           }
           submitAttemptsLeft--;
-          await transcript.write('submit', { toolCallId: call.id, ok: false, errors: check.errors, submitAttemptsLeft });
+          if (check.kind === 'invalidInput') submitStats.invalidInput++;
+          else submitStats.checkFailed++;
+          await transcript.write('submit', { toolCallId: call.id, ok: false, kind: check.kind, errors: check.errors, submitAttemptsLeft });
           if (submitAttemptsLeft === 0) {
             throw new AgentSubmitError(
               `All ${SUBMIT_ATTEMPTS} submit attempts were rejected`,
@@ -255,13 +259,15 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
   }
 }
 
-type SubmissionCheck<O> = { ok: true; output: O } | { ok: false; errors: string[] };
+type SubmissionCheck<O> =
+  | { ok: true; output: O }
+  | { ok: false; kind: 'invalidInput' | 'checkFailed'; errors: string[] };
 
 async function checkSubmission<O>(opts: RunAgentOptions<O>, input: unknown): Promise<SubmissionCheck<O>> {
   const parsed = opts.submit.schema.safeParse(input);
-  if (!parsed.success) return { ok: false, errors: formatZodIssues(parsed.error) };
+  if (!parsed.success) return { ok: false, kind: 'invalidInput', errors: formatZodIssues(parsed.error) };
   const errors = opts.submit.validate ? await opts.submit.validate(parsed.data) : [];
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, output: parsed.data };
+  return errors.length > 0 ? { ok: false, kind: 'checkFailed', errors } : { ok: true, output: parsed.data };
 }
 
 function errorResult(call: ToolCallBlock, content: string): ToolResultBlock {

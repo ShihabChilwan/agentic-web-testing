@@ -43,6 +43,15 @@ describe('target.config.json', () => {
     );
   });
 
+    it('accepts the auth section and fact requests, with defaults', () => {
+    const parsed = TargetConfig.parse(config);
+    expect(parsed.auth).toMatchObject({ tokenAt: 'token', header: 'Authorization', prefix: '' });
+    expect(parsed.facts?.find((f) => f.name === 'meNoToken')).toMatchObject({ as: null, maxItems: 5 });
+    const bad = { ...config, facts: [{ name: 'has space', method: 'GET', path: 'no-slash' }] };
+    expect(errorPaths(TargetConfig, bad)).toEqual(expect.arrayContaining(['facts.0.name', 'facts.0.path']));
+    expect(errorPaths(TargetConfig, { ...config, auth: { ...config.auth, tokenAt: '' } })).toContain('auth.tokenAt');
+  });
+
     it('rejects a target missing backend or frontend', () => {
     const { frontend: _f, ...noFrontend } = config;
     expect(errorPaths(TargetConfig, noFrontend)).toContain('frontend');

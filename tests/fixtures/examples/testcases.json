@@ -41,7 +41,14 @@
     "uncovered": [
       {
         "requirementId": "REQ-017",
-        "reason": "Requires email delivery (third-party integration, out of scope)."
+        "reasonKind": "third-party-disabled",
+        "reason": "The reset link only travels by email, which is disabled."
+      }
+    ],
+    "partial": [
+      {
+        "requirementId": "REQ-004",
+        "reason": "The success email after registration cannot be checked: email is disabled."
       }
     ]
   }

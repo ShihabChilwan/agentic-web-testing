@@ -4,4 +4,4 @@ export type { GuardInput, GuardResult, Trim } from './context-guard.js';
 export { createRepoTools, resolveInRepo, isHidden, PathRejectedError, splitLines } from './tools/repo-tools.js';
 export type { RepoScope } from './tools/repo-tools.js';
 export { AgentBudgetError, AgentSubmitError } from './types.js';
-export type { AgentDeps, AgentResult, AgentTool, RunAgentOptions, SubmitSpec, ToolStats } from './types.js';
+export type { AgentDeps, AgentResult, AgentTool, RunAgentOptions, SubmitSpec, SubmitStats, ToolStats } from './types.js';

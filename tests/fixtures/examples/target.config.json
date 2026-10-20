@@ -101,6 +101,49 @@
     "path": "/api/product/list?sortOrder=%7B%22_id%22%3A-1%7D&min=1&max=2500&rating=0&page=1&limit=10",
     "expect": { "status": 200, "nonEmptyArrayAt": "products" }
   },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "body": { "email": "{{user.email}}", "password": "{{user.password}}" }
+    },
+    "tokenAt": "token",
+    "header": "Authorization",
+    "prefix": ""
+  },
+  "facts": [
+    {
+      "name": "productList",
+      "method": "GET",
+      "path": "/api/product/list?sortOrder=%7B%22_id%22%3A-1%7D&min=1&max=2500&rating=0&page=1&limit=10",
+      "keep": ["products[].name", "products[].slug", "products[].price", "products[].quantity", "products[].brand.name", "count", "totalPages", "currentPage"]
+    },
+    {
+      "name": "productItem",
+      "method": "GET",
+      "path": "/api/product/item/{{facts.productList.body.products.0.slug}}",
+      "keep": ["product.name", "product.slug", "product.sku", "product.price", "product.quantity", "product.taxable", "product.brand.name", "product.brand.slug"]
+    },
+    { "name": "productSearch", "method": "GET", "path": "/api/product/list/search/{{facts.productList.body.products.0.name}}" },
+    { "name": "productNotFound", "method": "GET", "path": "/api/product/item/no-such-product" },
+    { "name": "categoryList", "method": "GET", "path": "/api/category/list", "keep": ["categories[].name", "categories[].slug", "categories[].isActive"] },
+    { "name": "brandList", "method": "GET", "path": "/api/brand/list", "keep": ["brands[].name", "brands[].slug", "brands[].isActive"] },
+    { "name": "productsAsAdmin", "method": "GET", "path": "/api/product", "as": "users.admin", "keep": ["products[].name", "products[].slug"], "maxItems": 3 },
+    { "name": "meAsAlice", "method": "GET", "path": "/api/user/me", "as": "users.alice", "keep": ["user.email", "user.firstName", "user.lastName", "user.role", "user.provider"] },
+    { "name": "meNoToken", "method": "GET", "path": "/api/user/me" },
+    { "name": "merchantsNoToken", "method": "GET", "path": "/api/merchant" },
+    { "name": "merchantsAsMember", "method": "GET", "path": "/api/merchant", "as": "users.alice" },
+    { "name": "productsAsMember", "method": "GET", "path": "/api/product", "as": "users.alice" },
+    {
+      "name": "loginWrongPassword",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "body": { "email": "{{fixtures.users.alice.email}}", "password": "not-the-password" }
+    },
+    { "name": "ordersAsAlice", "method": "GET", "path": "/api/order/me", "as": "users.alice" },
+    { "name": "wishlistAsAlice", "method": "GET", "path": "/api/wishlist", "as": "users.alice" },
+    { "name": "addressesAsAlice", "method": "GET", "path": "/api/address", "as": "users.alice" }
+  ],
   "sourceHints": {
     "include": ["README.md", "server/**", "client/app/**"],
     "exclude": ["**/node_modules/**", "**/*.test.*", "**/dist/**", "**/build/**"]

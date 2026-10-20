@@ -95,6 +95,35 @@ export const SeedCheck = z.strictObject({
   }),
 });
 
+/** How to log in as a fixture user over HTTP: the token goes into a header on later requests. */
+export const TargetAuth = z.strictObject({
+  login: z.strictObject({
+    method: HttpMethod,
+    path: z.string().startsWith('/'),
+    /** `{{user.<field>}}` placeholders resolve against the fixture user. */
+    body: z.unknown(),
+  }),
+  /** Dot path of the token in the login response body. */
+  tokenAt: z.string().min(1),
+  header: z.string().min(1),
+  /** Put before the token in the header (e.g. "Bearer "); "" when the token already includes it. */
+  prefix: z.string().default(''),
+});
+
+/** One request whose answer on golden is recorded in facts.json (SPEC §7.4). */
+export const FactRequest = z.strictObject({
+  name: z.string().regex(/^[A-Za-z][A-Za-z0-9]*$/, 'expected a name like productList'),
+  method: HttpMethod,
+  /** May use `{{facts.<earlier name>.body.<path>}}`, filled from an earlier fact's full response (URL-encoded). */
+  path: z.string().startsWith('/'),
+  body: z.unknown().optional(),
+  /** A fixture user path to log in as (e.g. "users.alice"), or null for no token. */
+  as: z.string().min(1).nullable().default(null),
+  /** Dot paths to keep, `[]` for every item (e.g. "products[].name"); all of the body when left out. */
+  keep: z.array(z.string().min(1)).optional(),
+  maxItems: z.number().int().positive().default(5),
+});
+
 export const TargetConfig = z.strictObject({
   schemaVersion: SchemaVersion,
   name: z.string().regex(/^[a-z0-9-]+$/, 'target name must be lowercase letters, digits and dashes'),
@@ -121,6 +150,8 @@ export const TargetConfig = z.strictObject({
   }),
   seed: z.array(SeedRequest),
   seedCheck: SeedCheck.optional(),
+  auth: TargetAuth.optional(),
+  facts: z.array(FactRequest).optional(),
   sourceHints: z.strictObject({
     include: z.array(z.string()),
     exclude: z.array(z.string()),
@@ -131,6 +162,27 @@ export const TargetConfig = z.strictObject({
 export type TargetConfig = z.infer<typeof TargetConfig>;
 export type FixtureUser = z.infer<typeof FixtureUser>;
 export type SeedCheck = z.infer<typeof SeedCheck>;
+export type TargetAuth = z.infer<typeof TargetAuth>;
+export type FactRequest = z.infer<typeof FactRequest>;
+
+/** targets/<name>/facts.json: answers observed on golden (SPEC §7.4). Committed: never holds tokens or headers. */
+export const TargetFacts = z.object({
+  schemaVersion: SchemaVersion,
+  target: z.string().min(1),
+  goldenCommit: CommitSha,
+  observedAt: Timestamp,
+  facts: z.array(
+    z.object({
+      name: z.string().min(1),
+      request: z.object({ method: HttpMethod, path: z.string().startsWith('/'), as: z.string().nullable() }),
+      status: z.number().int(),
+      /** The trimmed JSON body, or the text body. */
+      body: z.unknown(),
+      truncated: z.boolean(),
+    }),
+  ),
+});
+export type TargetFacts = z.infer<typeof TargetFacts>;
 
 // ---------------------------------------------------------------------------
 // LLM call log — one line of runs/<runId>/llm-calls.jsonl
@@ -298,15 +350,27 @@ export const TestCase = z.object({
   expected: z.array(Expectation).min(1),
 });
 
+export const UncoveredReasonKind = z.enum(['third-party-disabled', 'data-not-reachable', 'out-of-scope', 'other']);
+
+/** A requirement with no test case: declined by the model with a reason, or left uncovered after the gap round. */
+export const UncoveredRequirement = z.object({
+  requirementId: RequirementId,
+  reasonKind: UncoveredReasonKind,
+  reason: z.string().min(1),
+});
+
+/** A covered requirement whose cases leave out a part the model said cannot be tested (e.g. an email-only happy path). */
+export const PartlyCoveredRequirement = z.object({
+  requirementId: RequirementId,
+  reason: z.string().min(1),
+});
+
 export const TestCaseCoverage = z.object({
   requirementsTotal: z.number().int().nonnegative(),
   requirementsCovered: z.number().int().nonnegative(),
-  uncovered: z.array(
-    z.object({
-      requirementId: RequirementId,
-      reason: z.string().min(1),
-    }),
-  ),
+  uncovered: z.array(UncoveredRequirement),
+  /** Covered requirements with a part declined as untestable; the reasons are kept here. */
+  partial: z.array(PartlyCoveredRequirement).default([]),
 });
 
 export const TestCases = z.object({
@@ -319,6 +383,10 @@ export const TestCases = z.object({
 export type TestCase = z.infer<typeof TestCase>;
 export type TestCases = z.infer<typeof TestCases>;
 export type Expectation = z.infer<typeof Expectation>;
+export type TestCategory = z.infer<typeof TestCategory>;
+export type UncoveredReasonKind = z.infer<typeof UncoveredReasonKind>;
+export type UncoveredRequirement = z.infer<typeof UncoveredRequirement>;
+export type PartlyCoveredRequirement = z.infer<typeof PartlyCoveredRequirement>;
 
 // ---------------------------------------------------------------------------
 // Module 3 — scripts/manifest.json (also used by the one-prompt ablation)
@@ -538,6 +606,25 @@ export const StageAgentSummary = z.object({
   }),
 });
 
+const count = z.number().int().nonnegative();
+
+/** What a generation stage made (Test Case Generator): many short model sessions rather than one agent. */
+export const StageGenerationSummary = z.object({
+  /** Model calls in the stage. */
+  calls: count,
+  /** Feature sessions plus gap-round sessions. */
+  sessions: count,
+  casesByLayer: z.record(TestLayer, count),
+  casesByCategory: z.record(TestCategory, count),
+  uncoveredByReasonKind: z.record(UncoveredReasonKind, count),
+  /** Rejected submits: input that failed the submit schema, or output that failed the code checks. */
+  rejected: z.object({ invalidInput: count, checkFailed: count }),
+  /** Sum of this stage's provider-reported or priced costs; null when no call had a cost. */
+  costUsd: z.number().nonnegative().nullable(),
+  /** E.g. a high-priority requirement without a negative case. */
+  warnings: z.array(z.string()),
+});
+
 export const StageState = z.object({
   status: StageStatus,
   startedAt: Timestamp.optional(),
@@ -545,6 +632,7 @@ export const StageState = z.object({
   /** Why the stage failed (e.g. LLMBudgetExceededError). No secrets. */
   error: z.string().optional(),
   agent: StageAgentSummary.optional(),
+  generation: StageGenerationSummary.optional(),
 });
 
 const PerModule = <T extends z.ZodType>(value: T) =>
@@ -589,6 +677,7 @@ export type StageStatus = z.infer<typeof StageStatus>;
 export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
 export type StageAgentSummary = z.infer<typeof StageAgentSummary>;
+export type StageGenerationSummary = z.infer<typeof StageGenerationSummary>;
 export type RunExecution = z.infer<typeof RunExecution>;
 export type RunManifest = z.infer<typeof RunManifest>;
 
