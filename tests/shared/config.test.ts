@@ -19,7 +19,7 @@ describe('parseLLMConfig', () => {
     const config = parseLLMConfig(minimal);
     expect(config).toMatchObject({
       provider: 'openai-compatible',
-      model: 'openai/gpt-oss-120b',
+      model: 'z-ai/glm-5.3-flash',
       temperature: 1.0,
       topP: 1.0,
       reasoningEffort: 'medium',
@@ -44,7 +44,7 @@ describe('parseLLMConfig', () => {
     });
     expect(config.apiKey).toBeUndefined();
     expect(config.extraHeaders).toEqual({});
-    expect(config.models.prd).toBe('openai/gpt-oss-120b');
+    expect(config.models.prd).toBe('z-ai/glm-5.3-flash');
     expect(config.concurrency).toBe(4);
     expect(config.reasoningEfforts.cases).toBe('low');
   });
@@ -97,7 +97,7 @@ describe('per-purpose settings', () => {
   });
 
   it('falls back to the defaults for other purposes', () => {
-    expect(modelFor(config, 'one-prompt')).toBe('openai/gpt-oss-120b');
+    expect(modelFor(config, 'one-prompt')).toBe('z-ai/glm-5.3-flash');
     expect(reasoningEffortFor(config, 'one-prompt')).toBe('low');
   });
 });
@@ -109,7 +109,7 @@ describe('LLM_EXTRA_BODY and LLM_REASONING_PARAM', () => {
   });
 
   it('parses a JSON object, e.g. provider pinning', () => {
-    const body = { provider: { only: ['near-ai/fp4'], allow_fallbacks: false } };
+    const body = { provider: { only: ['wafer/nvfp4'], allow_fallbacks: false } };
     expect(parseLLMConfig({ ...minimal, LLM_EXTRA_BODY: JSON.stringify(body) }).extraBody).toEqual(body);
   });
 

@@ -5,7 +5,7 @@ export type ToolCallBlock = { type: 'tool_call'; id: string; name: string; input
 export type ToolResultBlock = { type: 'tool_result'; toolCallId: string; content: string; isError?: boolean };
 
 /**
- * gpt-oss returns its reasoning separately from its text. It is kept on the
+ * Reasoning models return their reasoning separately from their text. It is kept on the
  * assistant message and sent back with the history in later tool-calling
  * turns, or the model loses track mid-task. Some endpoints (OpenRouter) also
  * return structured `reasoningDetails`, which must go back exactly as received.
@@ -31,7 +31,7 @@ export interface ChatRequest {
   purpose: string;
   system: string;
   messages: Message[];
-  /** Forced tool choice is not supported by gpt-oss on vLLM; restrict `tools` instead. */
+  /** Forced tool choice is not sent (not every model and server supports it); restrict `tools` instead. */
   tools?: ToolDef[];
   maxTokens: number;
   temperature?: number;

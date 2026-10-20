@@ -49,7 +49,7 @@ const request: ProviderRequest = {
   system: 'You are a test.',
   messages: [{ role: 'user', content: [{ type: 'text', text: 'Start.' }] }],
   maxTokens: 1000,
-  model: 'openai/gpt-oss-120b',
+  model: 'z-ai/glm-5.3-flash',
   temperature: 1,
   topP: 1,
   reasoningEffort: 'high',
@@ -61,7 +61,7 @@ function completion(message: Record<string, unknown>, finishReason = 'stop') {
     id: 'c1',
     object: 'chat.completion',
     created: 0,
-    model: 'openai/gpt-oss-120b',
+    model: 'z-ai/glm-5.3-flash',
     choices: [{ index: 0, message: { role: 'assistant', ...message }, finish_reason: finishReason }],
     usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 },
   };
@@ -77,7 +77,7 @@ describe('OpenAICompatibleProvider request', () => {
     expect(sent?.headers.get('x-proxy-key')).toBe('proxy-key-value');
     expect(sent?.headers.get('x-proxy-secret')).toBe('proxy-secret-value');
     expect(sent?.body).toMatchObject({
-      model: 'openai/gpt-oss-120b',
+      model: 'z-ai/glm-5.3-flash',
       temperature: 1,
       top_p: 1,
       max_completion_tokens: 1000,
@@ -155,7 +155,7 @@ describe('OpenAICompatibleProvider response', () => {
       reasoning: 'thinking',
       stopReason: 'end',
       usage: { inputTokens: 120, outputTokens: 30 },
-      model: 'openai/gpt-oss-120b',
+      model: 'z-ai/glm-5.3-flash',
     });
   });
 
@@ -235,7 +235,7 @@ describe('OpenAICompatibleProvider errors', () => {
 });
 
 describe('OpenAICompatibleProvider: extra body, reasoning format and optional response fields', () => {
-  const pinned = { provider: { only: ['near-ai/fp4'], allow_fallbacks: false } };
+  const pinned = { provider: { only: ['wafer/nvfp4'], allow_fallbacks: false } };
 
   it('merges LLM_EXTRA_BODY into every request body', async () => {
     const stub = stubFetch([{ body: completion({ content: 'hi' }) }, { body: completion({ content: 'hi' }) }]);
@@ -250,7 +250,7 @@ describe('OpenAICompatibleProvider: extra body, reasoning format and optional re
     await p.chat(request);
     await p.chat(request);
     for (const sent of stub.captured) {
-      expect(sent.body).toMatchObject({ ...pinned, model: 'openai/gpt-oss-120b', reasoning_effort: 'high' });
+      expect(sent.body).toMatchObject({ ...pinned, model: 'z-ai/glm-5.3-flash', reasoning_effort: 'high' });
     }
   });
 
@@ -276,7 +276,7 @@ describe('OpenAICompatibleProvider: extra body, reasoning format and optional re
     const details = [{ type: 'reasoning.text', text: 'Step 1…', format: 'openai-responses-v1', index: 0 }];
     const body = {
       ...completion({ content: 'hi', reasoning: 'Step 1…', reasoning_details: details }),
-      provider: 'Near AI',
+      provider: 'Wafer',
       system_fingerprint: 'fp_abc123',
       usage: {
         prompt_tokens: 120,
@@ -291,7 +291,7 @@ describe('OpenAICompatibleProvider: extra body, reasoning format and optional re
     expect(response).toMatchObject({
       reasoning: 'Step 1…',
       reasoningDetails: details,
-      upstreamProvider: 'Near AI',
+      upstreamProvider: 'Wafer',
       systemFingerprint: 'fp_abc123',
       usage: { inputTokens: 120, outputTokens: 30, cachedInputTokens: 64, reasoningTokens: 25, costUsd: 0.000042 },
     });

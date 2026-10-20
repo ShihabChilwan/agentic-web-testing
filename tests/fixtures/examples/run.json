@@ -8,10 +8,10 @@
   "llm": {
     "provider": "openai-compatible",
     "models": {
-      "prd": "openai/gpt-oss-120b",
-      "cases": "openai/gpt-oss-120b",
-      "scripts": "openai/gpt-oss-120b",
-      "analyzer": "openai/gpt-oss-120b"
+      "prd": "z-ai/glm-5.3-flash",
+      "cases": "z-ai/glm-5.3-flash",
+      "scripts": "z-ai/glm-5.3-flash",
+      "analyzer": "z-ai/glm-5.3-flash"
     },
     "temperature": 1,
     "topP": 1,
@@ -23,7 +23,7 @@
     },
     "concurrency": 4,
     "upstreamProviders": [
-      "Near AI"
+      "Wafer"
     ]
   },
   "stages": {

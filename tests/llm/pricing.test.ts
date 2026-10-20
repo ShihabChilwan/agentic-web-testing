@@ -19,7 +19,7 @@ describe('pricing', () => {
     );
     const pricing = await loadPricing(file);
     expect(costUsd(pricing, 'priced', { inputTokens: 500_000, outputTokens: 250_000 })).toBeCloseTo(1.5);
-    expect(costUsd(pricing, 'openai/gpt-oss-120b', { inputTokens: 500_000, outputTokens: 250_000 })).toBeNull();
+    expect(costUsd(pricing, 'z-ai/glm-5.3-flash', { inputTokens: 500_000, outputTokens: 250_000 })).toBeNull();
   });
 
   it('rejects an invalid file', async () => {

@@ -532,7 +532,7 @@ export const RunManifest = z.object({
     topP: z.number().gt(0).max(1),
     reasoningEffort: PerModule(ReasoningEffort),
     concurrency: z.number().int().positive(),
-    /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Near AI"]). */
+    /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Wafer"]). */
     upstreamProviders: z.array(z.string().min(1)).optional(),
   }),
   stages: z.strictObject({

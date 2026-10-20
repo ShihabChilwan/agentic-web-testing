@@ -218,7 +218,7 @@ describe('RunLLMClient: provider-reported cost, tokens and provider', () => {
       [
         FakeLLMClient.text('ok', {
           usage: { inputTokens: 1000, outputTokens: 200, cachedInputTokens: 512, reasoningTokens: 150, costUsd: 0.00021 },
-          upstreamProvider: 'Near AI',
+          upstreamProvider: 'Wafer',
           systemFingerprint: 'fp_1',
         }),
       ],
@@ -230,7 +230,7 @@ describe('RunLLMClient: provider-reported cost, tokens and provider', () => {
       costSource: 'provider',
       cachedInputTokens: 512,
       reasoningTokens: 150,
-      upstreamProvider: 'Near AI',
+      upstreamProvider: 'Wafer',
       systemFingerprint: 'fp_1',
     });
   });
@@ -271,12 +271,12 @@ describe('RunLLMClient: provider-reported cost, tokens and provider', () => {
     const line = {
       ts: '2026-10-24T10:00:00.000Z', purpose: 'prd', provider: 'openai-compatible', model: 'm', reasoningEffort: 'medium',
       inputTokens: 10, outputTokens: 10, latencyMs: 5, ok: true, attempts: 1, costUsd: 0.5, costSource: 'provider',
-      upstreamProvider: 'Near AI',
+      upstreamProvider: 'Wafer',
     };
     await writeFile(callLogFile, `${JSON.stringify(line)}\n${JSON.stringify({ ...line, upstreamProvider: 'Other' })}\n`);
     const { lines } = await readCallLog(callLogFile);
     expect(RunBudget.fromCallLog({ maxTokens: 1000, maxCostUsd: 2 }, lines).costUsd).toBe(1);
-    expect(upstreamProvidersSeen(lines)).toEqual(['Near AI', 'Other']);
+    expect(upstreamProvidersSeen(lines)).toEqual(['Other', 'Wafer']);
   });
 
   it('recognises a rejection of either reasoning format', () => {

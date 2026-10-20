@@ -107,7 +107,7 @@ const extraBody = z.preprocess(
 const EnvSchema = z.object({
   LLM_PROVIDER: withDefault(LLMProvider, 'openai-compatible'),
   LLM_BASE_URL: optionalString.pipe(z.url().optional()),
-  LLM_MODEL: withDefault(z.string().min(1), 'openai/gpt-oss-120b'),
+  LLM_MODEL: withDefault(z.string().min(1), 'z-ai/glm-5.3-flash'),
   LLM_API_KEY: optionalString,
   LLM_EXTRA_HEADERS: extraHeaders,
   LLM_EXTRA_BODY: extraBody,

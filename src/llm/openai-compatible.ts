@@ -33,8 +33,8 @@ export interface OpenAICompatibleOptions {
 type ReasoningField = 'reasoning_content' | 'reasoning';
 
 /**
- * Talks to any OpenAI-compatible chat completions endpoint (vLLM serving
- * gpt-oss, OpenAI itself). One request per call; the client does retries.
+ * Talks to any OpenAI-compatible chat completions endpoint (OpenRouter,
+ * a self-hosted vLLM server, OpenAI itself). One request per call; the client does retries.
  */
 export class OpenAICompatibleProvider implements ChatProvider {
   readonly name = 'openai-compatible';

@@ -54,7 +54,7 @@ describe('run.json', () => {
   });
 
   it('accepts run.json with or without upstream providers', () => {
-    expect(RunManifest.parse(run).llm.upstreamProviders).toEqual(['Near AI']);
+    expect(RunManifest.parse(run).llm.upstreamProviders).toEqual(['Wafer']);
     const r = structuredClone(run);
     delete r.llm.upstreamProviders;
     expect(RunManifest.safeParse(r).success).toBe(true);
