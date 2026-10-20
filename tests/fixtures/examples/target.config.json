@@ -43,7 +43,8 @@
     "env": {
       "API_URL": "http://localhost:3000/api"
     },
-    "envFile": ".env"
+    "envFile": ".env",
+    "sourceRoots": ["client/app"]
   },
   "lifecycle": {
     "reset": "mongosh \"mongodb://mongo:27017/mern_ecommerce_test\" --quiet --eval \"db.dropDatabase()\"",

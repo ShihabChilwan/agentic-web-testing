@@ -33,6 +33,16 @@ describe('target.config.json', () => {
     );
   });
 
+    it('accepts optional frontend.sourceRoots as relative folders', () => {
+    expect(TargetConfig.parse(config).frontend.sourceRoots).toEqual(['client/app']);
+    const { sourceRoots: _r, ...frontend } = config.frontend;
+    expect(TargetConfig.parse({ ...config, frontend }).frontend.sourceRoots).toBeUndefined();
+    expect(errorPaths(TargetConfig, { ...config, frontend: { ...frontend, sourceRoots: [] } })).toContain('frontend.sourceRoots');
+    expect(errorPaths(TargetConfig, { ...config, frontend: { ...frontend, sourceRoots: ['../x'] } })).toContain(
+      'frontend.sourceRoots.0',
+    );
+  });
+
     it('rejects a target missing backend or frontend', () => {
     const { frontend: _f, ...noFrontend } = config;
     expect(errorPaths(TargetConfig, noFrontend)).toContain('frontend');

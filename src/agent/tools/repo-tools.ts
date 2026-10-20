@@ -59,6 +59,13 @@ export async function resolveInRepo(scope: RepoScope, input: string): Promise<{ 
   return { abs: real, rel: rel === '' ? '.' : rel };
 }
 
+/** Lines of a text file as read_file numbers them (a final newline does not start another line). */
+export function splitLines(text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  if (lines.length > 1 && lines.at(-1) === '') lines.pop();
+  return lines;
+}
+
 /** Runs a tool body, turning a rejected path into a message for the model. */
 async function guarded(fn: () => Promise<string>): Promise<string> {
   try {
@@ -129,8 +136,7 @@ export function createRepoTools(scope: RepoScope): [AgentTool<z.infer<typeof Lis
         if ((await stat(abs)).isDirectory()) return `Error: "${file}" is a directory. Use list_files.`;
         const text = await readFile(abs, 'utf8');
         if (text.includes('\u0000')) return `Error: "${rel}" looks like a binary file.`;
-        const lines = text.split(/\r?\n/);
-        if (lines.length > 1 && lines.at(-1) === '') lines.pop();
+        const lines = splitLines(text);
         const total = lines.length;
         const start = startLine ?? 1;
         if (start > total) return `Error: "${rel}" has only ${total} lines.`;

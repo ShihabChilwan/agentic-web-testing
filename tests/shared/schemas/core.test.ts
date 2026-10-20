@@ -62,7 +62,19 @@ describe('run.json', () => {
     expect(errorPaths(RunManifest, r)).toContain('llm.upstreamProviders.0');
   });
 
-  it('accepts a failed stage and a failed execution with errors', () => {
+  it('accepts a stage agent summary, on success or failure', () => {
+    const r = structuredClone(run);
+    const agent = {
+      turns: 32, toolCalls: 37, toolCallCeiling: 200, explorationCeilingHit: false,
+      toolCallsByTool: { read_file: 27, add_requirements: 2 }, rejected: { invalidInput: 2, checkFailed: 1 },
+    };
+    r.stages.prd = { status: 'failed', error: 'AgentBudgetError: x', agent: { ...agent, explorationCeilingHit: true } };
+    expect(RunManifest.safeParse(r).success).toBe(true);
+    r.stages.prd.agent.rejected = { invalidInput: -1, checkFailed: 0 };
+    expect(errorPaths(RunManifest, r)).toContain('stages.prd.agent.rejected.invalidInput');
+  });
+
+    it('accepts a failed stage and a failed execution with errors', () => {
     const failed = structuredClone(run);
     failed.stages.scripts = { status: 'failed', startedAt: '2026-10-24T10:12:00Z', error: 'LLMBudgetExceededError' };
     failed.executions[0] = { ...failed.executions[0], executeStatus: 'failed', error: 'checkout failed' };

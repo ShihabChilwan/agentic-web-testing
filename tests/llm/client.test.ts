@@ -188,8 +188,8 @@ describe('createLLMClient', () => {
       provider: 'openai-compatible',
       model: 'm',
       reasoningEffort: 'medium',
-      inputTokens: 4_000_000,
-      outputTokens: 1_000_000,
+      inputTokens: 16_000_000,
+      outputTokens: 4_000_000,
       latencyMs: 1,
       ok: true,
       attempts: 1,
@@ -197,7 +197,7 @@ describe('createLLMClient', () => {
     };
     await writeFile(callLogFile, JSON.stringify(line) + '\n');
     const client = await createLLMClient(config, { callLogFile, pricingFile: path.join(dir, 'missing.json') });
-    // 5,000,000 tokens already used: the default cap is reached, so no request is made.
+    // 20,000,000 tokens already used: the default cap is reached, so no request is made.
     await expect(client.chat(request)).rejects.toThrow(LLMBudgetExceededError);
   });
 

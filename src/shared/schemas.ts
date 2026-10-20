@@ -105,7 +105,10 @@ export const TargetConfig = z.strictObject({
     apiPrefix: z.string(),
     disabledServices: EnvMap.default({}),
   }),
-  frontend: ServiceConfig,
+  frontend: ServiceConfig.extend({
+    /** Folders holding the frontend's own source (pages, components), relative to the repo root. Default: [cwd]. */
+    sourceRoots: z.array(RelPath).min(1).optional(),
+  }),
   lifecycle: z.strictObject({
     reset: z.string().min(1),
     resetCwd: z.string(),
@@ -219,14 +222,21 @@ export const PrdUiRoute = z.object({
 
 export const RequirementLayer = z.enum(['api', 'ui', 'e2e']);
 
+/** One pass/fail check of a requirement, with the code that shows it. */
+export const AcceptanceCriterion = z.object({
+  text: z.string().min(1),
+  evidence: z.array(Evidence).min(1),
+});
+
+export const MAX_CRITERIA_PER_REQUIREMENT = 4;
+
 export const PrdRequirement = z.object({
   id: RequirementId,
   featureId: FeatureId,
   layer: RequirementLayer,
   statement: z.string().min(1),
-  acceptanceCriteria: z.array(z.string().min(1)).min(1),
+  acceptanceCriteria: z.array(AcceptanceCriterion).min(1).max(MAX_CRITERIA_PER_REQUIREMENT),
   priority: Priority,
-  evidence: z.array(Evidence).min(1),
 });
 
 export const Prd = z.object({
@@ -244,6 +254,20 @@ export const Prd = z.object({
 
 export type Prd = z.infer<typeof Prd>;
 export type PrdRequirement = z.infer<typeof PrdRequirement>;
+export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterion>;
+
+/** A requirement's evidence: the union of its criteria's evidence, without duplicates (derived, not stored). */
+export function requirementEvidence(requirement: PrdRequirement): Evidence[] {
+  const seen = new Set<string>();
+  return requirement.acceptanceCriteria.flatMap((c) =>
+    c.evidence.filter((e) => {
+      const key = `${e.file}:${e.lines[0]}-${e.lines[1]}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Module 2 — testcases.json
@@ -497,12 +521,30 @@ export type Diagnoses = z.infer<typeof Diagnoses>;
 export const StageStatus = z.enum(['pending', 'running', 'done', 'failed', 'stale']);
 export const ExecutionStepStatus = z.enum(['pending', 'running', 'done', 'failed']);
 
+/** What the stage's agent session did; written when the session ends, whether it succeeded or failed. */
+export const StageAgentSummary = z.object({
+  turns: z.number().int().nonnegative(),
+  /** Exploring calls (tools that count toward the budget). */
+  toolCalls: z.number().int().nonnegative(),
+  /** The runaway ceiling for exploring calls. */
+  toolCallCeiling: z.number().int().positive(),
+  explorationCeilingHit: z.boolean(),
+  /** Calls per tool, recording tools included. */
+  toolCallsByTool: z.record(z.string(), z.number().int().nonnegative()),
+  /** Recording calls rejected: input that failed the tool schema, or a batch that failed the code checks. */
+  rejected: z.object({
+    invalidInput: z.number().int().nonnegative(),
+    checkFailed: z.number().int().nonnegative(),
+  }),
+});
+
 export const StageState = z.object({
   status: StageStatus,
   startedAt: Timestamp.optional(),
   finishedAt: Timestamp.optional(),
   /** Why the stage failed (e.g. LLMBudgetExceededError). No secrets. */
   error: z.string().optional(),
+  agent: StageAgentSummary.optional(),
 });
 
 const PerModule = <T extends z.ZodType>(value: T) =>
@@ -546,6 +588,7 @@ export const RunManifest = z.object({
 export type StageStatus = z.infer<typeof StageStatus>;
 export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
+export type StageAgentSummary = z.infer<typeof StageAgentSummary>;
 export type RunExecution = z.infer<typeof RunExecution>;
 export type RunManifest = z.infer<typeof RunManifest>;
 

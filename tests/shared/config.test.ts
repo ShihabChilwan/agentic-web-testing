@@ -27,7 +27,7 @@ describe('parseLLMConfig', () => {
       concurrency: 4,
       contextTokens: 131072,
       timeoutMs: 1_200_000,
-      maxTokensPerRun: 5_000_000,
+      maxTokensPerRun: 20_000_000,
       maxCostUsdPerRun: 2.0,
       extraHeaders: {},
     });

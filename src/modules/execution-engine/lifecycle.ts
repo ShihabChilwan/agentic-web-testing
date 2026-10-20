@@ -79,6 +79,12 @@ export function isCleanStart(config: TargetConfig, options: StartOptions): boole
   );
 }
 
+/** `git checkout --force <ref>` in the target repo; returns the checked-out commit. */
+export async function checkoutRef(repoDir: string, ref: string): Promise<string> {
+  await git(repoDir, ['checkout', '--quiet', '--force', ref]);
+  return git(repoDir, ['rev-parse', 'HEAD']);
+}
+
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error('Target start was aborted');
 }
@@ -111,8 +117,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     ]);
 
     log(`Checking out ${options.ref}`);
-    await git(repoDir, ['checkout', '--quiet', '--force', options.ref]);
-    const commit = await git(repoDir, ['rev-parse', 'HEAD']);
+    const commit = await checkoutRef(repoDir, options.ref);
 
     for (const name of ['backend', 'frontend'] as const) {
       throwIfAborted(signal);

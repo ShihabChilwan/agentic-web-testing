@@ -66,19 +66,32 @@
       "layer": "e2e",
       "statement": "Logging in with a wrong password is rejected and an error message is shown.",
       "acceptanceCriteria": [
-        "The user stays on the login page",
-        "An error message is visible"
-      ],
-      "priority": "high",
-      "evidence": [
         {
-          "file": "server/routes/api/auth.js",
-          "lines": [
-            30,
-            45
+          "text": "The user stays on the login page",
+          "evidence": [
+            {
+              "file": "server/routes/api/auth.js",
+              "lines": [
+                30,
+                45
+              ]
+            }
+          ]
+        },
+        {
+          "text": "An error message is visible",
+          "evidence": [
+            {
+              "file": "client/app/containers/Login/index.js",
+              "lines": [
+                40,
+                75
+              ]
+            }
           ]
         }
-      ]
+      ],
+      "priority": "high"
     }
   ],
   "assumptions": [

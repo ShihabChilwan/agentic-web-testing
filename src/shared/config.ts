@@ -126,7 +126,7 @@ const EnvSchema = z.object({
   LLM_CONCURRENCY: positiveInt(4),
   LLM_CONTEXT_TOKENS: positiveInt(131072),
   LLM_TIMEOUT_MS: positiveInt(1_200_000),
-  LLM_MAX_TOKENS_PER_RUN: positiveInt(5_000_000),
+  LLM_MAX_TOKENS_PER_RUN: positiveInt(20_000_000),
   LLM_MAX_COST_USD_PER_RUN: number(2.0).pipe(z.number().nonnegative()),
 });
 

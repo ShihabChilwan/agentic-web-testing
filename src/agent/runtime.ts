@@ -4,11 +4,16 @@ import type { ChatResponse, Message, TextBlock, ToolCallBlock, ToolDef, ToolResu
 import { estimateTokens, guardContext } from './context-guard.js';
 import { Transcript } from './transcript.js';
 import { AgentBudgetError, AgentSubmitError } from './types.js';
-import type { AgentDeps, AgentResult, AgentTool, RunAgentOptions } from './types.js';
+import type { AgentDeps, AgentResult, AgentTool, RunAgentOptions, ToolStats } from './types.js';
 
 export const TOOL_OUTPUT_LIMIT = 20_000;
 export const SUBMIT_ATTEMPTS = 3;
 export const DEFAULT_MAX_TOKENS_PER_CALL = 32_768;
+/**
+ * Runaway ceiling for exploring tool calls, shared by the PRD Generator and the one-prompt ablation.
+ * A safety net, not a target: prompts never mention it.
+ */
+export const DEFAULT_EXPLORATION_CEILING = 200;
 const MIN_TOKENS_PER_CALL = 1_024;
 
 /**
@@ -22,6 +27,8 @@ export function outputLimit(maxTokensPerCall: number, contextTokens: number, inp
 }
 
 export const BUDGET_EXHAUSTED_MESSAGE = 'Budget exhausted. Submit your result now.';
+export const wrapUpMessage = (toolNames: string[], submitName: string) =>
+  `Tool budget for exploring is used up. Record any remaining findings with ${toolNames.join(', ')}, then call ${submitName}.`;
 export const NUDGE_MESSAGE = 'Use a tool or submit your result.';
 export const OUT_OF_SPACE_MESSAGE =
   'Your last reply ran out of space before you acted. Think less and call a tool or submit now.';
@@ -62,10 +69,11 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
     inputSchema: toJsonSchema(opts.submit.schema),
   };
   if (submitDef.inputSchema.type !== 'object') throw new Error('The submit schema must describe a JSON object');
-  const allDefs: ToolDef[] = [
-    ...opts.tools.map((t) => ({ name: t.name, description: t.description, inputSchema: toJsonSchema(t.input) })),
-    submitDef,
-  ];
+  const toDef = (t: AgentTool<unknown>): ToolDef => ({ name: t.name, description: t.description, inputSchema: toJsonSchema(t.input) });
+  const allDefs: ToolDef[] = [...opts.tools.map(toDef), submitDef];
+  // Tools that do not count toward the budget stay available in a wrap-up phase once exploring is over.
+  const uncounted = opts.tools.filter((t) => t.countsTowardBudget === false);
+  const wrapUpDefs: ToolDef[] = [...uncounted.map(toDef), submitDef];
 
   const transcript = deps.transcriptDir ? await Transcript.create(deps.transcriptDir, opts.purpose) : Transcript.none();
   await transcript.write('start', {
@@ -79,14 +87,32 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
   let messages: Message[] = [{ role: 'user', content: [{ type: 'text', text: opts.task }] }];
   const usage: Usage = { inputTokens: 0, outputTokens: 0 };
   let toolCalls = 0;
+  let uncountedToolCalls = 0;
+  const toolStats: Record<string, ToolStats> = {};
+  const runCounted = async (tool: AgentTool<unknown> | undefined, call: ToolCallBlock) => {
+    const { result, outcome } = await runTool(tool, call);
+    const stats = (toolStats[call.name] ??= { calls: 0, invalidInput: 0, errors: 0 });
+    stats.calls++;
+    if (outcome === 'invalidInput') stats.invalidInput++;
+    if (outcome === 'error') stats.errors++;
+    return result;
+  };
   let turns = 0;
   let submitAttemptsLeft = SUBMIT_ATTEMPTS;
-  let finalTurn = false;
+  // explore: every tool; wrapUp: only uncounted tools and submit; final: one submit-only turn.
+  let phase: 'explore' | 'wrapUp' | 'final' = 'explore';
   // Context estimate: tokens of the last request plus characters added since.
   let baseTokens = estimateTokens(opts.system.length + JSON.stringify(allDefs).length);
   let baseMessageCount = 0;
 
-  const details = () => ({ toolCalls, turns, usage: { ...usage } });
+  const details = () => ({
+    toolCalls,
+    uncountedToolCalls,
+    toolStats: structuredClone(toolStats),
+    budgetExhausted: toolCalls >= maxToolCalls,
+    turns,
+    usage: { ...usage },
+  });
   const addUserBlocks = (blocks: Array<TextBlock | ToolResultBlock>) => {
     const last = messages.at(-1);
     if (last?.role === 'user') last.content.push(...blocks);
@@ -95,11 +121,18 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
 
   try {
     for (;;) {
-      if (!finalTurn && (toolCalls >= maxToolCalls || turns >= maxTurns)) {
-        finalTurn = true;
-        addUserBlocks([{ type: 'text', text: BUDGET_EXHAUSTED_MESSAGE }]);
-        await transcript.write('budget_exhausted', { toolCalls, turns });
+      if (phase === 'explore' && toolCalls >= maxToolCalls && uncounted.length > 0 && turns < maxTurns) {
+        phase = 'wrapUp';
+        const text = wrapUpMessage(uncounted.map((t) => t.name), opts.submit.name);
+        addUserBlocks([{ type: 'text', text }]);
+        await transcript.write('budget_exhausted', { phase, toolCalls, turns });
       }
+      if (phase !== 'final' && (turns >= maxTurns || (phase === 'explore' && toolCalls >= maxToolCalls))) {
+        phase = 'final';
+        addUserBlocks([{ type: 'text', text: BUDGET_EXHAUSTED_MESSAGE }]);
+        await transcript.write('budget_exhausted', { phase, toolCalls, turns });
+      }
+      const finalTurn = phase === 'final';
 
       const guarded = guardContext({ messages, baseTokens, baseMessageCount, contextTokens: deps.contextTokens });
       if (guarded.trims.length > 0) {
@@ -117,7 +150,7 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
         purpose: opts.purpose,
         system: opts.system,
         messages,
-        tools: finalTurn ? [submitDef] : allDefs,
+        tools: finalTurn ? [submitDef] : phase === 'wrapUp' ? wrapUpDefs : allDefs,
         maxTokens: outputLimit(deps.maxTokensPerCall ?? DEFAULT_MAX_TOKENS_PER_CALL, deps.contextTokens, guarded.estimateAfter),
       });
       usage.inputTokens += response.usage.inputTokens;
@@ -185,14 +218,18 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
           continue;
         }
 
+        const tool = toolsByName.get(call.name);
         let result: ToolResultBlock;
         if (finalTurn) {
           result = errorResult(call, `Only ${opts.submit.name} is available now. ${BUDGET_EXHAUSTED_MESSAGE}`);
-        } else if (toolCalls >= maxToolCalls) {
+        } else if (tool?.countsTowardBudget === false) {
+          uncountedToolCalls++;
+          result = await runCounted(tool, call);
+        } else if (phase === 'wrapUp' || toolCalls >= maxToolCalls) {
           result = errorResult(call, `Tool budget exhausted; this call was not run.`);
         } else {
           toolCalls++;
-          result = await runTool(toolsByName.get(call.name), call);
+          result = await runCounted(tool, call);
         }
         results.push(result);
         await transcript.write('tool_result', {
@@ -231,17 +268,21 @@ function errorResult(call: ToolCallBlock, content: string): ToolResultBlock {
   return { type: 'tool_result', toolCallId: call.id, isError: true, content };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function runTool(tool: AgentTool<any> | undefined, call: ToolCallBlock): Promise<ToolResultBlock> {
-  if (!tool) return errorResult(call, `Unknown tool "${call.name}".`);
+async function runTool(
+  tool: AgentTool<any> | undefined, // eslint-disable-line @typescript-eslint/no-explicit-any
+  call: ToolCallBlock,
+): Promise<{ result: ToolResultBlock; outcome: 'ok' | 'invalidInput' | 'error' }> {
+  if (!tool) return { result: errorResult(call, `Unknown tool "${call.name}".`), outcome: 'invalidInput' };
   const parsed = tool.input.safeParse(call.input);
   if (!parsed.success) {
-    return errorResult(call, `Invalid input for ${call.name}:\n${formatZodIssues(parsed.error).map((e) => `- ${e}`).join('\n')}`);
+    const message = `Invalid input for ${call.name}:\n${formatZodIssues(parsed.error).map((e) => `- ${e}`).join('\n')}`;
+    return { result: errorResult(call, message), outcome: 'invalidInput' };
   }
   try {
     const output = await tool.run(parsed.data);
-    return { type: 'tool_result', toolCallId: call.id, content: truncateToolOutput(output) };
+    return { result: { type: 'tool_result', toolCallId: call.id, content: truncateToolOutput(output) }, outcome: 'ok' };
   } catch (err) {
-    return errorResult(call, truncateToolOutput(`Error: ${err instanceof Error ? err.message : String(err)}`));
+    const message = truncateToolOutput(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    return { result: errorResult(call, message), outcome: 'error' };
   }
 }

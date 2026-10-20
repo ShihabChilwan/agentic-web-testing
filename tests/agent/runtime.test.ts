@@ -10,6 +10,7 @@ import {
   outputLimit,
   runAgent,
   TOOL_OUTPUT_LIMIT,
+  wrapUpMessage,
 } from '../../src/agent/runtime.js';
 import { TRIMMED_PLACEHOLDER } from '../../src/agent/context-guard.js';
 import { AgentBudgetError, AgentSubmitError } from '../../src/agent/types.js';
@@ -333,5 +334,96 @@ describe('runAgent: structured reasoning details', () => {
     const [file] = await readdir(transcriptDir);
     const events = (await readFile(path.join(transcriptDir, file!), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
     expect(events.find((e) => e.type === 'response')?.reasoningDetails).toEqual(details);
+  });
+});
+
+describe('runAgent: tools that do not count toward the budget', () => {
+  const recorded: string[] = [];
+  const record: AgentTool<{ text: string }> = {
+    name: 'record',
+    description: 'Records a finding',
+    input: z.object({ text: z.string() }),
+    countsTowardBudget: false,
+    run: async ({ text }) => {
+      recorded.push(text);
+      return `recorded ${text}`;
+    },
+  };
+  const callRecord = (text: string) => FakeLLMClient.toolCall('record', { text });
+
+  it('does not count them against maxToolCalls', async () => {
+    recorded.length = 0;
+    const llm = new FakeLLMClient([callEcho('a'), callRecord('x'), callRecord('y'), callEcho('b'), submit({ answer: '1' })]);
+    const result = await runAgent(options({ tools: [echo, record], budget: { maxToolCalls: 2 } }), deps(llm));
+    expect(result).toMatchObject({ toolCalls: 2, uncountedToolCalls: 2, turns: 5 });
+    expect(recorded).toEqual(['x', 'y']);
+  });
+
+  it('after the exploring budget, offers only the uncounted tools and submit, and refuses counted tools', async () => {
+    recorded.length = 0;
+    const llm = new FakeLLMClient([callEcho('a'), callEcho('too late'), callRecord('z'), submit({ answer: '1' })]);
+    const transcriptDir = await mkdtemp(path.join(tmpdir(), 'agent-wrapup-'));
+    const result = await runAgent(options({ tools: [echo, record], budget: { maxToolCalls: 1 } }), deps(llm, { transcriptDir }));
+    expect(llm.requests[0]?.tools?.map((t) => t.name)).toEqual(['echo', 'record', 'submit_answer']);
+    expect(llm.requests[1]?.tools?.map((t) => t.name)).toEqual(['record', 'submit_answer']);
+    expect(lastUserText(llm.requests[1])).toEqual([wrapUpMessage(['record'], 'submit_answer')]);
+    expect(lastToolResults(llm.requests[2])[0]).toMatchObject({ isError: true, content: expect.stringContaining('budget exhausted') });
+    expect(recorded).toEqual(['z']);
+    expect(result).toMatchObject({ output: { answer: '1' }, toolCalls: 1, uncountedToolCalls: 1 });
+    const [file] = await readdir(transcriptDir);
+    const events = (await readFile(path.join(transcriptDir, file!), 'utf8')).trim().split('\n').map((l) => JSON.parse(l));
+    expect(events.filter((e) => e.type === 'budget_exhausted').map((e) => e.phase)).toEqual(['wrapUp']);
+  });
+
+  it('ends the wrap-up phase with a submit-only final turn at maxTurns', async () => {
+    const llm = new FakeLLMClient([callEcho('a'), callRecord('1'), callRecord('2'), submit({ answer: 'done' })]);
+    const result = await runAgent(
+      options({ tools: [echo, record], budget: { maxToolCalls: 1, maxTurns: 3 } }),
+      deps(llm),
+    );
+    expect(llm.requests[3]?.tools?.map((t) => t.name)).toEqual(['submit_answer']);
+    expect(lastUserText(llm.requests[3])).toContain(BUDGET_EXHAUSTED_MESSAGE);
+    expect(result.output).toEqual({ answer: 'done' });
+  });
+
+  it('without uncounted tools, keeps the old behaviour: straight to the submit-only turn', async () => {
+    const llm = new FakeLLMClient([callEcho('a'), submit({ answer: 'x' })]);
+    await runAgent(options({ budget: { maxToolCalls: 1 } }), deps(llm));
+    expect(llm.requests[1]?.tools?.map((t) => t.name)).toEqual(['submit_answer']);
+    expect(lastUserText(llm.requests[1])).toEqual([BUDGET_EXHAUSTED_MESSAGE]);
+  });
+});
+
+describe('runAgent: per-tool counts', () => {
+  const failing: AgentTool<{ text: string }> = {
+    name: 'fail',
+    description: 'Always throws',
+    input: z.object({ text: z.string() }),
+    run: async () => {
+      throw new Error('nope');
+    },
+  };
+
+  it('counts calls, invalid input and thrown errors per tool, and reports whether the budget ran out', async () => {
+    const llm = new FakeLLMClient([
+      callEcho('a'),
+      FakeLLMClient.toolCall('echo', { wrong: 1 }),
+      FakeLLMClient.toolCall('fail', { text: 'x' }),
+      submit({ answer: '1' }),
+    ]);
+    const result = await runAgent(options({ tools: [echo, failing], budget: { maxToolCalls: 5 } }), deps(llm));
+    expect(result.toolStats).toEqual({
+      echo: { calls: 2, invalidInput: 1, errors: 0 },
+      fail: { calls: 1, invalidInput: 0, errors: 1 },
+    });
+    expect(result.budgetExhausted).toBe(false);
+  });
+
+  it('carries the counts on AgentSubmitError, with budgetExhausted when the budget was used up', async () => {
+    const bad = submit({ answer: '' });
+    const llm = new FakeLLMClient([callEcho('a'), bad, bad, bad]);
+    const err = await runAgent(options({ budget: { maxToolCalls: 1 } }), deps(llm)).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AgentSubmitError);
+    expect((err as AgentSubmitError).details).toMatchObject({ toolStats: { echo: { calls: 1 } }, budgetExhausted: true });
   });
 });

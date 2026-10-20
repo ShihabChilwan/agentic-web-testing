@@ -7,6 +7,11 @@ export interface AgentTool<I> {
   input: ZodType<I>;
   /** Returns text for the model. Errors should be returned as text; a thrown error is caught and returned as text too. */
   run(input: I): Promise<string>;
+  /**
+   * Default true. A tool with `false` (e.g. one that records part of the result) is not counted
+   * against `maxToolCalls` and stays available after the exploration budget is used up.
+   */
+  countsTowardBudget?: boolean;
 }
 
 export interface SubmitSpec<O> {
@@ -27,7 +32,7 @@ export interface RunAgentOptions<O> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tools: AgentTool<any>[];
   submit: SubmitSpec<O>;
-  /** `maxTurns` defaults to `maxToolCalls + 10`. */
+  /** `maxToolCalls` counts only tools that count toward the budget. `maxTurns` defaults to `maxToolCalls + 10`. */
   budget: { maxToolCalls: number; maxTurns?: number };
 }
 
@@ -41,9 +46,22 @@ export interface AgentDeps {
   maxTokensPerCall?: number;
 }
 
+/** Per tool: calls that ran, calls whose input failed the tool's schema, and calls whose tool threw. */
+export interface ToolStats {
+  calls: number;
+  invalidInput: number;
+  errors: number;
+}
+
 export interface AgentResult<O> {
   output: O;
+  /** Calls to tools that count toward the budget. */
   toolCalls: number;
+  /** Calls to tools with `countsTowardBudget: false`. */
+  uncountedToolCalls: number;
+  toolStats: Record<string, ToolStats>;
+  /** True when `maxToolCalls` was reached. */
+  budgetExhausted: boolean;
   turns: number;
   usage: Usage;
   durationMs: number;
@@ -52,6 +70,9 @@ export interface AgentResult<O> {
 
 interface AgentErrorDetails {
   toolCalls: number;
+  uncountedToolCalls: number;
+  toolStats: Record<string, ToolStats>;
+  budgetExhausted: boolean;
   turns: number;
   usage: Usage;
 }
