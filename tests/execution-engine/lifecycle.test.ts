@@ -317,7 +317,72 @@ describe('startTarget', () => {
     }
   });
 
-    it('fails when the reset command fails, before starting anything', async () => {
+  it('restore() keeps the execution\'s own settings: with skipSeed it does not seed, and the override stays', async () => {
+    const config = makeConfig();
+    await rm(path.join(repoDir, 'api', 'requests.log'), { force: true });
+    await rm(path.join(repoDir, 'api', 'seed.txt'), { force: true });
+    await withTarget(
+      config,
+      options({ skipSeed: true, configOverride: { backend: { env: { MAIL_KEY: null } } } }),
+      async (target) => {
+        const backendBefore = target.services.find((s) => s.name === 'backend')!.pid;
+        await target.restore();
+        expect(target.services.find((s) => s.name === 'backend')!.pid).not.toBe(backendBefore); // it did restart
+        // No seed command and no seed request, neither at start nor in the restore.
+        await expect(read('api/seed.txt')).rejects.toThrow(/ENOENT/);
+        await expect(read('api/requests.log')).rejects.toThrow(/ENOENT/);
+        // The restarted backend still runs without the removed variable (an environment fault stays in place).
+        expect(JSON.parse(await read('api/env-keys.json'))).not.toContain('MAIL_KEY');
+      },
+    );
+  });
+
+  it('restore() on a start that is not clean returns seed problems instead of throwing', async () => {
+    const config = makeConfig((c) => (c.seedCheck = itemsCheck('/empty')));
+    await withTarget(config, options({ ref: 'variant' }), async (target) => {
+      const result = await target.restore();
+      expect(result.backendHealthy).toBe(true);
+      expect(result.problems).toEqual(['seed check failed: expected a non-empty array at "data.items", got an empty one']);
+    });
+  });
+
+  it('restore() on a start that is not clean returns an unhealthy backend instead of throwing', async () => {
+    // The backend starts once, then exits at once on its restart.
+    const config = makeConfig((c) => (c.backend.start = 'if [ -f started-once ]; then exit 1; fi; touch started-once; node ../fake-service.cjs'));
+    await rm(path.join(repoDir, 'api', 'started-once'), { force: true });
+    try {
+      await withTarget(config, options({ ref: 'variant' }), async (target) => {
+        const result = await target.restore();
+        expect(result.backendHealthy).toBe(false);
+        expect(result.problems[0]).toMatch(/the backend did not become healthy again/);
+      });
+      await rm(path.join(repoDir, 'api', 'started-once'), { force: true });
+      await withTarget(config, options(), async (target) => {
+        await expect(target.restore()).rejects.toThrow(/Restore: the backend did not become healthy again/);
+      });
+    } finally {
+      await rm(path.join(repoDir, 'api', 'started-once'), { force: true });
+    }
+    expect(await portsFree()).toBe(true);
+  });
+
+  it('exitOf() reports a crashed service and restartFrontend() brings the frontend back', async () => {
+    await withTarget(makeConfig(), options(), async (target) => {
+      expect(target.exitOf('frontend')).toBeNull();
+      const frontend = target.services.find((s) => s.name === 'frontend')!;
+      process.kill(-frontend.pid, 'SIGKILL');
+      await frontend.exited;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(target.exitOf('frontend')).not.toBeNull();
+      const health = await target.restartFrontend();
+      expect(health.ok).toBe(true);
+      expect(target.exitOf('frontend')).toBeNull();
+      expect(target.services.find((s) => s.name === 'frontend')!.pid).not.toBe(frontend.pid);
+    });
+    expect(await portsFree()).toBe(true);
+  });
+
+  it('fails when the reset command fails, before starting anything', async () => {
     const config = makeConfig((c) => (c.lifecycle.reset = 'exit 2'));
     await expect(startTarget(config, options())).rejects.toThrow(/Reset command failed/);
     expect(await portsFree()).toBe(true);

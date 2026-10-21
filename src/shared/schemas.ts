@@ -35,8 +35,8 @@ export const CodeVariantId = z.string().regex(/^bug-\d{3,}$/, 'expected a code v
 export const EnvVariantId = z.string().regex(/^env-\d{2,}$/, 'expected an environment variant id like env-01');
 /** Results from the full suite use TC ids; the one-prompt ablation uses OP ids. */
 export const ScriptTestId = z.union([TestCaseId, OnePromptScriptId]);
-/** Execution ids appear in folder names, so they are restricted to safe characters. */
-export const ExecId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'expected an execution id like golden or x-07');
+/** Execution ids appear in folder names, so they are restricted to safe characters. Opaque in practice: x-01, x-02, … */
+export const ExecId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'expected an execution id like x-07');
 export const CommitSha = z.string().regex(/^[0-9a-f]{7,40}$/, 'expected a git commit sha');
 
 export const HttpMethod = z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
@@ -552,20 +552,52 @@ export const TestArtifacts = z.object({
   dom: RelPath.optional(),
   network: RelPath.optional(),
   console: RelPath.optional(),
+  lastResponse: RelPath.optional(),
+  /** The backend log lines written during this test only. */
+  serverLog: RelPath.optional(),
 });
+
+/** The step 5 classifier's label for a non-passed result (§6.2, §7.3); `not-run` when the report has no result. */
+export const ResultCategory = z.enum(['assertion_failed', 'value-less-expect', 'locator', 'timeout', 'runtime-error', 'not-run']);
 
 export const TestResult = z.object({
   testCaseId: ScriptTestId,
   status: TestStatus,
+  /** True only when the data restore before this test succeeded (§7.2). Never assumed for older files. */
+  isolated: z.boolean().default(false),
   durationMs: DurationMs,
   error: z
     .object({
       message: z.string(),
       expectationId: ExpectationId.nullable().optional(),
+      category: ResultCategory.optional(),
       stack: z.string().optional(),
     })
     .optional(),
   artifacts: TestArtifacts,
+});
+
+export const SkippedScript = z.object({
+  testCaseId: ScriptTestId,
+  /** The script's dry-run outcome: only scripts that passed are executed. */
+  reason: z.enum(['assertion_failed', 'invalid']),
+});
+
+export const IncidentKind = z.enum([
+  'backend-crashed',
+  'frontend-restarted',
+  'frontend-restart-failed',
+  'restore-failed',
+  'restore-problem',
+  'restores-given-up',
+]);
+
+/** Something that went wrong with the app or the restores during the run, and where (§7.2). */
+export const Incident = z.object({
+  /** The test about to run; null after the last test. */
+  beforeTestCaseId: ScriptTestId.nullable(),
+  kind: IncidentKind,
+  detail: z.string(),
 });
 
 export const ExecutionResults = z.object({
@@ -580,11 +612,26 @@ export const ExecutionResults = z.object({
     seedCheck: SeedCheckResult.optional(),
   }),
   summary: z.object({
+    /** Executed tests. */
     total: z.number().int().nonnegative(),
     passed: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
     errored: z.number().int().nonnegative(),
+    /** Scripts not executed (their dry run did not pass). */
+    skipped: z.number().int().nonnegative().default(0),
+    /** Results with isolated: false. */
+    notIsolated: z.number().int().nonnegative().default(0),
   }),
+  skipped: z.array(SkippedScript).default([]),
+  incidents: z.array(Incident).default([]),
+  timing: z
+    .object({
+      startupMs: DurationMs,
+      suiteMs: DurationMs,
+      restores: z.number().int().nonnegative(),
+      restoreMs: DurationMs,
+    })
+    .optional(),
   results: z.array(TestResult),
 });
 
@@ -592,6 +639,11 @@ export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;
 export type TestResult = z.infer<typeof TestResult>;
+export type TestArtifacts = z.infer<typeof TestArtifacts>;
+export type ResultCategory = z.infer<typeof ResultCategory>;
+export type Incident = z.infer<typeof Incident>;
+export type IncidentKind = z.infer<typeof IncidentKind>;
+export type SkippedScript = z.infer<typeof SkippedScript>;
 export type HealthCheckResult = z.infer<typeof HealthCheckResult>;
 export type SeedResult = z.infer<typeof SeedResult>;
 export type SeedCheckResult = z.infer<typeof SeedCheckResult>;

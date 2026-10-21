@@ -15,7 +15,7 @@ import { waitForHealthy } from './health.js';
 import { installIfNeeded } from './install.js';
 import { fillPlaceholders } from './placeholders.js';
 import { assertPortsFree } from './ports.js';
-import { runCommand, startService, stopProcessGroup, type ServiceProcess } from './processes.js';
+import { runCommand, startService, stopProcessGroup, type ExitInfo, type ServiceProcess } from './processes.js';
 import { runSeedCheck, sendSeedRequests } from './seed.js';
 
 const execFileAsync = promisify(execFile);
@@ -42,6 +42,14 @@ export interface StartOptions {
   log?: (message: string) => void;
 }
 
+export interface RestoreResult {
+  durationMs: number;
+  /** False when the backend did not answer its health check after the restart (only returned on a start that is not clean). */
+  backendHealthy: boolean;
+  /** Seed problems after the restore (only returned on a start that is not clean; a clean start throws instead). */
+  problems: string[];
+}
+
 export interface RunningTarget {
   commit: string;
   healthChecks: HealthCheckResult[];
@@ -52,10 +60,17 @@ export interface RunningTarget {
   /**
    * Puts the data back to the clean seeded state while the app keeps running: reset, seed command,
    * a backend restart (a reset under a running backend can drop what it set up at start, e.g. indexes),
-   * seed requests and the seed check. The frontend holds no server data and is not restarted.
-   * Throws when any step fails: later results would not be trustworthy.
+   * seed requests and the seed check, all with the start's own options (configOverride, skipSeed).
+   * The frontend holds no server data and is not restarted.
+   * On a clean start any failing step throws: later results would not be trustworthy. On any other start
+   * only a failed reset throws; an unhealthy backend or failed seeding is returned, since the app's own
+   * bug may cause it (as with the seed check at start).
    */
-  restore(): Promise<{ durationMs: number }>;
+  restore(): Promise<RestoreResult>;
+  /** Stops and starts the frontend, then waits for its health check. */
+  restartFrontend(): Promise<HealthCheckResult>;
+  /** How a service's current process exited, or null while it runs. */
+  exitOf(name: ServiceName): ExitInfo | null;
   /** Stops every service's process group. Safe to call more than once. */
   stop(): Promise<void>;
 }
@@ -108,6 +123,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
   const setupLog = path.join(logsDir, 'setup.log');
   mkdirSync(logsDir, { recursive: true });
   const services: ServiceProcess[] = [];
+  const exits = new Map<number, ExitInfo>();
   let stopped: Promise<void> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
@@ -174,7 +190,20 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
       const env = serviceEnv(config, name, configOverride);
       if (service.envFile) await writeFile(path.join(dir(service.cwd), service.envFile), formatEnvFile(env));
       say(`Starting ${name}: ${service.start}`);
-      return startService(name, service.start, { cwd: dir(service.cwd), env: childEnv(env), logFile: path.join(logsDir, `${name}.log`) });
+      const started = startService(name, service.start, { cwd: dir(service.cwd), env: childEnv(env), logFile: path.join(logsDir, `${name}.log`) });
+      started.exited.then(
+        (exit) => exits.set(started.pid, exit),
+        () => exits.set(started.pid, { code: null, signal: null }),
+      );
+      return started;
+    };
+    const replace = async (name: ServiceName) => {
+      const index = services.findIndex((s) => s.name === name);
+      if (index >= 0) await stopProcessGroup(services[index]!.pid);
+      const service = await startOne(name, () => {});
+      if (index >= 0) services[index] = service;
+      else services.push(service);
+      return service;
     };
 
     await resetData();
@@ -215,30 +244,39 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
         log('Seed check passed');
       }
     }
-    const restore = async () => {
+    const clean = isCleanStart(config, options);
+    const restore = async (): Promise<RestoreResult> => {
       const started = Date.now();
-      const quiet = () => {}; // runs after every dry run: the setup log has the details
-      await resetData(quiet);
-      const index = services.findIndex((s) => s.name === 'backend');
-      if (index >= 0) await stopProcessGroup(services[index]!.pid);
-      const backend = await startOne('backend', quiet);
-      if (index >= 0) services[index] = backend;
-      else services.push(backend);
+      await resetData(() => {}); // runs before or after every test: the setup log has the details
+      const backend = await replace('backend');
       const health = await waitForHealthy('backend', config.backend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: backend.exited, signal });
-      if (!health.ok) throw new Error(`Restore: the backend did not become healthy again; see ${logsDir}`);
-      if (!options.skipSeed) {
+      const problems: string[] = [];
+      // A clean start must restore completely; elsewhere the app's own bug may be what fails, so it is returned.
+      const fail = (message: string) => {
+        if (clean) throw new Error(`Restore: ${message}`);
+        problems.push(message);
+      };
+      if (!health.ok) fail(`the backend did not become healthy again; see ${logsDir}`);
+      if (!options.skipSeed && health.ok) {
         const seeded = await sendSeedRequests(config.backend.baseUrl, config.seed, config.fixtures);
-        const failed = seeded.find((r) => !r.ok);
-        if (failed) throw new Error(`Restore: seed request ${failed.request} failed (status ${failed.status ?? 'no response'})`);
+        for (const r of seeded.filter((r) => !r.ok)) fail(`seed request ${r.request} failed (status ${r.status ?? 'no response'})`);
         if (config.seedCheck) {
           const check = await runSeedCheck(config.backend.baseUrl, config.seedCheck, config.fixtures);
-          if (!check.ok) throw new Error(`Restore: seed check failed: ${check.detail}`);
+          if (!check.ok) fail(`seed check failed: ${check.detail}`);
         }
       }
-      appendFileSync(setupLog, `[restore] done in ${Date.now() - started} ms\n`);
-      return { durationMs: Date.now() - started };
+      appendFileSync(setupLog, `[restore] done in ${Date.now() - started} ms${problems.length ? `; ${problems.join('; ')}` : ''}\n`);
+      return { durationMs: Date.now() - started, backendHealthy: health.ok, problems };
     };
-    return { commit, healthChecks, seed, ...(seedCheck && { seedCheck }), services, restore, stop };
+    const restartFrontend = async () => {
+      const frontend = await replace('frontend');
+      return waitForHealthy('frontend', config.frontend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: frontend.exited, signal });
+    };
+    const exitOf = (name: ServiceName) => {
+      const service = services.find((s) => s.name === name);
+      return service ? (exits.get(service.pid) ?? null) : null;
+    };
+    return { commit, healthChecks, seed, ...(seedCheck && { seedCheck }), services, restore, restartFrontend, exitOf, stop };
   } catch (err) {
     await stop();
     throw err;

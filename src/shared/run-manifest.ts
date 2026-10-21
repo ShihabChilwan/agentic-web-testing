@@ -4,7 +4,7 @@ import { readCallLog, upstreamProvidersSeen } from '../llm/call-log.js';
 import type { LLMConfig } from './config.js';
 import { RUNS_DIR, makeRunId, runPaths } from './paths.js';
 import { RunManifest, SCHEMA_VERSION } from './schemas.js';
-import type { StageState } from './schemas.js';
+import type { RunExecution, StageState } from './schemas.js';
 
 export type StageName = keyof RunManifest['stages'];
 
@@ -80,6 +80,17 @@ export async function setStage(runDir: string, stage: StageName, state: StageSta
   manifest.stages[stage] = { ...manifest.stages[stage], ...state };
   const providers = upstreamProvidersSeen((await readCallLog(paths.llmCalls)).lines);
   if (providers.length > 0) manifest.llm.upstreamProviders = providers;
+  await writeRunManifest(paths.runJson, manifest);
+  return manifest;
+}
+
+/** Adds or replaces one `executions[]` entry (by execId) in run.json. */
+export async function setExecution(runDir: string, execution: RunExecution): Promise<RunManifest> {
+  const paths = runPaths(path.basename(runDir), path.dirname(runDir));
+  const manifest = await readRunManifest(paths.runJson);
+  const index = manifest.executions.findIndex((e) => e.execId === execution.execId);
+  if (index >= 0) manifest.executions[index] = execution;
+  else manifest.executions.push(execution);
   await writeRunManifest(paths.runJson, manifest);
   return manifest;
 }

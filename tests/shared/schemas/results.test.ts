@@ -50,3 +50,22 @@ describe('results.json', () => {
     expect(errorPaths(ExecutionResults, r)).toEqual(expect.arrayContaining(['results.0.status', 'execId']));
   });
 });
+
+describe('older results.json', () => {
+  it('reads a results.json written before isolation, skipped and incidents existed, never assuming isolation', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const raw = JSON.parse(await readFile(new URL('../../fixtures/older/results-before-isolation.json', import.meta.url), 'utf8'));
+    const parsed = ExecutionResults.parse(raw);
+    expect(parsed.summary).toMatchObject({ skipped: 0, notIsolated: 0 });
+    expect(parsed.skipped).toEqual([]);
+    expect(parsed.incidents).toEqual([]);
+    expect(parsed.results[0]?.isolated).toBe(false);
+  });
+
+  it('rejects an unknown incident kind or result category', () => {
+    const r = structuredClone(example('results.json'));
+    r.incidents[0].kind = 'meteor-strike';
+    r.results[0].error.category = 'bad-luck';
+    expect(errorPaths(ExecutionResults, r)).toEqual(expect.arrayContaining(['incidents.0.kind', 'results.0.error.category']));
+  });
+});

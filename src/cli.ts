@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
 import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
+import { describeExecution, executeRun } from './modules/execution-engine/index.js';
 import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -140,7 +141,38 @@ agent
     }
   });
 
-for (const stage of ['execute', 'analyze', 'all']) {
+agent
+  .command('execute')
+  .description('Run the scripts that passed their dry run against one version of the app (data restored before every test)')
+  .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
+  .option('--ref <ref>', 'version to execute (default: the run\'s generation ref)')
+  .option('--exec-id <id>', 'execution id (default: the next x-NN)')
+  .action(async (opts: { run?: string; ref?: string; execId?: string }) => {
+    // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping Playwright and the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const result = await executeRun({
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.ref ? { ref: opts.ref } : {}),
+        ...(opts.execId ? { execId: opts.execId } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      console.log(`results.json: ${result.resultsFile}`);
+      for (const line of describeExecution(result)) console.log(line);
+    } catch (err) {
+      console.error(`execute failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+for (const stage of ['analyze', 'all']) {
   agent
     .command(stage)
     .allowUnknownOption()

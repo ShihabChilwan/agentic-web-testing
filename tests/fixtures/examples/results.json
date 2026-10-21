@@ -35,16 +35,20 @@
     "total": 40,
     "passed": 36,
     "failed": 3,
-    "errored": 1
+    "errored": 1,
+    "skipped": 32,
+    "notIsolated": 0
   },
   "results": [
     {
       "testCaseId": "TC-004",
       "status": "failed",
+      "isolated": true,
       "durationMs": 2300,
       "error": {
-        "message": "E1\n\nExpected: visible\nReceived: hidden",
+        "message": "Error: E1\n\nExpected: visible\nReceived: hidden",
         "expectationId": "E1",
+        "category": "value-less-expect",
         "stack": "..."
       },
       "artifacts": {
@@ -52,8 +56,29 @@
         "trace": "artifacts/TC-004/trace.zip",
         "dom": "artifacts/TC-004/dom.html",
         "network": "artifacts/TC-004/network.json",
-        "console": "artifacts/TC-004/console.log"
+        "console": "artifacts/TC-004/console.log",
+        "lastResponse": "artifacts/TC-004/last-response.json",
+        "serverLog": "artifacts/TC-004/backend.log"
       }
     }
-  ]
+  ],
+  "skipped": [
+    {
+      "testCaseId": "TC-068",
+      "reason": "assertion_failed"
+    }
+  ],
+  "incidents": [
+    {
+      "beforeTestCaseId": "TC-041",
+      "kind": "backend-crashed",
+      "detail": "the backend process had exited (code 1)"
+    }
+  ],
+  "timing": {
+    "startupMs": 52000,
+    "suiteMs": 610000,
+    "restores": 40,
+    "restoreMs": 121000
+  }
 }

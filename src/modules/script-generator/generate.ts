@@ -26,6 +26,7 @@ import { loadTargetConfig } from '../../shared/target-config.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { checkFixtureLogins } from '../execution-engine/guard.js';
 import { startTarget } from '../execution-engine/lifecycle.js';
+import { targetSettings } from '../execution-engine/suite.js';
 import { collectEvidence, linesAtCommit } from '../test-case-generator/context.js';
 import type { ReadLines } from '../test-case-generator/context.js';
 import { callerBlocks } from './callers.js';
@@ -369,7 +370,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
     await copyFile(HELPERS_TEMPLATE, path.join(paths.scriptsDir, '_helpers.ts'));
     await writeFile(
       path.join(paths.scriptsDir, '_target.json'),
-      `${JSON.stringify({ apiUrl: config.backend.baseUrl, uiUrl: config.frontend.baseUrl, fixtures: config.fixtures, auth: config.auth }, null, 2)}\n`,
+      `${JSON.stringify(targetSettings(config), null, 2)}\n`,
     );
     await writePlaywrightConfig(paths.dir, config.frontend.baseUrl);
 

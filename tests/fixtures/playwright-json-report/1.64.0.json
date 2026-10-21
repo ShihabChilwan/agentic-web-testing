@@ -1,0 +1,233 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/project/node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "playwright.config.ts"
+    ],
+    "configFile": "/run/playwright.config.ts",
+    "rootDir": "/run/suite",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/run/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/run/suite",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 1000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/run/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "chromium",
+        "testDir": "/run/suite",
+        "snapshotDir": "/run/suite",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 1000,
+        "use": {
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "browserName": "chromium"
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json",
+        {
+          "outputFile": "report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "TC-001.spec.ts",
+      "file": "TC-001.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "TC-001: passes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 1000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 132,
+                  "errors": [],
+                  "stdout": [
+                    {
+                      "text": "OUT /run/test-results/TC-001-TC-001-passes-chromium\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T18:28:10.955Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "577687e59bef6f4b4ce3-c9c4a3a68b5ec66a2d2c",
+          "file": "TC-001.spec.ts",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "TC-002.spec.ts",
+      "file": "TC-002.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "TC-002: fails",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 1000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 667,
+                  "error": {
+                    "message": "Error: E1\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('p')\nExpected: \u001b[32m\"bye\"\u001b[39m\nReceived: \u001b[31m\"hi\"\u001b[39m\nTimeout:  500ms\n\nCall log:\n\u001b[2m  - E1 locator('p') with timeout 500ms\u001b[22m\n\u001b[2m  - waiting for locator('p')\u001b[22m\n\u001b[2m    7 × locator resolved to <p>hi</p>\u001b[22m\n\u001b[2m      - unexpected value \"hi\"\u001b[22m\n",
+                    "stack": "Error: E1\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('p')\nExpected: \u001b[32m\"bye\"\u001b[39m\nReceived: \u001b[31m\"hi\"\u001b[39m\nTimeout:  500ms\n\nCall log:\n\u001b[2m  - E1 locator('p') with timeout 500ms\u001b[22m\n\u001b[2m  - waiting for locator('p')\u001b[22m\n\u001b[2m    7 × locator resolved to <p>hi</p>\u001b[22m\n\u001b[2m      - unexpected value \"hi\"\u001b[22m\n\n    at /run/suite/TC-002.spec.ts:2:119",
+                    "location": {
+                      "file": "/run/suite/TC-002.spec.ts",
+                      "column": 119,
+                      "line": 2
+                    },
+                    "snippet": "  1 | import { test, expect } from './_helpers.js';\n> 2 | test('TC-002: fails', async ({ page }) => { await page.setContent('<p>hi</p>'); await expect(page.locator('p'), 'E1').toHaveText('bye', { timeout: 500 }); });\n    |                                                                                                                       ^\n  3 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/run/suite/TC-002.spec.ts",
+                        "column": 119,
+                        "line": 2
+                      },
+                      "message": "Error: E1\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('p')\nExpected: \u001b[32m\"bye\"\u001b[39m\nReceived: \u001b[31m\"hi\"\u001b[39m\nTimeout:  500ms\n\nCall log:\n\u001b[2m  - E1 locator('p') with timeout 500ms\u001b[22m\n\u001b[2m  - waiting for locator('p')\u001b[22m\n\u001b[2m    7 × locator resolved to <p>hi</p>\u001b[22m\n\u001b[2m      - unexpected value \"hi\"\u001b[22m\n\n\n  1 | import { test, expect } from './_helpers.js';\n> 2 | test('TC-002: fails', async ({ page }) => { await page.setContent('<p>hi</p>'); await expect(page.locator('p'), 'E1').toHaveText('bye', { timeout: 500 }); });\n    |                                                                                                                       ^\n  3 |\n    at /run/suite/TC-002.spec.ts:2:119"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "OUT /run/test-results/TC-002-TC-002-fails-chromium\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-21T18:28:12.864Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/run/test-results/TC-002-TC-002-fails-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/run/test-results/TC-002-TC-002-fails-chromium/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/run/test-results/TC-002-TC-002-fails-chromium/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/run/suite/TC-002.spec.ts",
+                    "column": 119,
+                    "line": 2
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "bfc1d44aad53a9e876a9-437117527a797fa81f76",
+          "file": "TC-002.spec.ts",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-21T18:28:08.661Z",
+    "duration": 6653.049000000001,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}
