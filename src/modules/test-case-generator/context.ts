@@ -37,6 +37,8 @@ export interface EvidenceBlock {
   lines: string[];
   /** Set for a whole file included because a cited file imports it. */
   importedBy?: string;
+  /** Set for frontend code that calls an endpoint (e.g. "POST /api/cart/add"), to show the request shape. */
+  calls?: string;
 }
 
 export interface CodeExcerpts {

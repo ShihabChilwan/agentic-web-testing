@@ -10,9 +10,11 @@ import type { PrdRequirement, TestCase as TestCaseType } from '../../shared/sche
 
 /**
  * A test case as the model writes it. Code fills in everything derivable: the test case id (after every
- * session has finished) and the expectation ids E1, E2, ... in order. Empty lists may be left out.
+ * session has finished), the expectation ids E1, E2, ... in order, and a missing title (from the first
+ * expectation; the model often leaves it out). Empty lists may be left out.
  */
-export const TestCaseDraft = TestCase.omit({ id: true, expected: true, preconditions: true, fixturesUsed: true }).extend({
+export const TestCaseDraft = TestCase.omit({ id: true, title: true, expected: true, preconditions: true, fixturesUsed: true }).extend({
+  title: z.string().min(1).optional(),
   preconditions: z.array(z.string()).default([]),
   fixturesUsed: z.array(z.string()).default([]),
   expected: z.array(Expectation.omit({ id: true })).min(1),
@@ -21,7 +23,14 @@ export type TestCaseDraft = z.infer<typeof TestCaseDraft>;
 
 /** The final test case: the given id, and expectation ids numbered in order. */
 export function toTestCase(draft: TestCaseDraft, id: string): TestCaseType {
-  return { id, ...draft, expected: draft.expected.map((e, i) => ({ id: `E${i + 1}`, ...e })) };
+  const { title, ...rest } = draft;
+  const fallback = draft.expected[0]!.description;
+  return {
+    id,
+    title: title ?? (fallback.length > 80 ? `${fallback.slice(0, 79)}…` : fallback),
+    ...rest,
+    expected: draft.expected.map((e, i) => ({ id: `E${i + 1}`, ...e })),
+  };
 }
 
 export const SubmitTestCases = z.object({

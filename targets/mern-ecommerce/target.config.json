@@ -109,7 +109,17 @@
     },
     "tokenAt": "token",
     "header": "Authorization",
-    "prefix": ""
+    "prefix": "",
+    "storage": { "kind": "localStorage", "key": "token" },
+    "uiLogin": {
+      "path": "/login",
+      "fields": {
+        "email": { "placeholder": "Please Enter Your Email" },
+        "password": { "placeholder": "Please Enter Your Password" }
+      },
+      "submit": { "role": "button", "name": "Login" },
+      "waitFor": { "urlNot": "/login" }
+    }
   },
   "facts": [
     {

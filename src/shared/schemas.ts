@@ -95,6 +95,20 @@ export const SeedCheck = z.strictObject({
   }),
 });
 
+/** A Playwright locator described as data: exactly one of role (with optional name), label, placeholder, text, testId. */
+export const Locator = z
+  .strictObject({
+    role: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
+    label: z.string().min(1).optional(),
+    placeholder: z.string().min(1).optional(),
+    text: z.string().min(1).optional(),
+    testId: z.string().min(1).optional(),
+  })
+  .refine((l) => [l.role, l.label, l.placeholder, l.text, l.testId].filter(Boolean).length === 1, 'give exactly one of role, label, placeholder, text, testId')
+  .refine((l) => !l.name || l.role, 'name goes with role');
+export type Locator = z.infer<typeof Locator>;
+
 /** How to log in as a fixture user over HTTP: the token goes into a header on later requests. */
 export const TargetAuth = z.strictObject({
   login: z.strictObject({
@@ -108,6 +122,18 @@ export const TargetAuth = z.strictObject({
   header: z.string().min(1),
   /** Put before the token in the header (e.g. "Bearer "); "" when the token already includes it. */
   prefix: z.string().default(''),
+  /** Where the frontend keeps the login token, so a test page can start logged in (`loggedInPage`). */
+  storage: z.strictObject({ kind: z.enum(['localStorage', 'sessionStorage']), key: z.string().min(1) }).optional(),
+  /** The frontend's login form, for `loginViaUi`. Field names are fixture user fields (e.g. email, password). */
+  uiLogin: z
+    .strictObject({
+      path: z.string().startsWith('/'),
+      fields: z.record(z.string(), Locator),
+      submit: Locator,
+      /** After submitting, wait until the URL no longer contains this. */
+      waitFor: z.strictObject({ urlNot: z.string().min(1) }).optional(),
+    })
+    .optional(),
 });
 
 /** One request whose answer on golden is recorded in facts.json (SPEC §7.4). */
@@ -394,12 +420,31 @@ export type PartlyCoveredRequirement = z.infer<typeof PartlyCoveredRequirement>;
 
 export const ScriptStatus = z.enum(['validated', 'invalid']);
 export const ValidationOutcome = z.enum(['passed', 'assertion_failed']);
-export const AttemptStage = z.enum(['typecheck', 'lock-check', 'dry-run']);
+/** `submit`: the model's submission did not reach the checks (e.g. no valid submit at all). */
+export const AttemptStage = z.enum(['submit', 'typecheck', 'lock-check', 'dry-run']);
+/**
+ * Why an attempt failed. A dry-run failure is only an app disagreement (outcome assertion_failed) when a
+ * locked value was compared and differed (§6.2); these are the other kinds, kept for review.
+ */
+export const FailureCategory = z.enum([
+  'no-submit',
+  'typecheck',
+  'lock-check',
+  /** An E-id expect without a locked value failed (e.g. "is visible"): possibly a real disagreement. */
+  'value-less-expect',
+  /** The locator found nothing, or several elements (strict mode). */
+  'locator',
+  'timeout',
+  /** Any other error: TypeError, connection refused, a failing setup step. */
+  'runtime-error',
+]);
 
 export const ScriptAttempt = z.object({
   attempt: z.number().int().min(1),
   stage: AttemptStage,
   error: z.string().nullable(),
+  /** Set for a failed attempt. */
+  category: FailureCategory.optional(),
   durationMs: DurationMs,
 });
 
@@ -411,10 +456,16 @@ export const ScriptManifestEntry = z
     validationOutcome: ValidationOutcome.nullable(),
     attempts: z.number().int().min(1),
     attemptLog: z.array(ScriptAttempt).min(1),
+    /** For an invalid script: the category of its last failed attempt, so it can be reviewed by hand. */
+    failureCategory: FailureCategory.nullable().default(null),
   })
   .refine((s) => (s.status === 'validated') === (s.validationOutcome !== null), {
     message: 'validationOutcome must be set for validated scripts and null for invalid ones',
     path: ['validationOutcome'],
+  })
+  .refine((s) => (s.status === 'invalid') === (s.failureCategory !== null), {
+    message: 'failureCategory must be set for invalid scripts and null for validated ones',
+    path: ['failureCategory'],
   });
 
 export const ScriptManifest = z.object({
@@ -425,6 +476,8 @@ export const ScriptManifest = z.object({
 
 export type ScriptManifest = z.infer<typeof ScriptManifest>;
 export type ScriptManifestEntry = z.infer<typeof ScriptManifestEntry>;
+export type ScriptAttempt = z.infer<typeof ScriptAttempt>;
+export type FailureCategory = z.infer<typeof FailureCategory>;
 
 // ---------------------------------------------------------------------------
 // Module 4 — execution request and results.json
@@ -625,6 +678,29 @@ export const StageGenerationSummary = z.object({
   warnings: z.array(z.string()),
 });
 
+/** What the script stage made (Test Script Generator): one fix loop per test case. */
+export const StageScriptsSummary = z.object({
+  cases: count,
+  /** Validated scripts kept from an earlier, interrupted run of the stage (not generated again). */
+  resumed: count.default(0),
+  validated: z.object({ passed: count, assertionFailed: count }),
+  invalid: count,
+  /** Scripts by the number of attempts they used. */
+  attemptsHistogram: z.record(z.string(), count),
+  /** Failed attempts by where they failed. */
+  failuresByStage: z.record(AttemptStage, count),
+  /** Invalid scripts by the category of their last failure (review value-less-expect by hand). */
+  invalidByCategory: z.record(FailureCategory, count),
+  /** Test case ids of the invalid scripts, per category. */
+  invalidCases: z.record(z.string(), z.array(z.string())),
+  calls: count,
+  costUsd: z.number().nonnegative().nullable(),
+  /** Total time spent in dry runs (they run one at a time). */
+  dryRunMs: DurationMs,
+  playwrightVersion: z.string().min(1),
+  warnings: z.array(z.string()),
+});
+
 export const StageState = z.object({
   status: StageStatus,
   startedAt: Timestamp.optional(),
@@ -633,6 +709,7 @@ export const StageState = z.object({
   error: z.string().optional(),
   agent: StageAgentSummary.optional(),
   generation: StageGenerationSummary.optional(),
+  scripts: StageScriptsSummary.optional(),
 });
 
 const PerModule = <T extends z.ZodType>(value: T) =>
@@ -678,6 +755,7 @@ export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
 export type StageAgentSummary = z.infer<typeof StageAgentSummary>;
 export type StageGenerationSummary = z.infer<typeof StageGenerationSummary>;
+export type StageScriptsSummary = z.infer<typeof StageScriptsSummary>;
 export type RunExecution = z.infer<typeof RunExecution>;
 export type RunManifest = z.infer<typeof RunManifest>;
 

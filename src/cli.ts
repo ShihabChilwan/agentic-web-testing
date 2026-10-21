@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
 import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
+import { describeScriptsSummary, generateScripts } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
 import { runPaths } from './shared/paths.js';
 import path from 'node:path';
@@ -96,7 +97,40 @@ agent
     }
   });
 
-for (const stage of ['scripts', 'execute', 'analyze', 'all']) {
+agent
+  .command('scripts')
+  .description('Generate and dry-run a Playwright script per test case (starts the app at the generation ref)')
+  .option('--run <runId>', 'run to use (default: the newest run with a testcases.json)')
+  .option('--fresh', 'generate every script again, instead of keeping validated ones from an unfinished run')
+  .action(async (opts: { run?: string; fresh?: boolean }) => {
+    // Ctrl+C or SIGTERM: write the manifest so far, mark the stage failed and stop the app before exiting.
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping: saving the finished scripts and stopping the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const result = await generateScripts({
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.fresh ? { fresh: true } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      console.log(`manifest: ${result.manifestFile}`);
+      for (const line of describeScriptsSummary(result.summary)) console.log(line);
+    } catch (err) {
+      console.error(`scripts failed: ${errorSummary(err)}`);
+      if (controller.signal.aborted) {
+        console.error('Finished scripts are in the manifest; run "agent scripts" again to continue.');
+        process.exit(130); // sessions still waiting on the model are abandoned
+      }
+      process.exitCode = 1;
+    }
+  });
+
+for (const stage of ['execute', 'analyze', 'all']) {
   agent
     .command(stage)
     .allowUnknownOption()

@@ -288,3 +288,27 @@ describe('RunLLMClient: provider-reported cost, tokens and provider', () => {
     expect(isReasoningEffortRejection(new LLMRequestError('reasoning_effort', 'server', 500))).toBe(false);
   });
 });
+
+describe('call log writes', () => {
+  it('writes parallel calls one after another, so lines are never glued or lost', async () => {
+    const { appendCallLog } = await import('../../src/llm/call-log.js');
+    const dir = await mkdtemp(path.join(tmpdir(), 'call-log-'));
+    const file = path.join(dir, 'llm-calls.jsonl');
+    // A non-atomic append, like the 9p mount: it writes half, yields, then writes the rest.
+    let content = '';
+    const slowAppend = async (_f: string, text: string) => {
+      const half = Math.floor(text.length / 2);
+      content += text.slice(0, half);
+      await new Promise((r) => setTimeout(r, Math.random() * 3));
+      content += text.slice(half);
+    };
+    const line = (i: number) => ({
+      ts: '2026-10-24T10:00:00.000Z', purpose: `p${i}`, provider: 'openai-compatible' as const, model: 'm', reasoningEffort: 'low' as const,
+      inputTokens: i, outputTokens: 1, latencyMs: 1, ok: true, attempts: 1, costUsd: 0.001,
+    });
+    await Promise.all(Array.from({ length: 50 }, (_, i) => appendCallLog(file, line(i), slowAppend)));
+    const lines = content.trim().split('\n');
+    expect(lines).toHaveLength(50);
+    expect(lines.map((l) => JSON.parse(l).inputTokens).sort((a: number, b: number) => a - b)).toEqual(Array.from({ length: 50 }, (_, i) => i));
+  });
+});

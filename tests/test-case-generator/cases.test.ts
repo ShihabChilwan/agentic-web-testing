@@ -202,11 +202,12 @@ describe('generateTestCases', () => {
     expect(tasks['F-01']).toContain('At most 100 test cases');
   });
 
-  it('numbers expectations in code and fills in empty lists the model left out', async () => {
+  it('numbers expectations in code and fills in the title and empty lists the model left out', async () => {
     const { runsDir, paths } = await makeRun();
     const bare = { ...tc() } as Record<string, unknown>;
     delete bare.preconditions;
     delete bare.fixturesUsed;
+    delete bare.title;
     const { llm } = fakeBySession({
       'F-01': [submit([bare, uiCase()])],
       'F-02': [submit([], [{ requirementId: 'REQ-003', reasonKind: 'third-party-disabled', reason: 'Email only.' }])],
@@ -214,7 +215,12 @@ describe('generateTestCases', () => {
     const result = await run(runsDir, llm);
     expect(result.summary.rejected).toEqual({ invalidInput: 0, checkFailed: 0 });
     const file = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8')));
-    expect(file.testCases[0]).toMatchObject({ preconditions: [], fixturesUsed: [], expected: [{ id: 'E1', value: 400 }, { id: 'E2' }] });
+    expect(file.testCases[0]).toMatchObject({
+      title: 'Status is 400', // from the first expectation, as the model left the title out
+      preconditions: [],
+      fixturesUsed: [],
+      expected: [{ id: 'E1', value: 400 }, { id: 'E2' }],
+    });
   });
 
   it('keeps the reason of a partial decline in coverage.partial', async () => {

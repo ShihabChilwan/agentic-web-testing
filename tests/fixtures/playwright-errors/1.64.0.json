@@ -1,0 +1,62 @@
+{
+  "playwrightVersion": "1.64.0",
+  "recordedFrom": "tests/playwright/error-kinds.spec.ts",
+  "cases": {
+    "value-mismatch-toBe": {
+      "status": "failed",
+      "message": "Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 400\nReceived: 200"
+    },
+    "value-mismatch-toEqual": {
+      "status": "failed",
+      "message": "Error: E1\n\nexpect(received).toEqual(expected) // deep equality\n\n- Expected  - 1\n+ Received  + 1\n\n  Object {\n-   \"ok\": false,\n+   \"ok\": true,\n  }"
+    },
+    "value-mismatch-toContain": {
+      "status": "failed",
+      "message": "Error: E1\n\nexpect(received).toContain(expected) // indexOf\n\nExpected substring: \"cancelled\"\nReceived string:    \"Your order was placed\""
+    },
+    "value-mismatch-toHaveText": {
+      "status": "failed",
+      "message": "Error: E2\n\nexpect(locator).toHaveText(expected) failed\n\nLocator:  locator('#msg')\nExpected: \"Password Incorrect\"\nReceived: \"Password incorrect\"\nTimeout:  1000ms\n\nCall log:\n  - E2 locator('#msg') with timeout 1000ms\n  - waiting for locator('#msg')\n    11 \u00d7 locator resolved to <p id=\"msg\">Password incorrect</p>\n       - unexpected value \"Password incorrect\"\n"
+    },
+    "value-mismatch-toHaveURL": {
+      "status": "failed",
+      "message": "Error: E3\n\nexpect(page).toHaveURL(expected) failed\n\nExpected: \"http://localhost:8080/login\"\nReceived: \"about:blank\"\nTimeout:  1000ms\n\nCall log:\n  - E3 with timeout 1000ms\n    11 \u00d7 locator resolved to <html>\u2026</html>\n       - unexpected value \"about:blank\"\n"
+    },
+    "value-mismatch-toHaveCount": {
+      "status": "failed",
+      "message": "Error: E4\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('li')\nExpected: 3\nReceived: 2\nTimeout:  1000ms\n\nCall log:\n  - E4 locator('li') with timeout 1000ms\n  - waiting for locator('li')\n    11 \u00d7 locator resolved to 2 elements\n       - unexpected value \"2\"\n"
+    },
+    "not-found-with-value": {
+      "status": "failed",
+      "message": "Error: E5\n\nexpect(locator).toHaveText(expected) failed\n\nLocator: getByRole('alert')\nExpected: \"Saved\"\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n  - E5 getByRole('alert') with timeout 1000ms\n  - waiting for getByRole('alert')\n"
+    },
+    "strict-mode-with-value": {
+      "status": "failed",
+      "message": "Error: E6\n\nexpect(locator).toHaveText(expected) failed\n\nLocator: getByRole('button', { name: 'Save' })\nExpected: \"Save\"\nError: strict mode violation: getByRole('button', { name: 'Save' }) resolved to 2 elements:\n    1) <button>Save</button> aka getByRole('button', { name: 'Save' }).first()\n    2) <button>Save</button> aka getByRole('button', { name: 'Save' }).nth(1)\n\nCall log:\n  - E6 getByRole('button', { name: 'Save' }) with timeout 1000ms\n  - waiting for getByRole('button', { name: 'Save' })\n"
+    },
+    "value-less-hidden": {
+      "status": "failed",
+      "message": "Error: E7\n\nexpect(locator).toBeVisible() failed\n\nLocator:  locator('#hidden')\nExpected: visible\nReceived: hidden\nTimeout:  1000ms\n\nCall log:\n  - E7 locator('#hidden') with timeout 1000ms\n  - waiting for locator('#hidden')\n    11 \u00d7 locator resolved to <p id=\"hidden\">Hidden</p>\n       - unexpected value \"hidden\"\n"
+    },
+    "value-less-not-found": {
+      "status": "failed",
+      "message": "Error: E8\n\nexpect(locator).toBeVisible() failed\n\nLocator: getByText('Order placed')\nExpected: visible\nTimeout: 1000ms\nError: element(s) not found\n\nCall log:\n  - E8 getByText('Order placed') with timeout 1000ms\n  - waiting for getByText('Order placed')\n"
+    },
+    "type-error": {
+      "status": "failed",
+      "message": "TypeError: Cannot read properties of undefined (reading 'user')"
+    },
+    "action-timeout": {
+      "status": "failed",
+      "message": "TimeoutError: locator.click: Timeout 1000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Checkout' })\n"
+    },
+    "test-timeout": {
+      "status": "timedOut",
+      "message": "Test timeout of 1500ms exceeded."
+    },
+    "connection-refused": {
+      "status": "failed",
+      "message": "Error: apiRequestContext.get: connect ECONNREFUSED 127.0.0.1:1\nCall log:\n  - \u2192 GET http://127.0.0.1:1/api/items\n    - user-agent: Playwright/1.64.0 (x64; debian 12) node/22.23\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n"
+    }
+  }
+}

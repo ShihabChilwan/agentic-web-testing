@@ -2,11 +2,36 @@ import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { LLMCallLogLine } from '../shared/schemas.js';
 
-/** Appends one validated JSON line per call to runs/<runId>/llm-calls.jsonl. */
-export async function appendCallLog(file: string, line: LLMCallLogLine): Promise<void> {
-  const valid = LLMCallLogLine.parse(line);
+export type Append = (file: string, text: string) => Promise<void>;
+
+const defaultAppend: Append = async (file, text) => {
   await mkdir(path.dirname(file), { recursive: true });
-  await appendFile(file, JSON.stringify(valid) + '\n', 'utf8');
+  await appendFile(file, text, 'utf8');
+};
+
+/** One write queue per file: parallel calls must not append at the same moment. */
+const queues = new Map<string, Promise<void>>();
+
+/**
+ * Appends one validated JSON line per call to runs/<runId>/llm-calls.jsonl. Writes to the same file go
+ * one after another: on some file systems (e.g. a 9p mount from a Windows host) simultaneous appends are
+ * not atomic and lines get glued together or lost, which would undercount calls, cost and the run caps.
+ */
+export function appendCallLog(file: string, line: LLMCallLogLine, append: Append = defaultAppend): Promise<void> {
+  let text: string;
+  try {
+    text = JSON.stringify(LLMCallLogLine.parse(line)) + '\n';
+  } catch (err) {
+    return Promise.reject(err);
+  }
+  const key = path.resolve(file);
+  const next = (queues.get(key) ?? Promise.resolve()).then(() => append(file, text));
+  const settled = next.catch(() => undefined);
+  queues.set(key, settled);
+  void settled.then(() => {
+    if (queues.get(key) === settled) queues.delete(key);
+  });
+  return next;
 }
 
 /**
