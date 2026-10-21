@@ -937,3 +937,152 @@ export const OnePromptSubmission = z.object({
 });
 
 export type OnePromptScript = z.infer<typeof OnePromptScript>;
+
+// ---------------------------------------------------------------------------
+// Module 6 — run view model (SPEC §9.1): what the report and the dashboard render
+// ---------------------------------------------------------------------------
+
+export const ViewStage = z.object({
+  name: z.enum(['prd', 'cases', 'scripts']),
+  status: StageStatus,
+  startedAt: Timestamp.nullable(),
+  finishedAt: Timestamp.nullable(),
+  durationMs: DurationMs.nullable(),
+  /** Model calls of the stage's purpose inside its time window. */
+  calls: z.number().int().nonnegative(),
+  costUsd: z.number().nonnegative().nullable(),
+});
+
+export const ScriptOutcomeView = z.enum(['passed', 'assertion_failed', 'invalid', 'none']);
+
+export const ViewRequirement = z.object({
+  id: RequirementId,
+  featureId: FeatureId,
+  feature: z.string(),
+  statement: z.string(),
+  priority: Priority,
+  layer: z.string(),
+  /** Why no test case covers it; null when covered. */
+  uncovered: z.string().nullable(),
+  /** The part that cannot be tested; null when fully testable. */
+  partial: z.string().nullable(),
+  testCases: z.array(
+    z.object({
+      id: TestCaseId,
+      title: z.string(),
+      layer: z.string(),
+      category: z.string(),
+      outcome: ScriptOutcomeView,
+      failureCategory: z.string().nullable(),
+    }),
+  ),
+});
+
+export const ViewFailure = z.object({
+  message: z.string(),
+  expectationId: ExpectationId.nullable(),
+  category: z.string().nullable(),
+  expected: z.string().nullable(),
+  received: z.string().nullable(),
+  /** A data:image/png;base64 URI (embedded), or null. */
+  screenshot: z.string().nullable(),
+  /** Relative to the run folder; open with `npx playwright show-trace`. */
+  trace: RelPath.nullable(),
+  excerpts: z.object({
+    network: z.string().nullable(),
+    console: z.string().nullable(),
+    serverLog: z.string().nullable(),
+    lastResponse: z.string().nullable(),
+  }),
+  diagnosisId: DiagnosisId.nullable(),
+  noToolsDiagnosisId: DiagnosisId.nullable(),
+});
+
+export const ViewTestStatus = z.enum(['passed', 'failed', 'errored', 'skipped']);
+
+export const ViewTest = z.object({
+  testCaseId: ScriptTestId,
+  title: z.string(),
+  status: ViewTestStatus,
+  /** Set for skipped tests: their dry-run outcome. */
+  skipReason: z.enum(['assertion_failed', 'invalid']).optional(),
+  isolated: z.boolean(),
+  durationMs: DurationMs,
+  requirementIds: z.array(RequirementId),
+  failure: ViewFailure.optional(),
+});
+
+export const ViewExecution = z.object({
+  execId: ExecId,
+  /** For people: the ref, plus "+ <patch file name>", plus ", seed skipped". */
+  label: z.string(),
+  ref: z.string(),
+  commit: CommitSha,
+  patch: z.string().nullable(),
+  skipSeed: z.boolean(),
+  executeStatus: ExecutionStepStatus,
+  analyzeStatus: ExecutionStepStatus,
+  error: z.string().nullable(),
+  startedAt: Timestamp.nullable(),
+  finishedAt: Timestamp.nullable(),
+  /** Null when results.json is missing (e.g. a failed execution). */
+  summary: ExecutionResults.shape.summary.nullable(),
+  timing: ExecutionResults.shape.timing.unwrap().nullable(),
+  environment: ExecutionResults.shape.environment.nullable(),
+  incidents: z.array(Incident),
+  analysis: z.object({ full: DiagnosesSummary.nullable(), noTools: DiagnosesSummary.nullable() }),
+  tests: z.array(ViewTest),
+  diagnoses: z.array(Diagnosis).nullable(),
+  noToolsDiagnoses: z.array(Diagnosis).nullable(),
+});
+
+export const ComparisonKind = z.enum(['newly-failing', 'fixed', 'failure-changed', 'only-in-one']);
+
+export const ComparisonRow = z.object({
+  testCaseId: ScriptTestId,
+  from: ViewTestStatus.nullable(),
+  to: ViewTestStatus.nullable(),
+  kind: ComparisonKind,
+});
+
+export const RunView = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  run: z.object({
+    runId: z.string(),
+    target: z.string(),
+    generationRef: z.string(),
+    generationCommit: CommitSha,
+    createdAt: Timestamp,
+    models: z.record(z.string(), z.string()),
+    upstreamProviders: z.array(z.string()),
+    playwrightVersion: z.string().nullable(),
+  }),
+  stages: z.array(ViewStage),
+  coverage: z.object({
+    requirements: z.number().int().nonnegative(),
+    covered: z.number().int().nonnegative(),
+    partial: z.number().int().nonnegative(),
+    testCases: z.number().int().nonnegative(),
+    scripts: z.object({
+      passed: z.number().int().nonnegative(),
+      assertionFailed: z.number().int().nonnegative(),
+      invalid: z.number().int().nonnegative(),
+      none: z.number().int().nonnegative(),
+    }),
+  }),
+  requirements: z.array(ViewRequirement),
+  executions: z.array(ViewExecution),
+  /** Keyed "<a>|<b>" in run.json order; only tests whose status differs. */
+  comparisons: z.record(z.string(), z.array(ComparisonRow)),
+});
+
+export type RunView = z.infer<typeof RunView>;
+export type ViewStage = z.infer<typeof ViewStage>;
+export type ViewRequirement = z.infer<typeof ViewRequirement>;
+export type ViewExecution = z.infer<typeof ViewExecution>;
+export type ViewTest = z.infer<typeof ViewTest>;
+export type ViewTestStatus = z.infer<typeof ViewTestStatus>;
+export type ViewFailure = z.infer<typeof ViewFailure>;
+export type ComparisonRow = z.infer<typeof ComparisonRow>;
+export type ComparisonKind = z.infer<typeof ComparisonKind>;

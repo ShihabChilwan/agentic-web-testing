@@ -4,6 +4,8 @@ import { describeCasesSummary, generateTestCases } from './modules/test-case-gen
 import { inspectStage } from './modules/inspect.js';
 import { describeExecution, executeRun } from './modules/execution-engine/index.js';
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
+import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
+import { writeReport } from './modules/report/index.js';
 import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -17,7 +19,7 @@ const program = new Command();
 
 program.name('agentic-web-testing').description('Agentic web application testing and fault diagnosis');
 
-const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, execute, analyze, all');
+const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, execute, analyze, all, report');
 
 agent
   .command('prd')
@@ -199,16 +201,58 @@ agent
     }
   });
 
-for (const stage of ['all']) {
-  agent
-    .command(stage)
-    .allowUnknownOption()
-    .allowExcessArguments()
-    .action(() => {
-      console.error(`agent ${stage}: not implemented yet`);
+agent
+  .command('all')
+  .description('prd → cases → scripts → execute → analyze, reusing the stages that are done and still valid')
+  .option('--target <name>', 'target for a new run (default: the target of the run being continued)')
+  .option('--run <runId>', 'run to continue (default: the newest run of --target, else the newest run)')
+  .option('--fresh', 'start a new run and redo every stage')
+  .action(async (opts: { target?: string; run?: string; fresh?: boolean }) => {
+    // Ctrl+C or SIGTERM: scripts and execute stop themselves; the other stages are marked interrupted here.
+    const controller = new AbortController();
+    let current: { stage: PipelineStage; at: { runDir: string | null; execId: string | null } } | null = null;
+    const onSignal = () => {
+      console.error('\nStopping...');
+      controller.abort();
+      if (current && current.stage !== 'scripts' && current.stage !== 'execute') {
+        void markInterrupted(current.stage, current.at).finally(() => process.exit(130));
+      }
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const result = await runAll({
+        ...(opts.target ? { target: opts.target } : {}),
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.fresh ? { fresh: true } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+        onStage: (stage, at) => {
+          current = { stage, at };
+          console.log(`== ${stage}`);
+        },
+      });
+      for (const line of describeRunAll(result)) console.log(line);
+      if (result.failure) process.exitCode = controller.signal.aborted ? 130 : 1;
+    } catch (err) {
+      console.error(`all failed: ${errorSummary(err)}`);
       process.exitCode = 1;
-    });
-}
+    }
+  });
+
+agent
+  .command('report')
+  .description('Write runs/<runId>/report.html: one self-contained page (reads files only, no model calls)')
+  .option('--run <runId>', 'run to report (default: the newest run)')
+  .action(async (opts: { run?: string }) => {
+    try {
+      const { file, bytes } = await writeReport(opts.run ? { runId: opts.run } : {});
+      console.log(`report: ${file} (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
+    } catch (err) {
+      console.error(`report failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
 
 program
   .command('eval')

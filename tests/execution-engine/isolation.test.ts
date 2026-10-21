@@ -1,7 +1,7 @@
-import { appendFile, mkdtemp, writeFile } from 'node:fs/promises';
+import { appendFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { TestIsolation } from '../../src/modules/execution-engine/isolation.js';
 import type { RestoreResult } from '../../src/modules/execution-engine/lifecycle.js';
 import type { ExitInfo } from '../../src/modules/execution-engine/processes.js';
@@ -41,6 +41,10 @@ let backendLog: string;
 beforeEach(async () => {
   backendLog = path.join(await mkdtemp(path.join(tmpdir(), 'awt-isolation-')), 'backend.log');
   await writeFile(backendLog, 'start-up lines\n');
+});
+
+afterEach(async () => {
+  await rm(path.dirname(backendLog), { recursive: true, force: true });
 });
 
 const make = (target: ReturnType<typeof fakeTarget>['target'], frontendUp = async () => true) =>

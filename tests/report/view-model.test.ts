@@ -1,0 +1,91 @@
+import { rm } from 'node:fs/promises';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { buildRunView, MAX_EXCERPT_CHARS, messageValue } from '../../src/modules/report/view-model.js';
+import { RunView } from '../../src/shared/schemas.js';
+import { COMMIT, makeReportRun, PNG } from './fixture.js';
+
+let run: Awaited<ReturnType<typeof makeReportRun>>;
+let view: RunView;
+
+beforeAll(async () => {
+  run = await makeReportRun();
+  view = await buildRunView(run.dir, new Date('2026-10-25T00:00:00Z'));
+});
+
+afterAll(async () => {
+  await rm(run.runsDir, { recursive: true, force: true });
+});
+
+describe('buildRunView', () => {
+  it('describes the run and its stages, with cost from the call log inside each stage window', () => {
+    expect(RunView.safeParse(view).success).toBe(true);
+    expect(view.run).toMatchObject({ runId: run.runId, target: 'mern-ecommerce', generationRef: 'golden', generationCommit: COMMIT });
+    expect(view.stages.map((s) => [s.name, s.durationMs, s.calls, s.costUsd])).toEqual([
+      ['prd', 180_000, 2, expect.closeTo(0.03, 10)], // the prd call at 12:00 is outside the window
+      ['cases', 120_000, 1, null],
+      ['scripts', 2_700_000, 1, 0.5],
+    ]);
+  });
+
+  it('links requirements to test cases and script outcomes, with coverage numbers', () => {
+    expect(view.coverage).toMatchObject({ requirements: 1, covered: 1, testCases: 3, scripts: { passed: 2, assertionFailed: 0, invalid: 1, none: 0 } });
+    expect(view.requirements[0]?.testCases.map((t) => [t.id, t.outcome, t.failureCategory])).toEqual([
+      ['TC-001', 'passed', null],
+      ['TC-002', 'passed', null],
+      ['TC-003', 'invalid', 'locator'],
+    ]);
+  });
+
+  it('shows each execution with a label for people, its tests, skipped scripts and evidence', () => {
+    expect(view.executions.map((e) => [e.execId, e.label, e.summary !== null])).toEqual([
+      ['x-01', 'golden', true],
+      ['x-02', 'golden + dev-001-login.patch', true],
+      ['x-03', 'golden, seed skipped', false],
+      ['x-04', 'golden', true],
+    ]);
+    const x2 = view.executions[1]!;
+    expect(x2.tests.map((t) => [t.testCaseId, t.status, t.skipReason ?? null])).toEqual([
+      ['TC-001', 'failed', null],
+      ['TC-002', 'passed', null],
+      ['TC-003', 'skipped', 'invalid'],
+    ]);
+    const f = x2.tests[0]!.failure!;
+    expect(f).toMatchObject({ expected: '400', received: '200', expectationId: 'E1', category: 'assertion_failed', diagnosisId: 'DX-001', noToolsDiagnosisId: null });
+    expect(f.screenshot).toBe(`data:image/png;base64,${PNG.toString('base64')}`);
+    expect(f.trace).toBe('executions/x-02/artifacts/TC-001/trace.zip');
+    expect(f.excerpts.serverLog?.endsWith('POST /api/auth/login 200\n')).toBe(true);
+    expect(f.excerpts.serverLog!.length).toBeLessThan(MAX_EXCERPT_CHARS + 100);
+    expect(f.excerpts).toMatchObject({ lastResponse: '{"status":200}', network: null, console: null });
+    expect(x2.analysis.full).toMatchObject({ costUsd: 0.0015 });
+    expect(view.executions[2]).toMatchObject({ error: 'Error: boom', tests: [], incidents: [], diagnoses: null });
+  });
+
+  it('reads files written by older versions: never assumed isolated, no analysis summary', () => {
+    const x4 = view.executions[3]!;
+    expect(x4.tests[0]).toMatchObject({ status: 'failed', isolated: false });
+    expect(x4.analysis.full).toBeNull();
+    expect(x4.diagnoses?.length).toBe(1);
+  });
+
+  it('compares every pair of executions with results', () => {
+    expect(Object.keys(view.comparisons)).toEqual(['x-01|x-02', 'x-01|x-04', 'x-02|x-04']);
+    expect(view.comparisons['x-01|x-02']).toEqual([{ testCaseId: 'TC-001', from: 'passed', to: 'failed', kind: 'newly-failing' }]);
+  });
+
+  it('a run with only run.json gives an empty view', async () => {
+    const { createRun, llmSettings } = await import('../../src/shared/run-manifest.js');
+    const { parseLLMConfig } = await import('../../src/shared/config.js');
+    const empty = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: COMMIT, llm: llmSettings(parseLLMConfig({ LLM_BASE_URL: 'http://m.test/v1' })), runsDir: run.runsDir });
+    const v = await buildRunView(empty.paths.dir);
+    expect(v).toMatchObject({ stages: [], requirements: [], executions: [], comparisons: {}, coverage: { requirements: 0, testCases: 0 } });
+  });
+});
+
+describe('messageValue', () => {
+  it('reads Playwright\'s Expected and Received lines', () => {
+    const m = 'Error: E2\n\nexpect(locator).toHaveText(expected) failed\n\nLocator: getByRole(\'alert\')\nExpected string: "Password Incorrect"\nReceived string: ""\nTimeout: 5000ms';
+    expect(messageValue(m, 'Expected')).toBe('"Password Incorrect"');
+    expect(messageValue(m, 'Received')).toBe('""');
+    expect(messageValue('- Expected  - 1\n+ Received  + 1', 'Expected')).toBeNull();
+  });
+});
