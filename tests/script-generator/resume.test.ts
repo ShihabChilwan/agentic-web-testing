@@ -181,7 +181,40 @@ describe('generateScripts: progress, interruption and resume', () => {
     expect(stale.asked.sort()).toEqual(['TC-001', 'TC-002', 'TC-003']);
   });
 
-  it('does not keep a validated script whose test case changed', { timeout: 180_000 }, async () => {
+  it('generates everything again when the helpers changed, or the manifest has no helpers hash', { timeout: 240_000 }, async () => {
+    const { runsDir, runId, paths } = await makeRun();
+    const pass = async () => ({ status: 'passed', message: '', durationMs: 1 });
+    await generateScripts(options(runsDir, runId, model().llm, pass));
+    const written = JSON.parse(await readFile(paths.scriptsManifest, 'utf8'));
+    expect(written.helpersHash).toMatch(/^[0-9a-f]{64}$/);
+
+    // The auth settings are part of the hash: a changed prefix means the scripts may call into other helpers.
+    const configFile = path.join(root, 'targets', 'fake', 'target.config.json');
+    const original = await readFile(configFile, 'utf8');
+    try {
+      const changed = JSON.parse(original);
+      changed.auth.prefix = 'Token ';
+      await writeFile(configFile, JSON.stringify(changed));
+      await setStage(paths.dir, 'scripts', { status: 'failed' });
+      const afterAuth = model();
+      await generateScripts(options(runsDir, runId, afterAuth.llm, pass));
+      expect(afterAuth.asked.sort()).toEqual(['TC-001', 'TC-002', 'TC-003']);
+    } finally {
+      await writeFile(configFile, original);
+    }
+
+    // A manifest from before the hash existed is not trusted either.
+    await generateScripts(options(runsDir, runId, model().llm, pass, { fresh: true }));
+    const noHash = JSON.parse(await readFile(paths.scriptsManifest, 'utf8'));
+    delete noHash.helpersHash;
+    await writeFile(paths.scriptsManifest, JSON.stringify(noHash));
+    await setStage(paths.dir, 'scripts', { status: 'failed' });
+    const afterOld = model();
+    await generateScripts(options(runsDir, runId, afterOld.llm, pass));
+    expect(afterOld.asked.sort()).toEqual(['TC-001', 'TC-002', 'TC-003']);
+  });
+
+    it('does not keep a validated script whose test case changed', { timeout: 180_000 }, async () => {
     const { runsDir, runId, paths } = await makeRun();
     const pass = async () => ({ status: 'passed', message: '', durationMs: 1 });
     await generateScripts(options(runsDir, runId, model().llm, pass));

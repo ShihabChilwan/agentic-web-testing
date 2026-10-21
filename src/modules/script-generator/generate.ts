@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -231,15 +232,22 @@ export function scriptsSummary(
   return summary;
 }
 
+/** sha256 of what the scripts call into: the helpers template and the target's auth settings. */
+export async function helpersHash(config: TargetConfig): Promise<string> {
+  const helpers = await readFile(HELPERS_TEMPLATE, 'utf8');
+  return createHash('sha256').update(helpers).update('\0').update(JSON.stringify(config.auth ?? null)).digest('hex');
+}
+
 /**
  * Validated scripts from an earlier run of the stage that can be kept as they are: the stage was not
- * marked stale, the manifest is valid, and the script file still holds this test case's locked block
- * and title (so the test case has not changed since).
+ * marked stale, the manifest is valid and was written against the same helpers (helpersHash), and the
+ * script file still holds this test case's locked block and title (so the test case has not changed).
  */
 async function resumable(
   manifestFile: string,
   cases: TestCase[],
   scriptsDir: string,
+  currentHelpersHash: string,
 ): Promise<Map<string, ScriptManifestEntry>> {
   const kept = new Map<string, ScriptManifestEntry>();
   let previous: ScriptManifest;
@@ -248,6 +256,8 @@ async function resumable(
   } catch {
     return kept;
   }
+  // Scripts written against other helpers (or an older manifest without the hash) are generated again.
+  if (previous.helpersHash !== currentHelpersHash) return kept;
   const byId = new Map(cases.map((tc) => [tc.id, tc]));
   for (const entry of previous.scripts) {
     const tc = byId.get(entry.testCaseId);
@@ -286,7 +296,11 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
   // (new test cases) or a fresh run was asked for.
   const cases = parsedCases.data.testCases;
   const previousStatus = manifest.stages.scripts?.status;
-  const kept = options.fresh || previousStatus === 'stale' ? new Map<string, ScriptManifestEntry>() : await resumable(paths.scriptsManifest, cases, paths.scriptsDir);
+  const hash = await helpersHash(config);
+  const kept =
+    options.fresh || previousStatus === 'stale'
+      ? new Map<string, ScriptManifestEntry>()
+      : await resumable(paths.scriptsManifest, cases, paths.scriptsDir, hash);
 
   const startedAt = new Date().toISOString();
   await Transcript.archive(paths.transcriptsDir, 'scripts');
@@ -296,7 +310,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
   let writes: Promise<void> = Promise.resolve();
   const writeManifest = () => {
     const scripts = cases.flatMap((tc) => (finished.has(tc.id) ? [finished.get(tc.id)!] : []));
-    const text = `${JSON.stringify(ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, scripts }), null, 2)}\n`;
+    const text = `${JSON.stringify(ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, helpersHash: hash, scripts }), null, 2)}\n`;
     writes = writes.then(() => writeFile(paths.scriptsManifest, text, 'utf8'));
     return writes;
   };
@@ -363,7 +377,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       await work;
     }
     const entries = cases.map((tc) => finished.get(tc.id)!);
-    const result = ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, scripts: entries });
+    const result = ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, helpersHash: hash, scripts: entries });
     await writeManifest();
 
     const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => l.purpose === 'scripts' && l.ts >= startedAt);

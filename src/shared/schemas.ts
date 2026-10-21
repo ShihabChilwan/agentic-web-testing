@@ -471,6 +471,11 @@ export const ScriptManifestEntry = z
 export const ScriptManifest = z.object({
   schemaVersion: SchemaVersion,
   generationRef: z.string().min(1),
+  /**
+   * sha256 of the helpers the scripts were written against (_helpers.ts plus the target's auth settings).
+   * A rerun keeps validated scripts only when it matches; absent in manifests written before it existed.
+   */
+  helpersHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   scripts: z.array(ScriptManifestEntry),
 });
 
