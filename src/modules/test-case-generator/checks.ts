@@ -4,6 +4,7 @@ import {
   MAX_TEST_CASES,
   MAX_TEST_CASES_PER_REQUIREMENT,
   TestCase,
+  UncoveredReasonKind,
   UncoveredRequirement,
 } from '../../shared/schemas.js';
 import type { PrdRequirement, TestCase as TestCaseType } from '../../shared/schemas.js';
@@ -35,7 +36,8 @@ export function toTestCase(draft: TestCaseDraft, id: string): TestCaseType {
 
 export const SubmitTestCases = z.object({
   testCases: z.array(TestCaseDraft).max(MAX_TEST_CASES),
-  declined: z.array(UncoveredRequirement).describe('Requirements you cannot test, each with a reason'),
+  // Strict for the model: it must choose a reasonKind (the file schema only defaults it for older files).
+  declined: z.array(UncoveredRequirement.extend({ reasonKind: UncoveredReasonKind })).describe('Requirements you cannot test, each with a reason'),
 });
 export type SubmitTestCases = z.infer<typeof SubmitTestCases>;
 

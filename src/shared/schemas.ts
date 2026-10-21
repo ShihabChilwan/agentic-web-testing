@@ -381,7 +381,8 @@ export const UncoveredReasonKind = z.enum(['third-party-disabled', 'data-not-rea
 /** A requirement with no test case: declined by the model with a reason, or left uncovered after the gap round. */
 export const UncoveredRequirement = z.object({
   requirementId: RequirementId,
-  reasonKind: UncoveredReasonKind,
+  /** Defaults to "other" for files written before the field existed. */
+  reasonKind: UncoveredReasonKind.default('other'),
   reason: z.string().min(1),
 });
 
@@ -450,7 +451,19 @@ export const ScriptAttempt = z.object({
   durationMs: DurationMs,
 });
 
-export const ScriptManifestEntry = z
+/**
+ * An invalid entry written before `failureCategory` existed gets its last attempt's category (or
+ * `no-submit`), so older manifests still read; the rule below then holds for every file.
+ */
+const withFailureCategory = (value: unknown) => {
+  if (!value || typeof value !== 'object') return value;
+  const entry = value as { status?: unknown; failureCategory?: unknown; attemptLog?: Array<{ category?: unknown }> };
+  if (entry.status !== 'invalid' || (entry.failureCategory !== undefined && entry.failureCategory !== null)) return value;
+  const last = Array.isArray(entry.attemptLog) ? entry.attemptLog.at(-1)?.category : undefined;
+  return { ...entry, failureCategory: last ?? 'no-submit' };
+};
+
+export const ScriptManifestEntry = z.preprocess(withFailureCategory, z
   .object({
     testCaseId: ScriptTestId,
     file: RelPath,
@@ -468,7 +481,7 @@ export const ScriptManifestEntry = z
   .refine((s) => (s.status === 'invalid') === (s.failureCategory !== null), {
     message: 'failureCategory must be set for invalid scripts and null for validated ones',
     path: ['failureCategory'],
-  });
+  }));
 
 export const ScriptManifest = z.object({
   schemaVersion: SchemaVersion,
@@ -668,15 +681,22 @@ export const StageAgentSummary = z.object({
 
 const count = z.number().int().nonnegative();
 
+/**
+ * Counts per enum value. Every key defaults to 0, so a run.json written before a value was added
+ * (e.g. a new failure category) still reads; an exhaustive z.record(enum, …) would reject it.
+ */
+const countsBy = <const K extends string>(keys: z.ZodEnum<{ [k in K]: k }>) =>
+  z.object(Object.fromEntries(keys.options.map((k) => [k, count.default(0)])) as { [k in K]: z.ZodDefault<typeof count> });
+
 /** What a generation stage made (Test Case Generator): many short model sessions rather than one agent. */
 export const StageGenerationSummary = z.object({
   /** Model calls in the stage. */
   calls: count,
   /** Feature sessions plus gap-round sessions. */
   sessions: count,
-  casesByLayer: z.record(TestLayer, count),
-  casesByCategory: z.record(TestCategory, count),
-  uncoveredByReasonKind: z.record(UncoveredReasonKind, count),
+  casesByLayer: countsBy(TestLayer),
+  casesByCategory: countsBy(TestCategory),
+  uncoveredByReasonKind: countsBy(UncoveredReasonKind),
   /** Rejected submits: input that failed the submit schema, or output that failed the code checks. */
   rejected: z.object({ invalidInput: count, checkFailed: count }),
   /** Sum of this stage's provider-reported or priced costs; null when no call had a cost. */
@@ -695,9 +715,9 @@ export const StageScriptsSummary = z.object({
   /** Scripts by the number of attempts they used. */
   attemptsHistogram: z.record(z.string(), count),
   /** Failed attempts by where they failed. */
-  failuresByStage: z.record(AttemptStage, count),
+  failuresByStage: countsBy(AttemptStage),
   /** Invalid scripts by the category of their last failure (review value-less-expect by hand). */
-  invalidByCategory: z.record(FailureCategory, count),
+  invalidByCategory: countsBy(FailureCategory),
   /** Test case ids of the invalid scripts, per category. */
   invalidCases: z.record(z.string(), z.array(z.string())),
   calls: count,

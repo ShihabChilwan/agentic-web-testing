@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "1.0",
+  "runId": "mern-ecommerce-20261024-100000",
+  "target": "mern-ecommerce",
+  "generationRef": "golden",
+  "generationCommit": "abc1234",
+  "createdAt": "2026-10-24T10:00:00Z",
+  "llm": {
+    "provider": "openai-compatible",
+    "models": {
+      "prd": "z-ai/glm-5.3-flash",
+      "cases": "z-ai/glm-5.3-flash",
+      "scripts": "z-ai/glm-5.3-flash",
+      "analyzer": "z-ai/glm-5.3-flash"
+    },
+    "temperature": 1,
+    "topP": 1,
+    "reasoningEffort": {
+      "prd": "medium",
+      "cases": "low",
+      "scripts": "medium",
+      "analyzer": "medium"
+    },
+    "concurrency": 4,
+    "upstreamProviders": [
+      "Wafer"
+    ]
+  },
+  "stages": {
+    "prd": {
+      "status": "done",
+      "startedAt": "2026-10-20T20:40:11.996Z",
+      "finishedAt": "2026-10-20T20:42:59.356Z",
+      "agent": {
+        "turns": 31,
+        "toolCalls": 41,
+        "toolCallCeiling": 200,
+        "explorationCeilingHit": false,
+        "toolCallsByTool": {
+          "read_file": 38,
+          "list_files": 3,
+          "add_features": 1,
+          "add_api_endpoints": 5,
+          "add_ui_routes": 1,
+          "add_requirements": 6
+        },
+        "rejected": {
+          "invalidInput": 3,
+          "checkFailed": 1
+        }
+      }
+    },
+    "cases": {
+      "status": "done",
+      "startedAt": "2026-10-20T22:56:28.139Z",
+      "finishedAt": "2026-10-20T22:57:59.974Z",
+      "generation": {
+        "calls": 35,
+        "sessions": 17,
+        "casesByLayer": {
+          "api": 101,
+          "ui": 29
+        },
+        "casesByCategory": {
+          "functional": 58,
+          "boundary": 8,
+          "error-handling": 27,
+          "auth": 26,
+          "e2e-journey": 11
+        },
+        "uncoveredByReasonKind": {
+          "third-party-disabled": 3,
+          "data-not-reachable": 0,
+          "out-of-scope": 1,
+          "other": 2
+        },
+        "rejected": {
+          "invalidInput": 6,
+          "checkFailed": 13
+        },
+        "costUsd": 0.03687461100000002,
+        "warnings": [
+          "REQ-001 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "REQ-047 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "REQ-049 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "REQ-050 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "REQ-051 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "REQ-059 (high priority) has no negative test case (error-handling, boundary or auth)",
+          "F-08: first session failed (AgentSubmitError: All 3 submit attempts were rejected)",
+          "REQ-053 has no test case and no reason from the model",
+          "REQ-055 has no test case and no reason from the model"
+        ]
+      }
+    },
+    "scripts": {
+      "status": "done",
+      "startedAt": "2026-10-21T11:08:13.330Z",
+      "finishedAt": "2026-10-21T11:47:36.892Z",
+      "scripts": {
+        "cases": 130,
+        "resumed": 0,
+        "validated": {
+          "passed": 89,
+          "assertionFailed": 14
+        },
+        "invalid": 27,
+        "attemptsHistogram": {
+          "1": 77,
+          "2": 13,
+          "3": 40
+        },
+        "failuresByStage": {
+          "submit": 0,
+          "typecheck": 28,
+          "lock-check": 17,
+          "dry-run": 75
+        },
+        "invalidByCategory": {
+          "no-submit": 0,
+          "typecheck": 2,
+          "lock-check": 3,
+          "value-less-expect": 4,
+          "locator": 2,
+          "timeout": 6,
+          "runtime-error": 10
+        },
+        "invalidCases": {
+          "lock-check": [
+            "TC-030",
+            "TC-088",
+            "TC-121"
+          ],
+          "runtime-error": [
+            "TC-056",
+            "TC-071",
+            "TC-082",
+            "TC-086",
+            "TC-096",
+            "TC-107",
+            "TC-113",
+            "TC-116",
+            "TC-122",
+            "TC-128"
+          ],
+          "value-less-expect": [
+            "TC-084",
+            "TC-092",
+            "TC-126",
+            "TC-129"
+          ],
+          "locator": [
+            "TC-105",
+            "TC-108"
+          ],
+          "timeout": [
+            "TC-109",
+            "TC-112",
+            "TC-117",
+            "TC-123",
+            "TC-127",
+            "TC-130"
+          ],
+          "typecheck": [
+            "TC-119",
+            "TC-125"
+          ]
+        },
+        "calls": 224,
+        "costUsd": 0.15046726599999996,
+        "dryRunMs": 2346349,
+        "playwrightVersion": "1.64.0",
+        "warnings": [
+          "Some scripts are invalid because a check without a locked value failed; review them by hand (invalidCases[\"value-less-expect\"])"
+        ]
+      }
+    }
+  },
+  "executions": [
+    {
+      "execId": "golden",
+      "ref": "golden",
+      "commit": "abc1234",
+      "executeStatus": "done",
+      "analyzeStatus": "pending"
+    }
+  ]
+}
