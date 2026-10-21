@@ -516,6 +516,8 @@ export const ConfigOverride = z.strictObject({
 export const ExecutionRequest = z.object({
   execId: ExecId,
   ref: z.string().min(1),
+  /** A unified diff applied on top of `ref` in the execution's source tree (path relative to the project root). */
+  patch: z.string().min(1).optional(),
   scriptsDir: RelPath.optional(),
   configOverride: ConfigOverride.optional(),
   skipSeed: z.boolean().optional(),
@@ -695,17 +697,33 @@ export const Diagnosis = z
     path: ['location'],
   });
 
+export const DiagnosesSummary = z.object({
+  groups: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+  /** Sessions that ended without an accepted submit; their tests got an inconclusive diagnosis. */
+  failedSessions: z.number().int().nonnegative(),
+  /** Model calls (turns). */
+  calls: z.number().int().nonnegative(),
+  toolCalls: z.number().int().nonnegative(),
+  /** Sum of this analysis' lines in llm-calls.jsonl; null when none had a cost. */
+  costUsd: z.number().nonnegative().nullable(),
+  durationMs: DurationMs,
+});
+
 export const Diagnoses = z.object({
   schemaVersion: SchemaVersion,
   execId: ExecId,
   mode: DiagnosisMode,
   generatedAt: Timestamp,
   diagnoses: z.array(Diagnosis),
+  /** Absent in files written before it existed. */
+  summary: DiagnosesSummary.optional(),
 });
 
 export type Classification = z.infer<typeof Classification>;
 export type Diagnosis = z.infer<typeof Diagnosis>;
 export type Diagnoses = z.infer<typeof Diagnoses>;
+export type DiagnosesSummary = z.infer<typeof DiagnosesSummary>;
 
 // ---------------------------------------------------------------------------
 // run.json
@@ -801,6 +819,9 @@ export const RunExecution = z.object({
   execId: ExecId,
   ref: z.string().min(1),
   commit: CommitSha,
+  /** The patch applied on top of the ref (relative to the project root); used only to build the source tree. */
+  patch: z.string().min(1).optional(),
+  skipSeed: z.boolean().optional(),
   executeStatus: ExecutionStepStatus,
   analyzeStatus: ExecutionStepStatus,
   /** Why the execution or its analysis failed. No secrets. */

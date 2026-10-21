@@ -3,6 +3,7 @@ import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
 import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
 import { describeExecution, executeRun } from './modules/execution-engine/index.js';
+import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
 import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -146,8 +147,10 @@ agent
   .description('Run the scripts that passed their dry run against one version of the app (data restored before every test)')
   .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
   .option('--ref <ref>', 'version to execute (default: the run\'s generation ref)')
+  .option('--patch <file>', 'a unified diff applied on top of the ref, for this execution only (the target repo never changes)')
+  .option('--skip-seed', 'start without the seed command and seed requests')
   .option('--exec-id <id>', 'execution id (default: the next x-NN)')
-  .action(async (opts: { run?: string; ref?: string; execId?: string }) => {
+  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -160,6 +163,8 @@ agent
       const result = await executeRun({
         ...(opts.run ? { runId: opts.run } : {}),
         ...(opts.ref ? { ref: opts.ref } : {}),
+        ...(opts.patch ? { patch: opts.patch } : {}),
+        ...(opts.skipSeed ? { skipSeed: true } : {}),
         ...(opts.execId ? { execId: opts.execId } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
@@ -172,7 +177,29 @@ agent
     }
   });
 
-for (const stage of ['analyze', 'all']) {
+agent
+  .command('analyze')
+  .description('Diagnose the failures of one execution (one agent session per group of failures)')
+  .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
+  .option('--exec <id>', 'execution to analyse (default: the run\'s last finished execution)')
+  .option('--no-tools', 'ablation: only the failing tests\' titles and errors, no tools (writes diagnoses.no-tools.json)')
+  .action(async (opts: { run?: string; exec?: string; tools: boolean }) => {
+    try {
+      const result = await analyzeExecution({
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.exec ? { execId: opts.exec } : {}),
+        noTools: !opts.tools,
+        log: (m) => console.log(m),
+      });
+      console.log(`diagnoses: ${result.file}`);
+      for (const line of describeAnalysis(result)) console.log(line);
+    } catch (err) {
+      console.error(`analyze failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+for (const stage of ['all']) {
   agent
     .command(stage)
     .allowUnknownOption()

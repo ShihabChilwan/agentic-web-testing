@@ -1,10 +1,9 @@
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
-import { copyFile, mkdir, open, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, open, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { promisify } from 'node:util';
-import { RUNS_DIR, runPaths } from '../../shared/paths.js';
+import { PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
 import { ExecutionRequest, ExecutionResults, ScriptManifest, SCHEMA_VERSION, TestCases } from '../../shared/schemas.js';
 import type { RunManifest, SkippedScript, TargetConfig, TestArtifacts, TestResult } from '../../shared/schemas.js';
@@ -14,9 +13,9 @@ import { childEnv } from './env.js';
 import { TestIsolation, type TestRecord } from './isolation.js';
 import { startTarget, type RunningTarget, type StartOptions } from './lifecycle.js';
 import { readReport, sortResult, type PlaywrightReport, type ReportedTest } from './report.js';
+import { buildSourceTree, resolveCommit, type SourceTree } from './source-tree.js';
 import { buildSuite } from './suite.js';
 
-const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 const PLAYWRIGHT_CLI = require.resolve('@playwright/test/cli');
 
@@ -24,9 +23,14 @@ export interface ExecuteVersionOptions {
   /** The run folder: scripts, manifest and testcases.json are read; only executions/<execId>/ is written. */
   runDir: string;
   config: TargetConfig;
+  /** The target repo: never changed; the version runs from a source tree built from it (SPEC §7.5). */
   repoDir: string;
   targetDir: string;
   request: ExecutionRequest;
+  /** Resolves `request.patch` (default: the project root). */
+  projectRoot?: string;
+  /** A source tree the caller already built for this request (it then also removes it). */
+  sourceTree?: SourceTree;
   /** The run's generation ref: a start there with no override is clean (a failed seed check is fatal). */
   generationRef: string;
   signal?: AbortSignal;
@@ -78,6 +82,18 @@ async function runPlaywright(execDir: string, env: Record<string, string>, signa
   } finally {
     closeSync(fd);
   }
+}
+
+/** The source tree for a request: `ref` plus the optional patch, with the services' node_modules linked. */
+export async function sourceTreeFor(config: TargetConfig, repoDir: string, request: Pick<ExecutionRequest, 'ref' | 'patch'>, projectRoot = PROJECT_ROOT) {
+  const commit = await resolveCommit(repoDir, request.ref);
+  const tree = await buildSourceTree({
+    repoDir,
+    commit,
+    ...(request.patch ? { patchFile: path.resolve(projectRoot, request.patch) } : {}),
+    linkNodeModules: [...new Set([config.backend.cwd, config.frontend.cwd])],
+  });
+  return { commit, tree };
 }
 
 /** Bytes [start, end) of a file. */
@@ -132,36 +148,60 @@ async function collectArtifacts(
 
 /**
  * Module 4 (SPEC §7): executes one version. Files in (the run's scripts, manifest and test cases, the
- * target config, the request), files out (executions/<execId>/ only). Starts the app at the request's
- * ref with its own settings, runs every script that passed its dry run in one Playwright process with a
- * data restore before each test, sorts the results, keeps the evidence of failures, writes results.json
- * and always stops the app.
+ * target config, the request), files out (executions/<execId>/ only). Builds the version's source tree
+ * (ref plus optional patch; the target repo never changes), starts the app from it with the request's
+ * own settings, runs every script that passed its dry run in one Playwright process with a data restore
+ * before each test, sorts the results, keeps the evidence of failures, writes results.json, and always
+ * stops the app and removes the tree.
  */
 export async function executeVersion(options: ExecuteVersionOptions): Promise<ExecuteVersionResult> {
   const request = ExecutionRequest.parse(options.request);
-  const { config, signal } = options;
-  const log = options.log ?? (() => {});
   const paths = runPaths(path.basename(options.runDir), path.dirname(options.runDir));
-  const execDir = paths.executionDir(request.execId);
   const scriptsDir = request.scriptsDir ? path.join(paths.dir, request.scriptsDir) : paths.scriptsDir;
   const manifest = ScriptManifest.parse(JSON.parse(await readFile(path.join(scriptsDir, 'manifest.json'), 'utf8')));
-  const { run, skipped } = selectScripts(manifest);
-  if (run.length === 0) throw new Error(`No script in ${scriptsDir}/manifest.json passed its dry run: nothing to execute`);
-  const valueIds = await lockedValueIds(paths.testCases);
-
+  const scripts = selectScripts(manifest);
+  if (scripts.run.length === 0) throw new Error(`No script in ${scriptsDir}/manifest.json passed its dry run: nothing to execute`);
+  const execDir = paths.executionDir(request.execId);
   await mkdir(path.dirname(execDir), { recursive: true });
-  await mkdir(execDir).catch((err: NodeJS.ErrnoException) => {
-    throw err.code === 'EEXIST' ? new Error(`Execution folder ${execDir} already exists; use another --exec-id`, { cause: err }) : err;
-  });
-  await buildSuite(execDir, scriptsDir, run, config);
+  if (await stat(execDir).then(() => true, () => false)) throw new Error(`Execution folder ${execDir} already exists; use another --exec-id`);
+
+  // Every version runs from a source tree, golden included: the repo never changes and logs look alike.
+  const { commit, tree } = options.sourceTree
+    ? { commit: await resolveCommit(options.repoDir, request.ref), tree: options.sourceTree }
+    : await sourceTreeFor(options.config, options.repoDir, request, options.projectRoot);
+  try {
+    await mkdir(execDir);
+    await buildSuite(execDir, scriptsDir, scripts.run, options.config);
+    return await runSuite(options, request, { execDir, paths, scripts, tree, commit });
+  } finally {
+    await tree.remove();
+  }
+}
+
+interface SuiteContext {
+  execDir: string;
+  paths: ReturnType<typeof runPaths>;
+  scripts: ReturnType<typeof selectScripts>;
+  tree: SourceTree;
+  commit: string;
+}
+
+/** Starts the app from the tree, runs the suite with a restore before each test, and writes results.json. */
+async function runSuite(options: ExecuteVersionOptions, request: ExecutionRequest, ctx: SuiteContext): Promise<ExecuteVersionResult> {
+  const { config, signal } = options;
+  const { execDir, paths, scripts } = ctx;
+  const { run, skipped } = scripts;
+  const log = options.log ?? (() => {});
   log(`${run.length} scripts to run, ${skipped.length} skipped (their dry run did not pass)`);
+  const valueIds = await lockedValueIds(paths.testCases);
 
   const startedAt = new Date();
   const logsDir = paths.serverLogsDir(request.execId);
   const backendLog = path.join(logsDir, 'backend.log');
   const startOptions: StartOptions = {
     ref: request.ref,
-    repoDir: options.repoDir,
+    repoDir: ctx.tree.dir,
+    prepared: { commit: ctx.commit, patched: request.patch !== undefined },
     targetDir: options.targetDir,
     logsDir,
     generationRef: options.generationRef,
@@ -249,6 +289,9 @@ export interface ExecuteRunOptions {
   runId?: string;
   /** Default: the run's generation ref. */
   ref?: string;
+  /** A unified diff applied on top of the ref for this execution only (any path; recorded relative to the project root). */
+  patch?: string;
+  skipSeed?: boolean;
   /** Default: the next x-NN. */
   execId?: string;
   runsDir?: string;
@@ -262,16 +305,18 @@ export interface ExecuteRunOptions {
 export interface ExecuteRunResult extends ExecuteVersionResult {
   runId: string;
   execId: string;
-  /** True when the executed ref is the run's generation ref, where every executed script passed its dry run. */
+  /** True when the executed version is the run's generation ref with nothing changed, where every executed script passed its dry run. */
   atGenerationRef: boolean;
 }
 
 /**
- * `agent execute` (SPEC §10): resolves the ref to a commit (a bad ref creates nothing), records the
- * execution in run.json as running, runs executeVersion, then records done or failed.
+ * `agent execute` (SPEC §10): builds the version's source tree first (a bad ref or a patch that does not
+ * apply creates nothing), records the execution in run.json as running, runs executeVersion, then
+ * records done or failed.
  */
 export async function executeRun(options: ExecuteRunOptions = {}): Promise<ExecuteRunResult> {
   const runsDir = options.runsDir ?? RUNS_DIR;
+  const projectRoot = options.projectRoot ?? PROJECT_ROOT;
   const runId = options.runId ?? (await latestRunWith(path.join('scripts', 'manifest.json'), runsDir));
   if (!runId) throw new Error(`No run with a scripts/manifest.json in ${runsDir}; run "agent scripts" first`);
   const paths = runPaths(runId, runsDir);
@@ -280,37 +325,46 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
   if (scriptsStatus !== 'done') throw new Error(`The scripts stage of ${runId} is ${scriptsStatus ?? 'missing'}, not done; finish "agent scripts" first`);
   const { config, repoDir, targetDir } = await loadTargetConfig(manifest.target, {
     ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
-    ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
+    projectRoot,
   });
   const ref = options.ref ?? manifest.generationRef;
-  let commit: string;
-  try {
-    commit = (await execFileAsync('git', ['-C', repoDir, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`])).stdout.trim();
-  } catch {
-    throw new Error(`Unknown ref "${ref}" in ${repoDir}`);
-  }
+  const patch = options.patch ? path.relative(projectRoot, path.resolve(options.patch)) : undefined;
+  if (patch !== undefined && (patch.startsWith('..') || path.isAbsolute(patch))) throw new Error(`The patch must be inside the project: ${options.patch}`);
   const execId = options.execId ?? (await nextExecId(paths.dir, manifest));
   if (manifest.executions.some((e) => e.execId === execId)) throw new Error(`Execution ${execId} is already in run.json; use another --exec-id`);
+  const request: ExecutionRequest = { execId, ref, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}) };
 
-  await setExecution(paths.dir, { execId, ref, commit, executeStatus: 'running', analyzeStatus: 'pending' });
+  const { commit, tree } = await sourceTreeFor(config, repoDir, request, projectRoot);
+  const entry = { execId, ref, commit, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), analyzeStatus: 'pending' as const };
+  try {
+    await setExecution(paths.dir, { ...entry, executeStatus: 'running' });
+  } catch (err) {
+    await tree.remove();
+    throw err;
+  }
   try {
     const result = await executeVersion({
       runDir: paths.dir,
       config,
       repoDir,
       targetDir,
-      request: { execId, ref },
+      request,
+      projectRoot,
+      sourceTree: tree,
       generationRef: manifest.generationRef,
       ...(options.signal ? { signal: options.signal } : {}),
       ...(options.log ? { log: options.log } : {}),
       ...(options.startApp ? { startApp: options.startApp } : {}),
     });
-    await setExecution(paths.dir, { execId, ref, commit: result.commit, executeStatus: 'done', analyzeStatus: 'pending' });
-    return { ...result, runId, execId, atGenerationRef: ref === manifest.generationRef };
+    await setExecution(paths.dir, { ...entry, executeStatus: 'done' });
+    const atGenerationRef = ref === manifest.generationRef && !patch && !options.skipSeed;
+    return { ...result, runId, execId, atGenerationRef };
   } catch (err) {
     const error = options.signal?.aborted ? 'Interrupted' : errorSummary(err);
-    await setExecution(paths.dir, { execId, ref, commit, executeStatus: 'failed', analyzeStatus: 'pending', error });
+    await setExecution(paths.dir, { ...entry, executeStatus: 'failed', error });
     throw err;
+  } finally {
+    await tree.remove(); // executeVersion removes it too; removing twice is harmless
   }
 }
 

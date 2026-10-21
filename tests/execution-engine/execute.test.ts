@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -113,8 +114,10 @@ beforeAll(async () => {
   root = await mkdtemp(path.join(PROJECT_ROOT, 'runs', '.execute-test-'));
   const repo = path.join(root, 'targets', 'fake', 'repo');
   for (const sub of ['api', 'web']) {
-    await mkdir(path.join(repo, sub), { recursive: true });
+    await mkdir(path.join(repo, sub, 'node_modules'), { recursive: true });
     await writeFile(path.join(repo, sub, 'package-lock.json'), '{}');
+    // Installed for this lockfile: executions link these node_modules into their source tree.
+    await writeFile(path.join(repo, sub, 'node_modules', '.lockfile-hash'), `${createHash('sha256').update('{}').digest('hex')}\n`);
   }
   await writeFile(path.join(repo, 'api', 'server.cjs'), BACKEND);
   await writeFile(path.join(repo, 'web', 'server.cjs'), FRONTEND);
@@ -248,6 +251,50 @@ describe('executeVersion settings', () => {
       executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, ref: 'no-such-ref', execId: 'x-91' }),
     ).rejects.toThrow(/Unknown ref "no-such-ref"/);
     expect(await readdir(path.join(runsDir, runId, 'executions'))).not.toContain('x-91');
+  });
+});
+
+describe('executeRun with a patch and skipSeed', () => {
+  it('runs from a patched source tree, records patch and skipSeed, and never changes the target repo', async () => {
+    const repo = path.join(root, 'targets', 'fake', 'repo');
+    const patchFile = path.join(root, 'change.patch');
+    // Made with git diff from a temporary edit, then the edit is undone.
+    const original = await readFile(path.join(repo, 'web', 'server.cjs'), 'utf8');
+    await writeFile(path.join(repo, 'web', 'server.cjs'), original.replace('<h1>Shop</h1>', '<h1>Store</h1>'));
+    await writeFile(patchFile, execFileSync('git', ['-C', repo, 'diff'], { encoding: 'utf8' }));
+    await writeFile(path.join(repo, 'web', 'server.cjs'), original);
+    const before = await readFile(path.join(repo, 'web', 'server.cjs'), 'utf8');
+    let seen: StartOptions | undefined;
+    let treeFile = '';
+    await expect(
+      executeRun({
+        runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, patch: patchFile, skipSeed: true, execId: 'x-50',
+        startApp: async (options) => {
+          seen = options;
+          treeFile = await readFile(path.join(options.repoDir, 'web', 'server.cjs'), 'utf8');
+          throw new Error('stop here');
+        },
+      }),
+    ).rejects.toThrow('stop here');
+    expect(treeFile).toContain('<h1>Store</h1>');
+    expect(seen).toMatchObject({ skipSeed: true, prepared: { patched: true } });
+    expect(path.basename(seen!.repoDir)).toMatch(/^awt-src-/); // a neutral name: no ref, no patch name
+    await expect(readdir(seen!.repoDir)).rejects.toThrow(/ENOENT/); // the tree was removed
+    expect(await readFile(path.join(repo, 'web', 'server.cjs'), 'utf8')).toBe(before);
+    expect(execFileSync('git', ['-C', repo, 'status', '--porcelain'], { encoding: 'utf8' })).toBe('');
+    const entry = (await readRunManifest(path.join(runsDir, runId, 'run.json'))).executions.find((e) => e.execId === 'x-50');
+    expect(entry).toMatchObject({ ref: 'golden', patch: 'change.patch', skipSeed: true, executeStatus: 'failed', error: 'Error: stop here' });
+  });
+
+  it('refuses a patch that does not apply before recording anything', async () => {
+    const patchFile = path.join(root, 'broken.patch');
+    await writeFile(patchFile, `--- a/web/server.cjs\n+++ b/web/server.cjs\n@@ -1,1 +1,1 @@\n-no such line\n+other\n`);
+    await expect(
+      executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, patch: patchFile, execId: 'x-51' }),
+    ).rejects.toThrow(/git apply failed/);
+    const manifest = await readRunManifest(path.join(runsDir, runId, 'run.json'));
+    expect(manifest.executions.map((e) => e.execId)).not.toContain('x-51');
+    expect(await readdir(path.join(runsDir, runId, 'executions'))).not.toContain('x-51');
   });
 });
 

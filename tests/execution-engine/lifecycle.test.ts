@@ -286,6 +286,8 @@ describe('startTarget', () => {
     expect(isCleanStart(config, options({ configOverride: { backend: { env: { JWT_SECRET: null } } } }))).toBe(false);
     expect(isCleanStart(config, options({ configOverride: { lifecycle: { startupTimeoutMs: 5000 } } }))).toBe(false);
     expect(isCleanStart(config, options({ skipSeed: true }))).toBe(false);
+    expect(isCleanStart(config, options({ prepared: { commit: 'abc1234', patched: false } }))).toBe(true);
+    expect(isCleanStart(config, options({ prepared: { commit: 'abc1234', patched: true } }))).toBe(false);
   });
 
   it('restore() resets and seeds again and restarts only the backend', async () => {

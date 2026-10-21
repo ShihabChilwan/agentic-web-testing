@@ -1,0 +1,12 @@
+diff --git a/client/app/containers/Login/index.js b/client/app/containers/Login/index.js
+--- a/client/app/containers/Login/index.js
++++ b/client/app/containers/Login/index.js
+@@ -29,7 +29,7 @@ class Login extends React.PureComponent {
+       isSubmitting
+     } = this.props;
+ 
+-    if (authenticated) return <Redirect to='/dashboard' />;
++    if (authenticated) return <Redirect to='/' />;
+ 
+     const registerLink = () => {
+       this.props.history.push('/register');

@@ -26,8 +26,13 @@ const RESET_TIMEOUT_MS = 60_000;
 export interface StartOptions {
   /** Git ref to check out in the target repo. */
   ref: string;
-  /** Absolute path of the target repo. */
+  /** Absolute path of the target repo, or of a source tree built for this start (see `prepared`). */
   repoDir: string;
+  /**
+   * Set when `repoDir` is a source tree (SPEC §7.5) already holding the version: no checkout and no
+   * install. A patched tree is never a clean start.
+   */
+  prepared?: { commit: string; patched: boolean };
   /** Absolute path of targets/<name>/, available to commands as {{targetDir}}. */
   targetDir: string;
   /** Where backend.log, frontend.log and setup.log are written (an execution's server/ folder). */
@@ -95,6 +100,7 @@ function changesConfig(override?: ConfigOverride): boolean {
 /** The generation ref with nothing changed: Stage 1, dry runs and the golden execution. */
 export function isCleanStart(config: TargetConfig, options: StartOptions): boolean {
   return (
+    !options.prepared?.patched &&
     options.ref === (options.generationRef ?? config.goldenRef) &&
     !changesConfig(options.configOverride) &&
     !options.skipSeed
@@ -139,10 +145,16 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
       { name: 'frontend', url: config.frontend.baseUrl },
     ]);
 
-    log(`Checking out ${options.ref}`);
-    const commit = await checkoutRef(repoDir, options.ref);
+    let commit: string;
+    if (options.prepared) {
+      commit = options.prepared.commit;
+    } else {
+      log(`Checking out ${options.ref}`);
+      commit = await checkoutRef(repoDir, options.ref);
+    }
 
-    for (const name of ['backend', 'frontend'] as const) {
+    // A prepared tree links the target repo's installed node_modules (checked when it was built).
+    for (const name of options.prepared ? [] : (['backend', 'frontend'] as const)) {
       throwIfAborted(signal);
       // Installs use the configured env without the override: an environment fault targets the running app.
       const outcome = await installIfNeeded(dir(config[name].cwd), fill(config[name].install), {
