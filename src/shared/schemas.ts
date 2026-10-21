@@ -437,6 +437,8 @@ export const FailureCategory = z.enum([
   'timeout',
   /** Any other error: TypeError, connection refused, a failing setup step. */
   'runtime-error',
+  /** The test changed a fixture user (a fixture login failed afterwards); the data was restored. */
+  'fixture-mutation',
 ]);
 
 export const ScriptAttempt = z.object({
@@ -702,6 +704,9 @@ export const StageScriptsSummary = z.object({
   costUsd: z.number().nonnegative().nullable(),
   /** Total time spent in dry runs (they run one at a time). */
   dryRunMs: DurationMs,
+  /** Data restores (reset + seed + backend restart) after dry runs, and their total time. */
+  restores: count.default(0),
+  restoreMs: DurationMs.default(0),
   playwrightVersion: z.string().min(1),
   warnings: z.array(z.string()),
 });

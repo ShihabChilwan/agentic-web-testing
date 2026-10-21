@@ -2,7 +2,8 @@ import { Command } from 'commander';
 import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
 import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
-import { describeScriptsSummary, generateScripts } from './modules/script-generator/index.js';
+import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
+import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
 import { runPaths } from './shared/paths.js';
 import path from 'node:path';
@@ -102,7 +103,15 @@ agent
   .description('Generate and dry-run a Playwright script per test case (starts the app at the generation ref)')
   .option('--run <runId>', 'run to use (default: the newest run with a testcases.json)')
   .option('--fresh', 'generate every script again, instead of keeping validated ones from an unfinished run')
-  .action(async (opts: { run?: string; fresh?: boolean }) => {
+  .option('--redo <outcomes>', `generate again only these outcomes, keep the rest (comma-separated: ${SCRIPT_OUTCOMES.join(', ')})`)
+  .action(async (opts: { run?: string; fresh?: boolean; redo?: string }) => {
+    const redo = opts.redo?.split(',').map((o) => o.trim()).filter(Boolean);
+    const unknown = redo?.filter((o) => !(SCRIPT_OUTCOMES as readonly string[]).includes(o)) ?? [];
+    if (unknown.length > 0) {
+      console.error(`--redo: unknown outcome ${unknown.join(', ')}; use ${SCRIPT_OUTCOMES.join(', ')}`);
+      process.exitCode = 1;
+      return;
+    }
     // Ctrl+C or SIGTERM: write the manifest so far, mark the stage failed and stop the app before exiting.
     const controller = new AbortController();
     const onSignal = () => {
@@ -115,6 +124,7 @@ agent
       const result = await generateScripts({
         ...(opts.run ? { runId: opts.run } : {}),
         ...(opts.fresh ? { fresh: true } : {}),
+        ...(redo ? { redo: redo as ScriptOutcome[] } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });

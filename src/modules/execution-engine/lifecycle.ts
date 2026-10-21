@@ -49,6 +49,13 @@ export interface RunningTarget {
   /** Absent when the target has no seedCheck or the check was skipped. */
   seedCheck?: SeedCheckResult;
   services: ServiceProcess[];
+  /**
+   * Puts the data back to the clean seeded state while the app keeps running: reset, seed command,
+   * a backend restart (a reset under a running backend can drop what it set up at start, e.g. indexes),
+   * seed requests and the seed check. The frontend holds no server data and is not restarted.
+   * Throws when any step fails: later results would not be trustworthy.
+   */
+  restore(): Promise<{ durationMs: number }>;
   /** Stops every service's process group. Safe to call more than once. */
   stop(): Promise<void>;
 }
@@ -131,48 +138,49 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
       log(`Install ${name}: ${outcome}`);
     }
 
-    throwIfAborted(signal);
-    log('Resetting the database');
-    const reset = await runCommand(fill(config.lifecycle.reset), {
-      cwd: dir(config.lifecycle.resetCwd),
-      env: childEnv(),
-      logFile: setupLog,
-      timeoutMs: RESET_TIMEOUT_MS,
-      signal,
-    });
-    throwIfAborted(signal);
-    if (reset.code !== 0) throw new Error(`Reset command failed (exit ${reset.code ?? reset.signal}); see ${setupLog}`);
-
-    if (config.lifecycle.seedCommand && !options.skipSeed) {
-      log('Running the seed command');
-      const seeded = await runCommand(fill(config.lifecycle.seedCommand), {
-        cwd: dir(config.lifecycle.seedCwd ?? '.'),
-        env: childEnv(serviceEnv(config, 'backend', configOverride)),
+    // Reset and seed command: shared by the start and by restore().
+    const resetData = async (say: (m: string) => void = log) => {
+      throwIfAborted(signal);
+      say('Resetting the database');
+      const reset = await runCommand(fill(config.lifecycle.reset), {
+        cwd: dir(config.lifecycle.resetCwd),
+        env: childEnv(),
         logFile: setupLog,
-        timeoutMs: startupTimeoutMs,
+        timeoutMs: RESET_TIMEOUT_MS,
         signal,
       });
       throwIfAborted(signal);
-      if (seeded.code !== 0) {
-        const why = seeded.timedOut ? 'timed out' : `exited with ${seeded.code ?? seeded.signal}`;
-        appendFileSync(setupLog, `[warning] seed command ${why}; continuing\n`);
-        log(`Warning: seed command ${why}; continuing (see ${setupLog})`);
-      }
-    }
+      if (reset.code !== 0) throw new Error(`Reset command failed (exit ${reset.code ?? reset.signal}); see ${setupLog}`);
 
-    for (const name of ['backend', 'frontend'] as ServiceName[]) {
-      throwIfAborted(signal);
+      if (config.lifecycle.seedCommand && !options.skipSeed) {
+        say('Running the seed command');
+        const seeded = await runCommand(fill(config.lifecycle.seedCommand), {
+          cwd: dir(config.lifecycle.seedCwd ?? '.'),
+          env: childEnv(serviceEnv(config, 'backend', configOverride)),
+          logFile: setupLog,
+          timeoutMs: startupTimeoutMs,
+          signal,
+        });
+        throwIfAborted(signal);
+        if (seeded.code !== 0) {
+          const why = seeded.timedOut ? 'timed out' : `exited with ${seeded.code ?? seeded.signal}`;
+          appendFileSync(setupLog, `[warning] seed command ${why}; continuing\n`);
+          say(`Warning: seed command ${why}; continuing (see ${setupLog})`);
+        }
+      }
+    };
+    const startOne = async (name: ServiceName, say: (m: string) => void = log) => {
       const service = config[name];
       const env = serviceEnv(config, name, configOverride);
       if (service.envFile) await writeFile(path.join(dir(service.cwd), service.envFile), formatEnvFile(env));
-      log(`Starting ${name}: ${service.start}`);
-      services.push(
-        startService(name, service.start, {
-          cwd: dir(service.cwd),
-          env: childEnv(env),
-          logFile: path.join(logsDir, `${name}.log`),
-        }),
-      );
+      say(`Starting ${name}: ${service.start}`);
+      return startService(name, service.start, { cwd: dir(service.cwd), env: childEnv(env), logFile: path.join(logsDir, `${name}.log`) });
+    };
+
+    await resetData();
+    for (const name of ['backend', 'frontend'] as ServiceName[]) {
+      throwIfAborted(signal);
+      services.push(await startOne(name));
     }
 
     log(`Waiting for health checks (up to ${Math.round(startupTimeoutMs / 1000)} s)`);
@@ -207,7 +215,30 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
         log('Seed check passed');
       }
     }
-    return { commit, healthChecks, seed, ...(seedCheck && { seedCheck }), services, stop };
+    const restore = async () => {
+      const started = Date.now();
+      const quiet = () => {}; // runs after every dry run: the setup log has the details
+      await resetData(quiet);
+      const index = services.findIndex((s) => s.name === 'backend');
+      if (index >= 0) await stopProcessGroup(services[index]!.pid);
+      const backend = await startOne('backend', quiet);
+      if (index >= 0) services[index] = backend;
+      else services.push(backend);
+      const health = await waitForHealthy('backend', config.backend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: backend.exited, signal });
+      if (!health.ok) throw new Error(`Restore: the backend did not become healthy again; see ${logsDir}`);
+      if (!options.skipSeed) {
+        const seeded = await sendSeedRequests(config.backend.baseUrl, config.seed, config.fixtures);
+        const failed = seeded.find((r) => !r.ok);
+        if (failed) throw new Error(`Restore: seed request ${failed.request} failed (status ${failed.status ?? 'no response'})`);
+        if (config.seedCheck) {
+          const check = await runSeedCheck(config.backend.baseUrl, config.seedCheck, config.fixtures);
+          if (!check.ok) throw new Error(`Restore: seed check failed: ${check.detail}`);
+        }
+      }
+      appendFileSync(setupLog, `[restore] done in ${Date.now() - started} ms\n`);
+      return { durationMs: Date.now() - started };
+    };
+    return { commit, healthChecks, seed, ...(seedCheck && { seedCheck }), services, restore, stop };
   } catch (err) {
     await stop();
     throw err;

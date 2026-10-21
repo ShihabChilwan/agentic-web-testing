@@ -24,6 +24,7 @@ import type {
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { readFacts } from '../execution-engine/facts.js';
+import { checkFixtureLogins } from '../execution-engine/guard.js';
 import { startTarget } from '../execution-engine/lifecycle.js';
 import { collectEvidence, linesAtCommit } from '../test-case-generator/context.js';
 import type { ReadLines } from '../test-case-generator/context.js';
@@ -52,11 +53,16 @@ export interface GenerateScriptsOptions {
   llmConfig?: LLMConfig;
   createLlm?: (config: LLMConfig, callLogFile: string) => Promise<LLMClient>;
   /** For tests: replaces starting the real app (defaults to the Execution Engine lifecycle). */
-  startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<{ stop(): Promise<void> }>;
+  startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<RunningApp>;
   /** For tests: replaces running Playwright on one spec. */
   runDryRun?: (runDir: string, specFile: string, outputDir: string, signal?: AbortSignal) => Promise<DryRunResult>;
   /** Generate every script again instead of keeping the validated ones of an earlier, unfinished run. */
   fresh?: boolean;
+  /**
+   * Outcomes to generate again; scripts with other outcomes are kept (when the helpers are unchanged).
+   * Default ["invalid"]: keep validated scripts, so an unfinished run resumes.
+   */
+  redo?: ScriptOutcome[];
   /** Aborting (e.g. Ctrl+C) writes the manifest so far, marks the stage failed and stops the app. */
   signal?: AbortSignal;
   log?: (message: string) => void;
@@ -68,6 +74,17 @@ export interface GenerateScriptsResult {
   manifest: ScriptManifest;
   summary: StageScriptsSummary;
 }
+
+/** What the stage needs from the running app. */
+export interface RunningApp {
+  /** Back to the clean seeded data (reset, seed, backend restart); called after every dry run. */
+  restore(): Promise<{ durationMs: number }>;
+  stop(): Promise<void>;
+}
+
+export const SCRIPT_OUTCOMES = ['passed', 'assertion_failed', 'invalid'] as const;
+export type ScriptOutcome = (typeof SCRIPT_OUTCOMES)[number];
+const outcomeOf = (e: ScriptManifestEntry): ScriptOutcome => (e.status === 'invalid' ? 'invalid' : (e.validationOutcome ?? 'invalid'));
 
 interface Deps {
   llm: LLMClient;
@@ -85,6 +102,8 @@ interface Deps {
   mutex: Mutex;
   runDryRun: NonNullable<GenerateScriptsOptions['runDryRun']>;
   dryRunMs: { total: number };
+  app: RunningApp;
+  restores: { count: number; ms: number };
   signal?: AbortSignal;
 }
 
@@ -142,16 +161,27 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
     }
     const outputDir = path.join(deps.runDir, 'dry-runs', tc.id, `attempt-${attempt}`);
     const queued = Date.now();
-    const result = await deps.mutex.run(async () => {
+    const { result, broken } = await deps.mutex.run(async () => {
       queuedMs = Date.now() - queued;
       const wall = Date.now();
       if (deps.signal?.aborted) throw new Error('Interrupted');
       const r = await deps.runDryRun(deps.runDir, file, outputDir, deps.signal);
       // Wall time, including Playwright's start-up, which dominates short tests.
       deps.dryRunMs.total += Date.now() - wall;
-      return r;
+      // Isolation: find out whether this test broke a fixture user, then always put the data back,
+      // so the next dry run starts from the clean seeded state whatever this one changed (stock, names, ...).
+      const guard = await checkFixtureLogins(deps.config);
+      const restored = await deps.app.restore();
+      deps.restores.count++;
+      deps.restores.ms += restored.durationMs;
+      return { result: r, broken: guard.broken };
     });
     const verdict = classifyDryRun(result, valueIds);
+    if (broken.length > 0 && verdict.kind !== 'assertion_failed') {
+      const message = `This test changed fixture user${broken.length > 1 ? 's' : ''} ${broken.join(', ')}: logging in as ${broken.length > 1 ? 'them' : 'it'} failed afterwards (the data has been restored). Never change a fixture user; register a new user with uniq values and change that one.`;
+      record('dry-run', message, 'fixture-mutation');
+      return [message];
+    }
     if (verdict.kind === 'passed') {
       record('dry-run', null);
       outcome = 'passed';
@@ -203,11 +233,22 @@ const zeroCounts = <K extends string>(keys: readonly K[]) => Object.fromEntries(
 /** run.json summary for the scripts stage. */
 export function scriptsSummary(
   entries: ScriptManifestEntry[],
-  extra: { calls: number; costUsd: number | null; dryRunMs: number; playwrightVersion: string; warnings: string[]; resumed?: number },
+  extra: {
+    calls: number;
+    costUsd: number | null;
+    dryRunMs: number;
+    playwrightVersion: string;
+    warnings: string[];
+    resumed?: number;
+    restores?: number;
+    restoreMs?: number;
+  },
 ): StageScriptsSummary {
   const summary: StageScriptsSummary = {
     cases: entries.length,
     resumed: 0,
+    restores: 0,
+    restoreMs: 0,
     validated: { passed: 0, assertionFailed: 0 },
     invalid: 0,
     attemptsHistogram: { '1': 0, '2': 0, '3': 0 },
@@ -248,25 +289,28 @@ async function resumable(
   cases: TestCase[],
   scriptsDir: string,
   currentHelpersHash: string,
-): Promise<Map<string, ScriptManifestEntry>> {
+  redo: readonly ScriptOutcome[],
+): Promise<{ kept: Map<string, ScriptManifestEntry>; why?: string }> {
   const kept = new Map<string, ScriptManifestEntry>();
   let previous: ScriptManifest;
   try {
     previous = ScriptManifest.parse(JSON.parse(await readFile(manifestFile, 'utf8')));
   } catch {
-    return kept;
+    return { kept };
   }
   // Scripts written against other helpers (or an older manifest without the hash) are generated again.
-  if (previous.helpersHash !== currentHelpersHash) return kept;
+  if (previous.helpersHash !== currentHelpersHash) {
+    return { kept, why: previous.helpersHash ? 'the helpers or auth settings changed' : 'the earlier manifest has no helpers hash' };
+  }
   const byId = new Map(cases.map((tc) => [tc.id, tc]));
   for (const entry of previous.scripts) {
     const tc = byId.get(entry.testCaseId);
-    if (!tc || entry.status !== 'validated') continue;
+    if (!tc || redo.includes(outcomeOf(entry))) continue;
     const file = path.join(scriptsDir, `${tc.id}.spec.ts`);
     const text = await readFile(file, 'utf8').catch(() => null);
     if (text && text.includes(renderExpected(tc)) && text.startsWith(`// ${tc.id}: ${tc.title}\n`)) kept.set(tc.id, entry);
   }
-  return kept;
+  return { kept };
 }
 
 /**
@@ -297,10 +341,14 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
   const cases = parsedCases.data.testCases;
   const previousStatus = manifest.stages.scripts?.status;
   const hash = await helpersHash(config);
-  const kept =
+  const redo = options.redo ?? ['invalid'];
+  const resume =
     options.fresh || previousStatus === 'stale'
-      ? new Map<string, ScriptManifestEntry>()
-      : await resumable(paths.scriptsManifest, cases, paths.scriptsDir, hash);
+      ? { kept: new Map<string, ScriptManifestEntry>() }
+      : await resumable(paths.scriptsManifest, cases, paths.scriptsDir, hash, redo);
+  const kept = resume.kept;
+  const resumeWarnings = resume.why && options.redo ? [`--redo ignored: ${resume.why}, so every script was generated again`] : [];
+  if (resume.why) log(`Generating every script: ${resume.why}`);
 
   const startedAt = new Date().toISOString();
   await Transcript.archive(paths.transcriptsDir, 'scripts');
@@ -314,7 +362,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
     writes = writes.then(() => writeFile(paths.scriptsManifest, text, 'utf8'));
     return writes;
   };
-  let app: { stop(): Promise<void> } | undefined;
+  let app: RunningApp | undefined;
   try {
     // The run's scripts folder: the helpers, the target settings they read, and the Playwright config.
     await mkdir(paths.scriptsDir, { recursive: true });
@@ -351,6 +399,8 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       mutex: new Mutex(),
       runDryRun: options.runDryRun ?? runSpec,
       dryRunMs: { total: 0 },
+      app,
+      restores: { count: 0, ms: 0 },
       ...(options.signal ? { signal: options.signal } : {}),
     };
     const todo = cases.filter((tc) => !kept.has(tc.id));
@@ -383,6 +433,8 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
     const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => l.purpose === 'scripts' && l.ts >= startedAt);
     const costs = calls.map((l) => l.costUsd).filter((c): c is number => c !== null);
     const warnings = [
+      ...resumeWarnings,
+      ...(!config.auth ? ['The target has no auth settings: the fixture guard could not check fixture users'] : []),
       ...(!facts ? [`No targets/${config.name}/facts.json: scripts were written without observed facts`] : []),
       ...(entries.some((e) => e.failureCategory === 'value-less-expect')
         ? ['Some scripts are invalid because a check without a locked value failed; review them by hand (invalidCases["value-less-expect"])']
@@ -395,6 +447,8 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       playwrightVersion: version,
       warnings,
       resumed: kept.size,
+      restores: deps.restores.count,
+      restoreMs: deps.restores.ms,
     });
     await setStage(paths.dir, 'scripts', { status: 'done', startedAt, finishedAt: new Date().toISOString(), scripts: summary });
     return { runId, manifestFile: paths.scriptsManifest, manifest: result, summary };
@@ -415,7 +469,7 @@ export function describeScriptsSummary(s: StageScriptsSummary): string[] {
   return [
     `${s.cases} scripts: ${s.validated.passed} passed, ${s.validated.assertionFailed} assertion_failed, ${s.invalid} invalid${invalid ? ` (${invalid})` : ''}${s.resumed > 0 ? `; ${s.resumed} kept from the earlier run` : ''}`,
     `attempts: ${Object.entries(s.attemptsHistogram).map(([k, n]) => `${k}×${n}`).join(', ')}; failed attempts by stage: ${Object.entries(s.failuresByStage).map(([k, n]) => `${k} ${n}`).join(', ')}`,
-    `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s, Playwright ${s.playwrightVersion}`,
+    `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
     ...Object.entries(s.invalidCases).map(([k, ids]) => `invalid (${k}): ${ids.join(', ')}`),
     ...s.warnings.map((w) => `Warning: ${w}`),
   ];

@@ -17,6 +17,9 @@ import { example } from '../shared/schemas/helpers.js';
 // It lives under runs/ so the generated scripts resolve @playwright/test from the project.
 
 const TOKEN = 'Bearer test-token-123';
+// The app's data: alice's password can be changed (a fixture mutation); restore() puts it back.
+const SEEDED = { alicePassword: 'Passw0rd!alice' };
+let data = { ...SEEDED, others: new Map<string, string>() };
 let server: http.Server;
 let url: string;
 let root: string;
@@ -45,7 +48,21 @@ beforeAll(async () => {
       const json = (status: number, v: unknown) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(v));
       if (req.url === '/api/auth/login') {
         const { email, password } = JSON.parse(body || '{}');
-        return email === 'alice@example.test' && password === 'Passw0rd!alice' ? json(200, { token: TOKEN }) : json(400, { error: 'Password Incorrect' });
+        const ok = (email === 'alice@example.test' && password === data.alicePassword) || data.others.get(email) === password;
+        // Every fixture user in the shared test config logs in with its own password.
+        const fixture = (email === 'admin@example.com' && password === 'admin123') || (email === 'bob@example.test' && password === 'Passw0rd!bob');
+        return ok || fixture ? json(200, { token: TOKEN }) : json(400, { error: 'Password Incorrect' });
+      }
+      if (req.url === '/api/register') {
+        const { email, password } = JSON.parse(body || '{}');
+        data.others.set(email, password);
+        return json(200, { ok: true });
+      }
+      if (req.url === '/api/password') {
+        const { email, password } = JSON.parse(body || '{}');
+        if (email === 'alice@example.test') data.alicePassword = password;
+        else data.others.set(email, password);
+        return json(200, { ok: true });
       }
       if (req.url === '/api/items') return json(200, { items: [{ name: 'Hat' }] });
       if (req.url === '/api/me') return req.headers.authorization === TOKEN ? json(200, { email: 'alice@example.test' }) : res.writeHead(401).end('Unauthorized');
@@ -96,6 +113,7 @@ const CASES = [
   tc('TC-004', 'ui', [{ id: 'E1', description: 'The account page shows Signed in', value: 'Signed in' }]),
   tc('TC-005', 'ui', [{ id: 'E1', description: 'A welcome banner is visible' }]),
   tc('TC-006', 'api', [{ id: 'E1', description: 'Status 200', value: 200 }]),
+  tc('TC-008', 'api', [{ id: 'E1', description: 'Password change accepted', value: 200 }]),
   tc('TC-007', 'ui', [{ id: 'E1', description: 'Signed in at first', value: 'Signed in' }, { id: 'E2', description: 'Still signed out after logging out and reloading', value: 'Signed out' }]),
 ];
 
@@ -136,6 +154,15 @@ await expect(page.locator('#status'), 'E1').toHaveText(EXPECTED.E1.value);
 await page.evaluate(() => localStorage.removeItem('token'));
 await page.reload();
 await expect(page.locator('#status'), 'E2').toHaveText(EXPECTED.E2.value);`],
+  // changes a fixture user's password (rejected as fixture-mutation, data restored), then uses a new user
+  'TC-008': [
+    `const res = await api.post('/api/password', { data: { email: fixtures.users.alice.email, password: 'changed-1' } });
+expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
+    `const email = uniq('user') + '@example.test';
+await api.post('/api/register', { data: { email, password: 'first-1' } });
+const res = await api.post('/api/password', { data: { email, password: 'second-2' } });
+expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
+  ],
   // does not compile, then a literal credential, then fixed
   'TC-006': [
     `const res: number = await api.get('/api/me');`,
@@ -183,7 +210,13 @@ describe('generateScripts with real Playwright', () => {
       createLlm: async () => llm,
       startApp: async () => {
         started++;
-        return { stop: async () => void stopped++ };
+        return {
+          stop: async () => void stopped++,
+          restore: async () => {
+            data = { ...SEEDED, others: new Map() };
+            return { durationMs: 1 };
+          },
+        };
       },
     });
 
@@ -198,18 +231,23 @@ describe('generateScripts with real Playwright', () => {
     expect(byId['TC-006']?.attemptLog.map((a) => a.stage)).toEqual(['typecheck', 'lock-check', 'dry-run']);
     expect(byId['TC-006']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
     expect(byId['TC-007']).toMatchObject({ status: 'validated', validationOutcome: 'passed', attempts: 1 });
+    expect(byId['TC-008']?.attemptLog.map((a) => a.category ?? 'ok')).toEqual(['fixture-mutation', 'ok']);
+    expect(byId['TC-008']?.attemptLog[0]?.error).toMatch(/^This test changed fixture user users.alice: logging in as it failed afterwards/);
+    expect(byId['TC-008']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
 
     expect(result.summary).toMatchObject({
-      cases: 7,
-      validated: { passed: 5, assertionFailed: 1 },
+      cases: 8,
+      validated: { passed: 6, assertionFailed: 1 },
       invalid: 1,
       invalidByCategory: { 'value-less-expect': 1 },
       invalidCases: { 'value-less-expect': ['TC-005'] },
-      failuresByStage: { typecheck: 1, 'lock-check': 2, 'dry-run': 4 },
-      attemptsHistogram: { '1': 3, '2': 2, '3': 2 },
+      failuresByStage: { typecheck: 1, 'lock-check': 2, 'dry-run': 5 },
+      attemptsHistogram: { '1': 3, '2': 3, '3': 2 },
       playwrightVersion: '1.64.0',
     });
     expect(result.summary.dryRunMs).toBeGreaterThan(0);
+    // One restore after every dry run: 12 dry runs (TC-001..008: 1+1+1+2+3+1+1+2; typecheck and lock-check failures run none).
+    expect(result.summary.restores).toBe(12);
     expect(started).toBe(1);
     expect(stopped).toBe(1);
 

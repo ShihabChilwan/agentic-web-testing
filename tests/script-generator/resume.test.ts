@@ -134,7 +134,7 @@ describe('generateScripts: progress, interruption and resume', () => {
     runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root,
     llmConfig: parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' }),
     createLlm: async () => llm,
-    startApp: async () => ({ stop: async () => {} }),
+    startApp: async () => ({ stop: async () => {}, restore: async () => ({ durationMs: 1 }) }),
     runDryRun,
     ...extra,
   });
@@ -150,7 +150,7 @@ describe('generateScripts: progress, interruption and resume', () => {
     const running = generateScripts({
       ...options(runsDir, runId, first.llm, pass),
       signal: controller.signal,
-      startApp: async () => ({ stop: async () => void stopped++ }),
+      startApp: async () => ({ stop: async () => void stopped++, restore: async () => ({ durationMs: 1 }) }),
     });
     // Interrupt once the manifest on disk shows the two finished cases (it is written after each one).
     const done = async () => (JSON.parse(await readFile(paths.scriptsManifest, 'utf8').catch(() => '{"scripts":[]}')) as { scripts: unknown[] }).scripts.length;
@@ -212,6 +212,49 @@ describe('generateScripts: progress, interruption and resume', () => {
     const afterOld = model();
     await generateScripts(options(runsDir, runId, afterOld.llm, pass));
     expect(afterOld.asked.sort()).toEqual(['TC-001', 'TC-002', 'TC-003']);
+  });
+
+    it('regenerates only the outcomes named in redo, and restores the data after every dry run', { timeout: 240_000 }, async () => {
+    const { runsDir, runId, paths } = await makeRun();
+    // TC-001 passes; TC-002 has a compared locked value that differs; TC-003 always fails.
+    const outcomes = async (_r: string, file: string): Promise<DryRunResult> => {
+      if (file.endsWith('TC-001.spec.ts')) return { status: 'passed', message: '', durationMs: 1 };
+      if (file.endsWith('TC-002.spec.ts')) {
+        return { status: 'failed', message: 'Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 400', durationMs: 1 };
+      }
+      return { status: 'failed', message: 'TypeError: x is undefined', durationMs: 1 };
+    };
+    let restores = 0;
+    const counting = { startApp: async () => ({ stop: async () => {}, restore: async () => ({ durationMs: (restores++, 5) }) }) };
+    const first = await generateScripts(options(runsDir, runId, model().llm, outcomes, counting));
+    expect(first.summary).toMatchObject({ validated: { passed: 1, assertionFailed: 1 }, invalid: 1 });
+    // One restore per dry run: 1 (TC-001) + 1 (TC-002) + 3 attempts (TC-003).
+    expect(first.summary).toMatchObject({ restores: 5, restoreMs: 25 });
+    expect(restores).toBe(5);
+
+    const both = model();
+    await generateScripts(options(runsDir, runId, both.llm, outcomes, { redo: ['assertion_failed', 'invalid'] }));
+    expect(both.asked.sort()).toEqual(['TC-002', 'TC-003', 'TC-003', 'TC-003']);
+    expect(JSON.parse(await readFile(paths.scriptsManifest, 'utf8')).scripts.map((e: { testCaseId: string }) => e.testCaseId)).toEqual(['TC-001', 'TC-002', 'TC-003']);
+
+    const byDefault = model();
+    const third = await generateScripts(options(runsDir, runId, byDefault.llm, outcomes));
+    expect([...new Set(byDefault.asked)]).toEqual(['TC-003']); // default: keep validated, redo invalid
+    expect(third.summary.resumed).toBe(2);
+  });
+
+  it('ignores redo with a warning when the helpers changed', { timeout: 240_000 }, async () => {
+    const { runsDir, runId, paths } = await makeRun();
+    const pass = async () => ({ status: 'passed', message: '', durationMs: 1 });
+    await generateScripts(options(runsDir, runId, model().llm, pass));
+    const manifest = JSON.parse(await readFile(paths.scriptsManifest, 'utf8'));
+    manifest.helpersHash = '0'.repeat(64);
+    await writeFile(paths.scriptsManifest, JSON.stringify(manifest));
+    await setStage(paths.dir, 'scripts', { status: 'done' });
+    const all = model();
+    const result = await generateScripts(options(runsDir, runId, all.llm, pass, { redo: ['invalid'] }));
+    expect(all.asked.sort()).toEqual(['TC-001', 'TC-002', 'TC-003']);
+    expect(result.summary.warnings).toContain('--redo ignored: the helpers or auth settings changed, so every script was generated again');
   });
 
     it('does not keep a validated script whose test case changed', { timeout: 180_000 }, async () => {

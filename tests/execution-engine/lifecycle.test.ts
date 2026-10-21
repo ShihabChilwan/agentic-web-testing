@@ -288,7 +288,36 @@ describe('startTarget', () => {
     expect(isCleanStart(config, options({ skipSeed: true }))).toBe(false);
   });
 
-  it('fails when the reset command fails, before starting anything', async () => {
+  it('restore() resets and seeds again and restarts only the backend', async () => {
+    await withTarget(makeConfig(), options(), async (target) => {
+      const backendBefore = target.services.find((s) => s.name === 'backend')!.pid;
+      const frontendBefore = target.services.find((s) => s.name === 'frontend')!.pid;
+      const resetsBefore = (await read('resets.txt')).split('\n').filter(Boolean).length;
+      const requestsBefore = (await read('api/requests.log')).split('\n').filter(Boolean).length;
+      const { durationMs } = await target.restore();
+      expect(durationMs).toBeGreaterThan(0);
+      expect((await read('resets.txt')).split('\n').filter(Boolean).length).toBe(resetsBefore + 1);
+      expect((await read('api/requests.log')).split('\n').filter(Boolean).length).toBe(requestsBefore + 1); // the seed request again
+      expect(target.services.find((s) => s.name === 'backend')!.pid).not.toBe(backendBefore);
+      expect(target.services.find((s) => s.name === 'frontend')!.pid).toBe(frontendBefore);
+    });
+    expect(await portsFree()).toBe(true); // stop() also stopped the restarted backend
+  });
+
+  it('restore() throws when a step fails', async () => {
+    // The reset works at start, then fails on the second run.
+    const config = makeConfig((c) => (c.lifecycle.reset = 'if [ -f reset-once ]; then exit 3; fi; touch reset-once'));
+    await rm(path.join(repoDir, 'reset-once'), { force: true });
+    try {
+      await withTarget(config, options(), async (target) => {
+        await expect(target.restore()).rejects.toThrow(/Reset command failed \(exit 3\)/);
+      });
+    } finally {
+      await rm(path.join(repoDir, 'reset-once'), { force: true });
+    }
+  });
+
+    it('fails when the reset command fails, before starting anything', async () => {
     const config = makeConfig((c) => (c.lifecycle.reset = 'exit 2'));
     await expect(startTarget(config, options())).rejects.toThrow(/Reset command failed/);
     expect(await portsFree()).toBe(true);
