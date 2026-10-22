@@ -45,16 +45,25 @@ const tools = () => {
 };
 
 describe('resolveInRepo', () => {
+  it('gives a hidden or outside path the same error as a missing one', async () => {
+    const message = async (input: string) =>
+      (await resolveInRepo(scope, input).then(() => 'resolved', (err: Error) => err.message)).replace(input, '<path>');
+    const missing = await message('client/no-such.js');
+    for (const input of ['client/board.pe.js', '.git/config', 'node_modules/lib/index.js', 'link-out.txt', 'dir-out/secret.txt', 'git-link']) {
+      expect(await message(input), input).toBe(missing);
+    }
+  });
+
   it.each([
     ['../outside/secret.txt', /\.\./],
     ['server/../../outside/secret.txt', /\.\./],
     ['/etc/passwd', /relative/],
-    ['.git/config', /not accessible/],
-    ['node_modules/lib/index.js', /not accessible/],
-    ['client/board.pe.js', /not accessible/],
-    ['link-out.txt', /outside the repo/],
-    ['dir-out/secret.txt', /outside the repo/],
-    ['git-link', /not accessible/],
+    ['.git/config', /does not exist/],
+    ['node_modules/lib/index.js', /does not exist/],
+    ['client/board.pe.js', /does not exist/],
+    ['link-out.txt', /does not exist/],
+    ['dir-out/secret.txt', /does not exist/],
+    ['git-link', /does not exist/],
     ['missing.js', /does not exist/],
   ])('rejects %s', async (input, message) => {
     await expect(resolveInRepo(scope, input)).rejects.toThrow(message);
@@ -111,8 +120,8 @@ describe('read_file', () => {
 
   it('returns errors as text', async () => {
     const t = tools();
-    expect(await t.read({ path: 'link-out.txt' })).toMatch(/outside the repo/);
-    expect(await t.read({ path: 'client/board.pe.js' })).toMatch(/not accessible/);
+    expect(await t.read({ path: 'link-out.txt' })).toBe('Error: "link-out.txt" does not exist.');
+    expect(await t.read({ path: 'client/board.pe.js' })).toBe('Error: "client/board.pe.js" does not exist.');
     expect(await t.read({ path: 'README.md', startLine: 50 })).toMatch(/only 2 lines/);
     expect(await t.read({ path: 'server' })).toMatch(/is a directory/);
   });

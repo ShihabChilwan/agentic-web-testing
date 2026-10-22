@@ -239,8 +239,8 @@ describe('PrdDraft batch checks', () => {
       'requirements[0].acceptanceCriteria[0].evidence[0]: server/routes/missing.js does not exist',
       'requirements[1].acceptanceCriteria[0].evidence[0]: range [25, 31] ends past the last line of server/routes/auth.js (30)',
       'requirements[2].acceptanceCriteria[0].evidence[0]: server/routes is a directory, not a file',
-      'requirements[3].acceptanceCriteria[0].evidence[0]: "server/billing.pe.js" is not accessible.',
-      'requirements[4].acceptanceCriteria[0].evidence[0]: "node_modules/lib/index.js" is not accessible.',
+      'requirements[3].acceptanceCriteria[0].evidence[0]: server/billing.pe.js does not exist',
+      'requirements[4].acceptanceCriteria[0].evidence[0]: node_modules/lib/index.js does not exist',
     ]);
     expect(d.requirements).toEqual([]);
     expect(await d.addRequirements([requirement({ evidence: at('server/routes/auth.js', [25, 30]) })])).toContain(

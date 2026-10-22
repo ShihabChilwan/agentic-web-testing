@@ -37,25 +37,26 @@ export function isHidden(relPath: string, scope: RepoScope): boolean {
 /**
  * Resolves a model-supplied path inside the repo, or throws PathRejectedError.
  * Rejects absolute paths, `..`, hidden paths, and anything whose real location
- * (after following symlinks) is outside the root or hidden.
+ * (after following symlinks) is outside the root or hidden. A hidden or outside path gets the
+ * same message as a missing one, so an error never tells that something exists (SPEC §8.4).
  */
 export async function resolveInRepo(scope: RepoScope, input: string): Promise<{ abs: string; rel: string }> {
   const raw = input.trim() === '' ? '.' : input.trim();
   if (path.isAbsolute(raw) || /^[A-Za-z]:/.test(raw)) throw new PathRejectedError(`Use a path relative to the repo root, not "${raw}".`);
   const rel = toPosix(path.posix.normalize(raw.replace(/\\/g, '/'))).replace(/\/$/, '');
   if (rel.split('/').includes('..')) throw new PathRejectedError(`Paths may not contain "..": "${raw}".`);
-  if (isHidden(rel, scope)) throw new PathRejectedError(`"${raw}" is not accessible.`);
+  const missing = () => new PathRejectedError(`"${raw}" does not exist.`);
+  if (isHidden(rel, scope)) throw missing();
 
   const rootReal = await realpath(scope.root);
   let real: string;
   try {
     real = await realpath(path.join(rootReal, rel));
   } catch {
-    throw new PathRejectedError(`"${raw}" does not exist.`);
+    throw missing();
   }
   const realRel = path.relative(rootReal, real);
-  if (realRel.startsWith('..') || path.isAbsolute(realRel)) throw new PathRejectedError(`"${raw}" points outside the repo.`);
-  if (isHidden(realRel, scope)) throw new PathRejectedError(`"${raw}" is not accessible.`);
+  if (realRel.startsWith('..') || path.isAbsolute(realRel) || isHidden(realRel, scope)) throw missing();
   return { abs: real, rel: rel === '' ? '.' : rel };
 }
 
