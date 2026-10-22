@@ -1,0 +1,13 @@
+diff --git a/server/utils/store.js b/server/utils/store.js
+index 4fb8108..e3a567c 100644
+--- a/server/utils/store.js
++++ b/server/utils/store.js
+@@ -20,7 +20,7 @@ exports.caculateTaxAmount = order => {
+     const taxRate = taxConfig.stateTaxRate;
+ 
+     order.totalTax = 0;
+-    if (order.products && order.products.length > 0) {
++    if (order.products && order.products.length >= 0) {
+       order.products.map(item => {
+         const price = item.purchasePrice || (item?.product?.price ?? 0);
+         const quantity = item.quantity;

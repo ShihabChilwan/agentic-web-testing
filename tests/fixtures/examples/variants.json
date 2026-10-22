@@ -2,24 +2,28 @@
   "schemaVersion": "1.0",
   "target": "mern-ecommerce",
   "goldenRef": "golden",
-  "goldenCommit": "abc1234",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
   "method": "stryker",
-  "seed": 20261024,
+  "seed": 20261022,
   "variants": [
     {
       "id": "bug-001",
       "kind": "code",
-      "branch": "bug-001",
       "patch": "variants/bug-001.patch",
       "layer": "backend",
-      "mutator": "BooleanLiteral",
-      "file": "server/routes/api/auth.js",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "4321",
+      "file": "server/routes/api/order.js",
       "lines": [
         39,
         39
       ],
-      "original": "if (!isMatch) {",
-      "mutated": "if (isMatch) {",
+      "original": "    if (quantity > 0) {",
+      "mutated": "    if (quantity >= 0) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
       "expectedClassification": "app_defect"
     },
     {
@@ -35,6 +39,38 @@
       "skipSeed": false,
       "description": "Backend cannot reach the database.",
       "expectedClassification": "environment_issue"
+    }
+  ],
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/routes/api/*.js"
+      ],
+      "frontend": [
+        "client/app/utils/validation.js"
+      ]
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator"
+    ],
+    "mutants": 6607,
+    "candidates": 1930,
+    "mutationJsonSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "overlapLines": 5,
+  "discards": [
+    {
+      "strykerMutantId": "5214",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        48,
+        48
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of dev-001-login-accepts-any-password.patch (line 48)"
     }
   ]
 }

@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Manager/Support/AddMessage.js b/client/app/components/Manager/Support/AddMessage.js
+index 0a7f928..91ca99e 100644
+--- a/client/app/components/Manager/Support/AddMessage.js
++++ b/client/app/components/Manager/Support/AddMessage.js
+@@ -9,7 +9,7 @@ const AddMessage = props => {
+ 
+   const handleOnSubmit = e => {
+     e.preventDefault();
+-    if (!message.trim()) {
++    if (!message) {
+       return alert('Please type message.');
+     }
+     onSubmit(message);

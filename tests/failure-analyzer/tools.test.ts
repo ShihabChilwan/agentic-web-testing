@@ -49,7 +49,7 @@ async function call(name: string, input: unknown): Promise<string> {
   }
 }
 
-const FORBIDDEN = () => ['golden', f.commit, f.commit.slice(0, 7), PATCH_NAME, 'dev-001', 'dev-bugs', 'x-03', 'bug-001', 'awt-src-'];
+const FORBIDDEN = () => ['golden', f.commit, f.commit.slice(0, 7), PATCH_NAME, 'dev-001', 'dev-bugs', 'x-03', 'bug-001', 'env-01', 'evaluation.json', 'awt-src-'];
 
 describe('analyzer tools', () => {
   it('give the failure evidence of this execution', async () => {
@@ -71,7 +71,7 @@ describe('analyzer tools', () => {
     expect(await call('read_file', { path: 'server/routes/auth.js', startLine: 6, endLine: 6 })).toContain('if (isMatch === null) {');
   });
 
-  it('refuse other executions, run files, eval, ablation, targets and git metadata', async () => {
+  it('refuse other executions, run files, eval, ablation, targets, variants and git metadata', async () => {
     const attempts: Array<[string, unknown]> = [
       ['get_failure', { testCaseId: 'TC-004' }], // passed: not a failure of this execution
       ['get_failure', { testCaseId: '../x-03' }],
@@ -88,11 +88,41 @@ describe('analyzer tools', () => {
       ['read_file', { path: path.join(f.paths.dir, 'run.json') }],
       ['list_files', { path: '..' }],
       ['search_code', { pattern: 'golden', glob: '../**' }],
+      // The evaluation's answers (SPEC §8.4: targets/*/variants*, targets/*/evaluation.json)
+      ['read_file', { path: path.join(f.root, 'targets', 'fake', 'variants', 'bug-001.patch') }],
+      ['read_file', { path: path.join(f.root, 'targets', 'fake', 'variants.json') }],
+      ['read_file', { path: path.join(f.root, 'targets', 'fake', 'evaluation.json') }],
+      ['read_file', { path: '../targets/fake/variants/bug-001.patch' }],
+      ['read_file', { path: '../../targets/fake/evaluation.json' }],
+      ['list_files', { path: path.join(f.root, 'targets', 'fake') }],
+      ['search_code', { pattern: 'isMatch', glob: '../../targets/**' }],
+      ['search_code', { pattern: 'env-01', glob: path.join(f.root, 'targets', '**') }],
     ];
     for (const [name, input] of attempts) {
       const out = await call(name, input);
       expect(out, `${name} ${JSON.stringify(input)}`).toMatch(/^Error/);
-      for (const word of FORBIDDEN()) expect(out, `${name} ${JSON.stringify(input)}`).not.toContain(word);
+      // An error may repeat the path the agent typed; it must not add anything the agent did not already know.
+      const typed = JSON.stringify(input);
+      for (const word of FORBIDDEN()) if (!typed.includes(word)) expect(out, `${name} ${typed}`).not.toContain(word);
+    }
+  });
+
+  it('answer a forbidden path exactly like a path that does not exist', async () => {
+    const targets = path.join(f.root, 'targets', 'fake');
+    const forms = (rel: string) => [path.join(targets, rel), `../targets/fake/${rel}`, `../../targets/fake/${rel}`, `targets/fake/${rel}`, rel];
+    for (const [real, fake] of [
+      ['variants.json', 'no-such.json'],
+      ['variants/bug-001.patch', 'variants/bug-999.patch'],
+      ['evaluation.json', 'no-such/evaluation.json'],
+    ] as const) {
+      const realForms = forms(real);
+      const fakeForms = forms(fake);
+      for (let i = 0; i < realForms.length; i++) {
+        for (const tool of ['read_file', 'list_files'] as const) {
+          const out = (input: string) => call(tool, { path: input }).then((o) => o.replace(input, '<path>'));
+          expect(await out(realForms[i]!), `${tool} ${realForms[i]}`).toBe(await out(fakeForms[i]!));
+        }
+      }
     }
   });
 

@@ -1,0 +1,13 @@
+diff --git a/client/app/containers/Review/index.js b/client/app/containers/Review/index.js
+index 2ec0774..c97c6d9 100644
+--- a/client/app/containers/Review/index.js
++++ b/client/app/containers/Review/index.js
+@@ -33,7 +33,7 @@ class Review extends React.PureComponent {
+     } = this.props;
+ 
+     const displayPagination = advancedFilters.totalPages > 1;
+-    const displayReviews = reviews && reviews.length > 0;
++    const displayReviews = reviews && true;
+ 
+     return (
+       <div className='review-dashboard'>

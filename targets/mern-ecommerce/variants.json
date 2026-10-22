@@ -1,0 +1,351 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "goldenRef": "golden",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
+  "method": "stryker",
+  "seed": 20261022,
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/routes/api/*.js",
+        "server/middleware/*.js",
+        "server/models/*.js",
+        "server/utils/{auth,queries,store}.js"
+      ],
+      "frontend": [
+        "client/app/containers/**/{actions,reducer,index}.js",
+        "client/app/components/**/*.js",
+        "client/app/utils/validation.js"
+      ]
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "BooleanLiteral",
+      "ArithmeticOperator",
+      "UnaryOperator",
+      "OptionalChaining",
+      "MethodExpression"
+    ],
+    "mutants": 6607,
+    "candidates": 1930,
+    "mutationJsonSha256": "bdc0337de5f74ebd37a4355b41f9a51136d394fabf167084df5b4654746cf4e1"
+  },
+  "overlapLines": 5,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "patch": "variants/bug-001.patch",
+      "layer": "frontend",
+      "mutator": "MethodExpression",
+      "strykerMutantId": "1281",
+      "file": "client/app/components/Manager/Support/AddMessage.js",
+      "lines": [
+        12,
+        12
+      ],
+      "original": "    if (!message.trim()) {",
+      "mutated": "    if (!message) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-002",
+      "kind": "code",
+      "patch": "variants/bug-002.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "6338",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        36,
+        36
+      ],
+      "original": "      productDoc?.brand === null || productDoc?.brand?.isActive === false;",
+      "mutated": "      productDoc?.brand === null || productDoc?.brand?.isActive === true;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-003",
+      "kind": "code",
+      "patch": "variants/bug-003.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "6990",
+      "file": "server/utils/store.js",
+      "lines": [
+        53,
+        53
+      ],
+      "original": "    if (hasCancelledItems.length > 0) {",
+      "mutated": "    if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-004",
+      "kind": "code",
+      "patch": "variants/bug-004.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "4494",
+      "file": "client/app/containers/Review/reducer.js",
+      "lines": [
+        73,
+        73
+      ],
+      "original": "      const index = state.reviews.findIndex(r => r._id === action.payload);",
+      "mutated": "      const index = state.reviews.findIndex(r => true);",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-005",
+      "kind": "code",
+      "patch": "variants/bug-005.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "4447",
+      "file": "client/app/containers/Review/index.js",
+      "lines": [
+        36,
+        36
+      ],
+      "original": "    const displayReviews = reviews && reviews.length > 0;",
+      "mutated": "    const displayReviews = reviews && true;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-006",
+      "kind": "code",
+      "patch": "variants/bug-006.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "5208",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        40,
+        40
+      ],
+      "original": "    if (user && user.provider !== EMAIL_PROVIDER.Email) {",
+      "mutated": "    if (user && true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-007",
+      "kind": "code",
+      "patch": "variants/bug-007.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5266",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        109,
+        109
+      ],
+      "original": "    let subscribed = false;",
+      "mutated": "    let subscribed = true;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-008",
+      "kind": "code",
+      "patch": "variants/bug-008.patch",
+      "layer": "backend",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "6952",
+      "file": "server/utils/store.js",
+      "lines": [
+        23,
+        23
+      ],
+      "original": "    if (order.products && order.products.length > 0) {",
+      "mutated": "    if (order.products && order.products.length >= 0) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-009",
+      "kind": "code",
+      "patch": "variants/bug-009.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "6558",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        359,
+        359
+      ],
+      "original": "      if (foundProduct && foundProduct._id != productId) {",
+      "mutated": "      if (foundProduct && true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-010",
+      "kind": "code",
+      "patch": "variants/bug-010.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "4916",
+      "file": "server/middleware/auth.js",
+      "lines": [
+        3,
+        3
+      ],
+      "original": "const auth = passport.authenticate('jwt', { session: false });",
+      "mutated": "const auth = passport.authenticate('jwt', { session: true });",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-011",
+      "kind": "code",
+      "patch": "variants/bug-011.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "5707",
+      "file": "server/routes/api/category.js",
+      "lines": [
+        84,
+        84
+      ],
+      "original": "    if (!categoryDoc) {",
+      "mutated": "    if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-012",
+      "kind": "code",
+      "patch": "variants/bug-012.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "5728",
+      "file": "server/routes/api/category.js",
+      "lines": [
+        111,
+        111
+      ],
+      "original": "    if (foundCategory && foundCategory._id != categoryId) {",
+      "mutated": "    if (foundCategory || foundCategory._id != categoryId) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "env-01",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "MONGO_URI": "mongodb://mongo:27999/mern_ecommerce_test"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's MONGO_URI points to a port where no database listens, so the backend cannot reach the database.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-02",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "JWT_SECRET": null
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's JWT_SECRET is not set, so the backend fails while starting.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-03",
+      "kind": "environment",
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "API_URL": "http://localhost:3999/api"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The frontend's API_URL points to a port where nothing listens, so the browser's API calls are refused.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-04",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "BASE_API_URL": "v1"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's BASE_API_URL is wrong, so the API is mounted under /v1 and every /api request is not found.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-05",
+      "kind": "environment",
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "NODE_OPTIONS": "--max-old-space-size=32"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The frontend's Node.js heap is capped at 32 MB, so the frontend dev server runs out of memory.",
+      "expectedClassification": "environment_issue"
+    }
+  ],
+  "discards": []
+}

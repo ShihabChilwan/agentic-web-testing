@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/category.js b/server/routes/api/category.js
+index 02be459..d87eadb 100644
+--- a/server/routes/api/category.js
++++ b/server/routes/api/category.js
+@@ -81,7 +81,7 @@ router.get('/:id', async (req, res) => {
+       select: 'name'
+     });
+ 
+-    if (!categoryDoc) {
++    if (true) {
+       return res.status(404).json({
+         message: 'No Category found.'
+       });

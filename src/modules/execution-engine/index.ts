@@ -4,3 +4,4 @@ export { observeFacts, readFacts, recordFacts } from './facts.js';
 export { checkFixtureLogins, type FixtureGuardResult } from './guard.js';
 export { describeExecution, executeRun, executeVersion, nextExecId, selectScripts, type ExecuteRunResult } from './execute.js';
 export { buildSourceTree, resolveCommit, type SourceTree } from './source-tree.js';
+export { observeApp, observePage, type AppObservation, type PageObservation } from './probe.js';

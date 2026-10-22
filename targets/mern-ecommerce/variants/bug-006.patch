@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/auth.js b/server/routes/api/auth.js
+index 8e1109b..dbe6a9f 100644
+--- a/server/routes/api/auth.js
++++ b/server/routes/api/auth.js
+@@ -37,7 +37,7 @@ router.post('/login', async (req, res) => {
+         .send({ error: 'No user found for this email address.' });
+     }
+ 
+-    if (user && user.provider !== EMAIL_PROVIDER.Email) {
++    if (user && true) {
+       return res.status(400).send({
+         error: `That email address is already in use using ${user.provider} provider.`
+       });

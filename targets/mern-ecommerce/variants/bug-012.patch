@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/category.js b/server/routes/api/category.js
+index 02be459..1bb2028 100644
+--- a/server/routes/api/category.js
++++ b/server/routes/api/category.js
+@@ -108,7 +108,7 @@ router.put('/:id', auth, role.check(ROLES.Admin), async (req, res) => {
+       $or: [{ slug }]
+     });
+ 
+-    if (foundCategory && foundCategory._id != categoryId) {
++    if (foundCategory || foundCategory._id != categoryId) {
+       return res.status(400).json({ error: 'Slug is already in use.' });
+     }
+ 

@@ -81,6 +81,9 @@ export async function makeFixture() {
   await mkdir(path.join(root, 'targets', 'fake', 'dev-bugs'), { recursive: true });
   await writeFile(path.join(root, 'targets', 'fake', 'dev-bugs', PATCH_NAME), PATCH);
   await writeFile(path.join(root, 'targets', 'fake', 'variants.json'), '{"secret":"bug-001 is the answer"}');
+  await mkdir(path.join(root, 'targets', 'fake', 'variants'), { recursive: true });
+  await writeFile(path.join(root, 'targets', 'fake', 'variants', 'bug-001.patch'), PATCH);
+  await writeFile(path.join(root, 'targets', 'fake', 'evaluation.json'), '{"environmentFaults":[{"id":"env-01"}]}');
 
   const runsDir = path.join(root, 'runs');
   const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });

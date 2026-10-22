@@ -19,13 +19,34 @@ describe('variants.json', () => {
     expect(Variants.safeParse(v).success).toBe(true);
   });
 
-  it('allows null mutator and seed only for manual variants', () => {
+  it('allows null mutator, mutant id, seed and stryker only for manual variants', () => {
     const v = structuredClone(variants);
     v.seed = null;
+    v.stryker = null;
     v.variants[0].mutator = null;
-    expect(errorPaths(Variants, v)).toEqual(expect.arrayContaining(['seed', 'variants.0.mutator']));
+    v.variants[0].strykerMutantId = null;
+    expect(errorPaths(Variants, v)).toEqual(
+      expect.arrayContaining(['seed', 'stryker', 'variants.0.mutator', 'variants.0.strykerMutantId']),
+    );
     v.method = 'manual';
     expect(Variants.safeParse(v).success).toBe(true);
+  });
+
+  it('defaults discards and overlapLines, and rejects the obsolete branch field', () => {
+    const v = structuredClone(variants);
+    delete v.discards;
+    delete v.overlapLines;
+    const parsed = Variants.parse(v);
+    expect(parsed.discards).toEqual([]);
+    expect(parsed.overlapLines).toBe(5);
+    v.variants[0].branch = 'bug-001';
+    expect(errorPaths(Variants, v)).toEqual(['variants.0']);
+  });
+
+  it('rejects an unknown discard reason', () => {
+    const v = structuredClone(variants);
+    v.discards[0].reason = 'boring';
+    expect(errorPaths(Variants, v)).toEqual(['discards.0.reason']);
   });
 
   it('rejects an unknown variant kind and code fields on an environment variant', () => {

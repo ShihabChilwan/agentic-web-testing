@@ -1,0 +1,24 @@
+{
+  "testRunner": "command",
+  "commandRunner": { "command": "node -e \"process.exit(0)\"" },
+  "plugins": [],
+  "mutate": [
+    "server/routes/api/*.js",
+    "server/middleware/*.js",
+    "server/models/*.js",
+    "server/utils/{auth,queries,store}.js",
+    "client/app/containers/**/{actions,reducer,index}.js",
+    "client/app/components/**/*.js",
+    "client/app/utils/validation.js"
+  ],
+  "ignorePatterns": ["node_modules", "**/node_modules"],
+  "reporters": ["json"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "concurrency": 4,
+  "coverageAnalysis": "off",
+  "disableBail": false,
+  "timeoutMS": 10000,
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "logLevel": "info"
+}

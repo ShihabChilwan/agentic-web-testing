@@ -866,18 +866,25 @@ export type RunManifest = z.infer<typeof RunManifest>;
 // targets/<name>/variants.json — written by the evaluation harness or by hand
 // ---------------------------------------------------------------------------
 
+export const VariantLayer = z.enum(['backend', 'frontend']);
+
 export const CodeVariant = z.strictObject({
   id: CodeVariantId,
   kind: z.literal('code'),
-  branch: z.string().min(1),
+  /** Relative to targets/<name>/. */
   patch: RelPath,
-  layer: z.enum(['backend', 'frontend']),
+  layer: VariantLayer,
   /** null only for hand-seeded bugs (method "manual"). */
   mutator: z.string().min(1).nullable(),
+  /** The mutant's id in the recorded mutation.json; null only for method "manual". */
+  strykerMutantId: z.string().min(1).nullable(),
   file: RelPath,
   lines: LineRange,
+  /** The mutant's whole lines before and after the change. */
   original: z.string(),
   mutated: z.string(),
+  /** Health checks of the start check (§11.2 step 6): a variant may fail one and still be kept. */
+  healthChecks: z.strictObject({ backend: z.boolean(), frontend: z.boolean() }).optional(),
   expectedClassification: Classification,
 });
 
@@ -892,6 +899,17 @@ export const EnvironmentVariant = z.strictObject({
 
 export const Variant = z.discriminatedUnion('kind', [CodeVariant, EnvironmentVariant]);
 
+export const VariantDiscard = z.strictObject({
+  strykerMutantId: z.string().min(1),
+  file: RelPath,
+  lines: LineRange,
+  mutator: z.string().min(1),
+  reason: z.enum(['overlaps-dev-bug', 'patch-failed', 'start-failed']),
+  detail: z.string(),
+});
+
+const LayerGlobs = z.strictObject({ backend: z.array(z.string().min(1)), frontend: z.array(z.string().min(1)) });
+
 export const Variants = z
   .strictObject({
     schemaVersion: SchemaVersion,
@@ -901,24 +919,69 @@ export const Variants = z
     method: z.enum(['stryker', 'manual']),
     /** null only for method "manual". */
     seed: z.number().int().nullable(),
+    /** How the candidates were listed; null only for method "manual". */
+    stryker: z
+      .strictObject({
+        version: z.string().min(1),
+        mutate: LayerGlobs,
+        mutators: z.array(z.string().min(1)),
+        mutants: z.number().int().nonnegative(),
+        candidates: z.number().int().nonnegative(),
+        mutationJsonSha256: z.string().regex(/^[0-9a-f]{64}$/),
+      })
+      .nullable()
+      .default(null),
+    /** A candidate this close (lines, same file) to a dev bug's changed line is redrawn. */
+    overlapLines: z.number().int().nonnegative().default(5),
     variants: z.array(Variant),
+    discards: z.array(VariantDiscard).default([]),
   })
   .superRefine((v, ctx) => {
     if (v.method === 'manual') return;
     if (v.seed === null) {
       ctx.addIssue({ code: 'custom', message: 'seed may be null only when method is "manual"', path: ['seed'] });
     }
+    if (v.stryker === null) {
+      ctx.addIssue({ code: 'custom', message: 'stryker may be null only when method is "manual"', path: ['stryker'] });
+    }
     v.variants.forEach((variant, i) => {
-      if (variant.kind === 'code' && variant.mutator === null) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'mutator may be null only when method is "manual"',
-          path: ['variants', i, 'mutator'],
-        });
+      if (variant.kind !== 'code') return;
+      for (const field of ['mutator', 'strykerMutantId'] as const) {
+        if (variant[field] === null) {
+          ctx.addIssue({ code: 'custom', message: `${field} may be null only when method is "manual"`, path: ['variants', i, field] });
+        }
       }
     });
   });
 
+// ---------------------------------------------------------------------------
+// targets/<name>/evaluation.json — hand-written inputs of `eval variants` (§11.4)
+// ---------------------------------------------------------------------------
+
+export const EvaluationConfig = z.strictObject({
+  schemaVersion: SchemaVersion,
+  seed: z.number().int(),
+  mutate: LayerGlobs,
+  codeVariants: z.strictObject({
+    backend: z.number().int().nonnegative(),
+    frontend: z.number().int().nonnegative(),
+    maxPerFile: z.number().int().positive(),
+  }),
+  /** Per service, a regular expression that marks a failed build in the service's log. */
+  buildErrorPattern: z.strictObject({ backend: z.string().min(1).optional(), frontend: z.string().min(1).optional() }).default({}),
+  environmentFaults: z.array(
+    z.strictObject({
+      id: EnvVariantId,
+      description: z.string().min(1),
+      configOverride: ConfigOverride.optional(),
+      skipSeed: z.boolean().default(false),
+    }),
+  ),
+});
+
+export type EvaluationConfig = z.infer<typeof EvaluationConfig>;
+export type VariantDiscard = z.infer<typeof VariantDiscard>;
+export type CodeVariant = z.infer<typeof CodeVariant>;
 export type Variant = z.infer<typeof Variant>;
 export type Variants = z.infer<typeof Variants>;
 

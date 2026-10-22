@@ -1,0 +1,13 @@
+diff --git a/server/utils/store.js b/server/utils/store.js
+index 4fb8108..8404f0b 100644
+--- a/server/utils/store.js
++++ b/server/utils/store.js
+@@ -50,7 +50,7 @@ exports.caculateTaxAmount = order => {
+       item => item.status === 'Cancelled'
+     );
+ 
+-    if (hasCancelledItems.length > 0) {
++    if (true) {
+       order.total = this.caculateOrderTotal(order);
+     }
+ 

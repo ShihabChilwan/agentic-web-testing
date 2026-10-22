@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/auth.js b/server/routes/api/auth.js
+index 8e1109b..860ba43 100644
+--- a/server/routes/api/auth.js
++++ b/server/routes/api/auth.js
+@@ -106,7 +106,7 @@ router.post('/register', async (req, res) => {
+         .json({ error: 'That email address is already in use.' });
+     }
+ 
+-    let subscribed = false;
++    let subscribed = true;
+     if (isSubscribed) {
+       const result = await mailchimp.subscribeToNewsletter(email);
+ 

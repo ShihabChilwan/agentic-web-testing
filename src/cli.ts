@@ -6,6 +6,7 @@ import { describeExecution, executeRun } from './modules/execution-engine/index.
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
+import { createVariants } from './eval/index.js';
 import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -254,15 +255,39 @@ agent
     }
   });
 
-program
-  .command('eval')
-  .description('Evaluation steps: variants, run, ablation, score, summary')
-  .argument('<step>')
-  .allowUnknownOption()
-  .allowExcessArguments()
-  .action((step: string) => {
-    console.error(`eval ${step}: not implemented yet`);
-    process.exitCode = 1;
+const evaluation = program.command('eval').description('Evaluation steps: variants (run, ablation, score, summary come later)');
+
+evaluation
+  .command('variants')
+  .description('Create the code variants (Stryker mutants) and check the environment faults; writes targets/<name>/variants.json')
+  .requiredOption('--target <name>', 'target under targets/<name>/')
+  .option('--seed <n>', "sampling seed (default: evaluation.json's seed)", (v) => Number.parseInt(v, 10))
+  .option('--list-only', 'stop after listing the candidate mutants')
+  .option('--env-only', 'only check the environment faults (writes nothing to targets/)')
+  .option('--force', 'replace an existing variants.json')
+  .action(async (opts: { target: string; seed?: number; listOnly?: boolean; envOnly?: boolean; force?: boolean }) => {
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const result = await createVariants({
+        target: opts.target,
+        ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
+        ...(opts.listOnly ? { listOnly: true } : {}),
+        ...(opts.envOnly ? { envOnly: true } : {}),
+        ...(opts.force ? { force: true } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      console.log(`work folder: ${result.workDir}`);
+    } catch (err) {
+      console.error(`eval variants failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
   });
 
 await program.parseAsync();

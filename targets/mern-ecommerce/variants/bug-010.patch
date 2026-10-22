@@ -1,0 +1,11 @@
+diff --git a/server/middleware/auth.js b/server/middleware/auth.js
+index 4f94155..80e99cd 100644
+--- a/server/middleware/auth.js
++++ b/server/middleware/auth.js
+@@ -1,5 +1,5 @@
+ const passport = require('passport');
+ 
+-const auth = passport.authenticate('jwt', { session: false });
++const auth = passport.authenticate('jwt', { session: true });
+ 
+ module.exports = auth;

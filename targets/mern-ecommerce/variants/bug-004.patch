@@ -1,0 +1,13 @@
+diff --git a/client/app/containers/Review/reducer.js b/client/app/containers/Review/reducer.js
+index 06df6a1..0dea18d 100644
+--- a/client/app/containers/Review/reducer.js
++++ b/client/app/containers/Review/reducer.js
+@@ -70,7 +70,7 @@ const reviewReducer = (state = initialState, action) => {
+         productReviews: [...state.productReviews, action.payload]
+       };
+     case REMOVE_REVIEW:
+-      const index = state.reviews.findIndex(r => r._id === action.payload);
++      const index = state.reviews.findIndex(r => true);
+       return {
+         ...state,
+         reviews: [

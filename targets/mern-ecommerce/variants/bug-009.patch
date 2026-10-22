@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/product.js b/server/routes/api/product.js
+index 6f89954..18c38af 100644
+--- a/server/routes/api/product.js
++++ b/server/routes/api/product.js
+@@ -356,7 +356,7 @@ router.put(
+         $or: [{ slug }, { sku }]
+       });
+ 
+-      if (foundProduct && foundProduct._id != productId) {
++      if (foundProduct && true) {
+         return res
+           .status(400)
+           .json({ error: 'Sku or slug is already in use.' });
