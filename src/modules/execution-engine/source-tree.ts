@@ -35,12 +35,17 @@ async function run(file: string, args: string[], cwd?: string): Promise<string> 
   }
 }
 
-/** `git rev-parse` of a ref to a full commit id; throws a clear error for an unknown ref. */
+/**
+ * `git rev-parse` of a ref to a full commit id. An unknown ref gives "Unknown ref"; any other git failure
+ * (not a repository, "dubious ownership", ...) carries git's own message.
+ */
 export async function resolveCommit(repoDir: string, ref: string): Promise<string> {
   try {
     return (await execFileAsync('git', ['-C', repoDir, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`])).stdout.trim();
-  } catch {
-    throw new Error(`Unknown ref "${ref}" in ${repoDir}`);
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr?.trim();
+    if (stderr) throw new Error(`Cannot resolve ref "${ref}" in ${repoDir}: ${stderr}`, { cause: err });
+    throw new Error(`Unknown ref "${ref}" in ${repoDir}`, { cause: err });
   }
 }
 

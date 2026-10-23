@@ -408,6 +408,11 @@ describe('build folder', () => {
     expect(dockerfile).toContain('RUN apt-get install -y db');
     expect(dockerfile).toContain('git clone --quiet --branch golden /tmp/target.bundle targets/fake/repo');
     expect(dockerfile).toContain("(cd targets/fake/repo/server && npm ci && sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.lockfile-hash)");
+    expect(dockerfile).toContain('git config --system --add safe.directory /app/targets/fake/repo');
+    const smoke = dockerfile.slice(dockerfile.indexOf('USER node'));
+    expect(smoke).toContain('git -C targets/fake/repo rev-parse --verify --quiet "golden^{commit}"');
+    expect(smoke).toContain('node_modules/.bin/tsx src/cli.ts eval cloud-task --help');
+    expect(smoke.indexOf('RUN git -C')).toBeLessThan(smoke.indexOf('ENTRYPOINT'));
     const entrypoint = await readFile(path.join(outDir, 'image', 'entrypoint.sh'), 'utf8');
     expect(entrypoint).toContain('if ! ( db --fork ); then');
     expect(entrypoint).toContain('node_modules/.bin/tsx src/cli.ts eval cloud-task --results "$RESULTS_DIR" --service-log /tmp/db.log &');

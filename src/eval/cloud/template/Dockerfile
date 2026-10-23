@@ -17,10 +17,13 @@ RUN npm ci --omit=dev \
  && npx playwright install --with-deps chromium \
  && npm cache clean --force
 
-# The target repo at the generation ref, with its services' packages installed once.
+# The target repo at the generation ref, with its services' packages installed once. It belongs to root and the
+# task runs as "node": git refuses a repo owned by another user ("dubious ownership") unless it is marked safe.
+# The task only reads it (source trees are exported to /tmp), so it stays root's and read-only for the task.
 COPY target.bundle /tmp/target.bundle
 RUN git clone --quiet --branch {{generationRef}} /tmp/target.bundle {{repoPath}} \
  && rm /tmp/target.bundle \
+ && git config --system --add safe.directory /app/{{repoPath}} \
 {{installServices}} && npm cache clean --force
 
 COPY app/ ./
@@ -28,4 +31,14 @@ COPY image/ ./image/
 RUN mkdir -p /app/runs && chown node:node /app/runs && chmod +x /app/image/entrypoint.sh
 
 USER node
+
+# Smoke check as the task user: the build fails here instead of every task failing in the cloud.
+# git can read the repo and export the generation ref; the CLI loads; Chromium starts; the run folder is writable.
+RUN git -C {{repoPath}} rev-parse --verify --quiet "{{generationRef}}^{commit}" \
+ && git -C {{repoPath}} archive --format=tar -o /tmp/smoke.tar {{generationRef}} && rm /tmp/smoke.tar \
+ && node_modules/.bin/tsx src/cli.ts eval cloud-task --help > /dev/null \
+ && node -e "require('@playwright/test').chromium.launch().then((b) => b.close())" \
+ && touch /app/runs/.write-check && rm /app/runs/.write-check \
+ && rm -rf /tmp/tsx-*
+
 ENTRYPOINT ["/app/image/entrypoint.sh"]

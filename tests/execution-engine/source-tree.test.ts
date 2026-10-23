@@ -69,5 +69,7 @@ describe('buildSourceTree', () => {
   it('resolveCommit: a branch to its commit, an unknown ref to a clear error', async () => {
     expect(await resolveCommit(repo, 'golden')).toBe(commit);
     await expect(resolveCommit(repo, 'nope')).rejects.toThrow('Unknown ref "nope"');
+    // Any other git failure keeps git's own reason (e.g. "dubious ownership" when the repo belongs to another user).
+    await expect(resolveCommit(path.join(path.dirname(repo), 'missing'), 'golden')).rejects.toThrow(/Cannot resolve ref "golden" in .*missing: fatal: cannot change to/);
   });
 });
