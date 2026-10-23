@@ -26,5 +26,16 @@ $changed = docker diff $name
 Write-Host "Writes outside tmpfs: $(@($changed).Count) paths (first 20 below)"
 $changed | Select-Object -First 20
 docker rm $name | Out-Null
-Write-Host "Peak memory and timings: $ResultsDir\$Repeat\<version>\status.json"
+
+# One line from the task's status.json: outcome, test counts, duration and memory.
+$version = (Get-Content (Join-Path $BuildDir 'image\build.json') -Raw | ConvertFrom-Json).versions[$Index].version
+$statusFile = Join-Path $ResultsDir "$Repeat\$version\status.json"
+if (Test-Path $statusFile) {
+  $st = Get-Content $statusFile -Raw | ConvertFrom-Json
+  $counts = if ($st.summary) { "$($st.summary.passed) passed, $($st.summary.failed) failed, $($st.summary.errored) errored, $($st.summary.skipped) skipped" } else { 'no test results' }
+  $mib = { param($b) if ($null -eq $b) { 'unknown' } else { "$([math]::Round($b / 1MB)) MiB" } }
+  Write-Host "${version}: $($st.outcome), $counts, $([math]::Round($st.durationMs / 1000)) s, peak memory $(& $mib $st.memory.peakBytes) of $(& $mib $st.memory.limitBytes), OOM kills $($st.memory.oomKills)$(if ($st.error) { ", error: $($st.error)" })"
+} else {
+  Write-Host "${version}: no status.json at $statusFile"
+}
 exit $code

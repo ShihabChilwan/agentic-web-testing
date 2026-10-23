@@ -69,7 +69,7 @@ async function build(runDir: string): Promise<CloudBuild> {
 }
 
 /** An image folder (build.json + the suite's run folder), a results folder and an empty runs folder for the task. */
-async function imageSetup(log: string[] = []) {
+async function imageSetup(logLines: string[] = []) {
   const root = await tempDir('cloud-task-');
   const sourceRuns = path.join(root, 'source-runs');
   const runDir = await sourceRun(sourceRuns);
@@ -84,7 +84,7 @@ async function imageSetup(log: string[] = []) {
   await writeFile(path.join(cgroupDir, 'memory.events'), 'low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\n');
   const serviceLog = path.join(root, 'mongod.log');
   await writeFile(serviceLog, '{"msg":"Waiting for connections"}\n');
-  return { root, sourceRuns, imageDir, cgroupDir, serviceLog, resultsDir: path.join(root, 'results'), runsDir: path.join(root, 'runs'), log: (m: string) => log.push(m) };
+  return { root, sourceRuns, imageDir, cgroupDir, serviceLog, resultsDir: path.join(root, 'results'), runsDir: path.join(root, 'runs'), logLines, log: (m: string) => logLines.push(m) };
 }
 
 /** Stands in for executeRun: writes an execution folder and its run.json entry like the real one. */
@@ -94,7 +94,7 @@ function fakeExecute(backendLog = 'GET /api/product/list 200\n', fail = false): 
     const execDir = paths.executionDir(options!.execId!);
     await mkdir(path.join(execDir, 'server'), { recursive: true });
     await writeFile(path.join(execDir, 'server', 'backend.log'), backendLog);
-    await writeFile(path.join(execDir, 'results.json'), JSON.stringify({ execId: options!.execId }));
+    await writeFile(path.join(execDir, 'results.json'), JSON.stringify({ ...example('results.json'), execId: options!.execId }));
     await writeFile(path.join(execDir, 'trace.zip'), 'bug-001 inside a binary the analyzer cannot read');
     await setExecution(paths.dir, {
       execId: options!.execId!,
@@ -170,6 +170,9 @@ describe('cloud task', () => {
       execution: { ref: 'golden', commit: COMMIT, patch: 'targets/fake/variants/bug-001.patch' },
       memory: { peakBytes: 2147483648, limitBytes: 4294967296, oomKills: 0 },
     });
+    const summary = example('results.json').summary;
+    expect(status.summary).toEqual({ total: summary.total, passed: summary.passed, failed: summary.failed, errored: summary.errored, skipped: summary.skipped ?? 0 });
+    expect(s.logLines.at(-1)).toMatch(new RegExp(`^done in \\d+ s; ${summary.passed} passed, ${summary.failed} failed, ${summary.errored} errored, ${summary.skipped ?? 0} skipped; peak memory 2048 MiB of 4096 MiB, OOM kills 0`));
     expect(execFileSync('tar', ['-tzf', path.join(out, 'execution.tar.gz')], { encoding: 'utf8' })).toContain(`${execId}/server/backend.log`);
   });
 
@@ -188,6 +191,7 @@ describe('cloud task', () => {
     expect(await runCloudTask(options)).toBe(1);
     const status = CloudTaskStatus.parse(JSON.parse(await readFile(path.join(s.resultsDir, 'local-1', 'golden', 'status.json'), 'utf8')));
     expect(status).toMatchObject({ outcome: 'failed', error: expect.stringContaining('Health check failed'), memory: { peakBytes: null, limitBytes: null, oomKills: null } });
+    expect(status.summary).toMatchObject({ total: 40, passed: 36 }); // the fake still wrote results.json
     await expect(runCloudTask(options)).rejects.toThrow(/already ran in repeat local-1/);
   });
 });
@@ -223,6 +227,7 @@ describe('entrypoint', () => {
       error: 'eval cloud-task stopped before writing status.json; see the task log (exit code 3)',
       execution: { ref: 'golden', patch: 'targets/fake/variants/bug-001.patch' },
       memory: { peakBytes: 2147483648, limitBytes: 4294967296, oomKills: 0 },
+      summary: null,
     });
     expect(await readdir(path.join(s.resultsDir, 'local-1', 'bug-001'))).toContain('mongod.log');
   });

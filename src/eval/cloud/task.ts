@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { executeRun } from '../../modules/execution-engine/index.js';
 import { PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { readRunManifest, errorSummary } from '../../shared/run-manifest.js';
-import { CloudBuild, CloudTaskStatus } from '../../shared/schemas.js';
+import { CloudBuild, CloudTaskStatus, ExecutionResults } from '../../shared/schemas.js';
 import { taskVersion } from './versions.js';
 
 const execFileAsync = promisify(execFile);
@@ -94,6 +94,7 @@ export async function runCloudTask(options: CloudTaskOptions): Promise<number> {
   for (const file of options.serviceLogs ?? []) await copyFile(file, path.join(outDir, path.basename(file))).catch(() => {});
 
   const entry = (await readRunManifest(paths.runJson).catch(() => null))?.executions.find((e) => e.execId === execId);
+  const results = await readFile(paths.results(execId), 'utf8').then((t) => ExecutionResults.parse(JSON.parse(t)).summary, () => null);
   const status = CloudTaskStatus.parse({
     schemaVersion: '1.0',
     repeatId,
@@ -116,9 +117,11 @@ export async function runCloudTask(options: CloudTaskOptions): Promise<number> {
       ...(version.skipSeed ? { skipSeed: true } : {}),
     },
     memory: await memoryUsage(options.cgroupDir ?? '/sys/fs/cgroup'),
+    summary: results && { total: results.total, passed: results.passed, failed: results.failed, errored: results.errored, skipped: results.skipped },
   });
   await writeFile(path.join(outDir, 'status.json'), `${JSON.stringify(status, null, 2)}\n`);
   const mib = (b: number | null) => (b === null ? 'unknown' : `${Math.round(b / 1024 / 1024)} MiB`);
-  log(`${status.outcome} in ${Math.round(status.durationMs / 1000)} s; peak memory ${mib(status.memory.peakBytes)} of ${mib(status.memory.limitBytes)}, OOM kills ${status.memory.oomKills ?? 'unknown'}; results in ${outDir}`);
+  const counts = status.summary ? `${status.summary.passed} passed, ${status.summary.failed} failed, ${status.summary.errored} errored, ${status.summary.skipped} skipped; ` : '';
+  log(`${status.outcome} in ${Math.round(status.durationMs / 1000)} s; ${counts}peak memory ${mib(status.memory.peakBytes)} of ${mib(status.memory.limitBytes)}, OOM kills ${status.memory.oomKills ?? 'unknown'}; results in ${outDir}`);
   return status.outcome === 'done' ? 0 : 1;
 }

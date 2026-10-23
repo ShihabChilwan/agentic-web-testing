@@ -68,6 +68,7 @@ const status = {
     ...(version.skipSeed ? { skipSeed: true } : {}),
   },
   memory: { peakBytes: number(path.join(cgroup, 'memory.peak')), limitBytes: number(path.join(cgroup, 'memory.max')), oomKills },
+  summary: null,
 };
 fs.writeFileSync(path.join(outDir, 'status.json'), `${JSON.stringify(status, null, 2)}\n`);
 console.error(`fallback-status: wrote ${path.join(outDir, 'status.json')}: ${status.error}`);

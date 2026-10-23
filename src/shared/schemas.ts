@@ -1054,6 +1054,17 @@ export const CloudTaskStatus = z.strictObject({
     limitBytes: z.number().int().nonnegative().nullable(),
     oomKills: z.number().int().nonnegative().nullable(),
   }),
+  /** Counts from the execution's results.json; null when it wrote none (absent in files written before it was added). */
+  summary: z
+    .strictObject({
+      total: z.number().int().nonnegative(),
+      passed: z.number().int().nonnegative(),
+      failed: z.number().int().nonnegative(),
+      errored: z.number().int().nonnegative(),
+      skipped: z.number().int().nonnegative(),
+    })
+    .nullable()
+    .default(null),
 }).refine((s) => s.execId !== null || s.outcome === 'failed', { message: 'execId may be null only for a failed task', path: ['execId'] });
 
 export const EvalMapping = z.strictObject({
