@@ -6,7 +6,7 @@ import { describeExecution, executeRun } from './modules/execution-engine/index.
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
-import { createVariants } from './eval/index.js';
+import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
 import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -255,7 +255,7 @@ agent
     }
   });
 
-const evaluation = program.command('eval').description('Evaluation steps: variants (run, ablation, score, summary come later)');
+const evaluation = program.command('eval').description('Evaluation steps: variants, cloud-context, cloud-task, import (run, ablation, score, summary come later)');
 
 evaluation
   .command('variants')
@@ -287,6 +287,50 @@ evaluation
     } catch (err) {
       console.error(`eval variants failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+evaluation
+  .command('cloud-context')
+  .description('Write build/cloud/: the Docker build folder for the executor image (one target, one run\'s suite)')
+  .requiredOption('--target <name>', 'target under targets/<name>/')
+  .requiredOption('--run <runId>', 'run whose scripts the image executes')
+  .action(async (opts: { target: string; run: string }) => {
+    try {
+      const { outDir, build } = await createCloudContext({ target: opts.target, runId: opts.run, log: (m) => console.log(m) });
+      console.log(`build folder: ${outDir}`);
+      console.log(`image tag: ${build.imageTag} (${build.versions.length} versions: task index 0 = ${build.versions[0]!.version})`);
+    } catch (err) {
+      console.error(`eval cloud-context failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+evaluation
+  .command('cloud-task')
+  .description('Inside the executor image: run the version of CLOUD_RUN_TASK_INDEX and save its results')
+  .option('--results <dir>', 'results folder (the bucket mount)', '/mnt/results')
+  .option('--service-log <file...>', 'service logs to save next to status.json')
+  .action(async (opts: { results: string; serviceLog?: string[] }) => {
+    try {
+      process.exitCode = await runCloudTask({ resultsDir: opts.results, serviceLogs: opts.serviceLog ?? [] });
+    } catch (err) {
+      console.error(`eval cloud-task failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+evaluation
+  .command('import')
+  .description('Turn one repeat\'s downloaded task results into a new local run (executions with opaque ids)')
+  .requiredOption('--from <dir>', 'the repeat\'s folder, e.g. runs/cloud/<repeat-id>')
+  .action(async (opts: { from: string }) => {
+    try {
+      const { runId, mapping } = await importRepeat({ from: path.resolve(opts.from), log: (m) => console.log(m) });
+      console.log(`run: ${runId} (${mapping.versions.length} executions; mapping in runs/${runId}/eval/mapping.json)`);
+    } catch (err) {
+      console.error(`eval import failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
     }
   });
 

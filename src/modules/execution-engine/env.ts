@@ -3,8 +3,11 @@ import type { ConfigOverride, TargetConfig } from '../../shared/schemas.js';
 export type Env = Record<string, string>;
 export type ServiceName = 'backend' | 'frontend';
 
-/** The only variables child processes inherit from the pipeline (which holds LLM keys in its env). */
-const INHERITED = ['PATH', 'HOME'] as const;
+/**
+ * The only variables child processes inherit from the pipeline (which holds LLM keys in its env).
+ * PLAYWRIGHT_BROWSERS_PATH: where Chromium is installed when not under HOME (the executor image, SPEC §11.7).
+ */
+const INHERITED = ['PATH', 'HOME', 'PLAYWRIGHT_BROWSERS_PATH'] as const;
 
 export function baseEnv(parent: NodeJS.ProcessEnv = process.env): Env {
   const env: Env = {};

@@ -822,6 +822,8 @@ export const RunExecution = z.object({
   /** The patch applied on top of the ref (relative to the project root); used only to build the source tree. */
   patch: z.string().min(1).optional(),
   skipSeed: z.boolean().optional(),
+  /** Values merged over the target config for this execution (environment variants). */
+  configOverride: ConfigOverride.optional(),
   executeStatus: ExecutionStepStatus,
   analyzeStatus: ExecutionStepStatus,
   /** Why the execution or its analysis failed. No secrets. */
@@ -977,9 +979,104 @@ export const EvaluationConfig = z.strictObject({
       skipSeed: z.boolean().default(false),
     }),
   ),
+  /** The executor image (§11.7): what differs from the dev container. */
+  cloud: z
+    .strictObject({
+      /** Text replaced in every string of the target config and the fault overrides (e.g. a database host). */
+      replace: z.record(z.string().min(1), z.string()).default({}),
+      /** Shell commands run as root while building the image (e.g. installing the database). */
+      imageSetup: z.string().default(''),
+      /** Shell commands run at task start, before the execution (e.g. starting the database). */
+      startServices: z.string().default(''),
+      /** Logs of those services, saved next to the task's status.json (never inside the execution folder). */
+      serviceLogs: z.array(z.string().min(1)).default([]),
+    })
+    .optional(),
 });
 
 export type EvaluationConfig = z.infer<typeof EvaluationConfig>;
+
+// ---------------------------------------------------------------------------
+// Cloud executor (§11.7): image/build.json, <repeat>/<version>/status.json, eval/mapping.json
+// ---------------------------------------------------------------------------
+
+export const VersionId = z.union([z.literal('golden'), CodeVariantId, EnvVariantId]);
+
+export const CloudVersion = z.strictObject({
+  version: VersionId,
+  /** Relative to the project root. */
+  patch: RelPath.optional(),
+  configOverride: ConfigOverride.optional(),
+  skipSeed: z.boolean().default(false),
+});
+
+export const CloudBuild = z.strictObject({
+  schemaVersion: SchemaVersion,
+  target: z.string().min(1),
+  sourceRunId: z.string().min(1),
+  generationRef: z.string().min(1),
+  goldenCommit: CommitSha,
+  frameworkCommit: CommitSha,
+  suiteHash: z.string().regex(/^[0-9a-f]{64}$/),
+  imageTag: z.string().min(1),
+  createdAt: Timestamp,
+  replace: z.record(z.string(), z.string()),
+  /** Task index = position in this list. */
+  versions: z.array(CloudVersion).min(1),
+});
+
+export const CloudTaskStatus = z.strictObject({
+  schemaVersion: SchemaVersion,
+  repeatId: z.string().min(1),
+  taskIndex: z.number().int().nonnegative(),
+  version: VersionId,
+  execId: ExecId,
+  imageTag: z.string().min(1),
+  sourceRunId: z.string().min(1),
+  suiteHash: z.string().regex(/^[0-9a-f]{64}$/),
+  startedAt: Timestamp,
+  finishedAt: Timestamp,
+  durationMs: z.number().int().nonnegative(),
+  outcome: z.enum(['done', 'failed']),
+  error: z.string().optional(),
+  /** The run.json entry of the execution, without its statuses. */
+  execution: z.strictObject({
+    ref: z.string().min(1),
+    commit: CommitSha.optional(),
+    patch: RelPath.optional(),
+    configOverride: ConfigOverride.optional(),
+    skipSeed: z.boolean().optional(),
+  }),
+  /** From the container's cgroup; null where it cannot be read. */
+  memory: z.strictObject({
+    peakBytes: z.number().int().nonnegative().nullable(),
+    limitBytes: z.number().int().nonnegative().nullable(),
+    oomKills: z.number().int().nonnegative().nullable(),
+  }),
+});
+
+export const EvalMapping = z.strictObject({
+  schemaVersion: SchemaVersion,
+  repeatId: z.string().min(1),
+  sourceRunId: z.string().min(1),
+  imageTag: z.string().min(1),
+  suiteHash: z.string().regex(/^[0-9a-f]{64}$/),
+  importedAt: Timestamp,
+  versions: z.array(
+    z.strictObject({
+      version: VersionId,
+      execId: ExecId,
+      outcome: z.enum(['done', 'failed']),
+      durationMs: z.number().int().nonnegative(),
+      peakMemoryBytes: z.number().int().nonnegative().nullable(),
+    }),
+  ),
+});
+
+export type CloudVersion = z.infer<typeof CloudVersion>;
+export type CloudBuild = z.infer<typeof CloudBuild>;
+export type CloudTaskStatus = z.infer<typeof CloudTaskStatus>;
+export type EvalMapping = z.infer<typeof EvalMapping>;
 export type VariantDiscard = z.infer<typeof VariantDiscard>;
 export type CodeVariant = z.infer<typeof CodeVariant>;
 export type Variant = z.infer<typeof Variant>;

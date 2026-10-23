@@ -87,6 +87,11 @@ export async function makeFixture() {
 
   const runsDir = path.join(root, 'runs');
   const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });
+  // The evaluation's mapping and downloaded task results (SPEC §11.7): never readable by the analyzer.
+  await mkdir(paths.evalDir, { recursive: true });
+  await writeFile(path.join(paths.evalDir, 'mapping.json'), '{"versions":[{"version":"bug-001","execId":"x-04"}]}');
+  await mkdir(path.join(runsDir, 'cloud', 'local-1', 'bug-001'), { recursive: true });
+  await writeFile(path.join(runsDir, 'cloud', 'local-1', 'bug-001', 'status.json'), '{"version":"bug-001","execId":"x-04"}');
   await writeFile(paths.prd, JSON.stringify(example('prd.json')));
   const base = example('testcases.json');
   const titles: Record<string, string> = {

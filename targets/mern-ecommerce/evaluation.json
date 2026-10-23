@@ -14,33 +14,79 @@
       "client/app/utils/validation.js"
     ]
   },
-  "codeVariants": { "backend": 9, "frontend": 3, "maxPerFile": 2 },
-  "buildErrorPattern": { "frontend": "Failed to compile" },
+  "codeVariants": {
+    "backend": 9,
+    "frontend": 3,
+    "maxPerFile": 2
+  },
+  "buildErrorPattern": {
+    "frontend": "Failed to compile"
+  },
   "environmentFaults": [
     {
       "id": "env-01",
       "description": "The backend's MONGO_URI points to a port where no database listens, so the backend cannot reach the database.",
-      "configOverride": { "backend": { "env": { "MONGO_URI": "mongodb://mongo:27999/mern_ecommerce_test" } } }
+      "configOverride": {
+        "backend": {
+          "env": {
+            "MONGO_URI": "mongodb://mongo:27999/mern_ecommerce_test"
+          }
+        }
+      }
     },
     {
       "id": "env-02",
       "description": "The backend's JWT_SECRET is not set, so the backend fails while starting.",
-      "configOverride": { "backend": { "env": { "JWT_SECRET": null } } }
+      "configOverride": {
+        "backend": {
+          "env": {
+            "JWT_SECRET": null
+          }
+        }
+      }
     },
     {
       "id": "env-03",
       "description": "The frontend's API_URL points to a port where nothing listens, so the browser's API calls are refused.",
-      "configOverride": { "frontend": { "env": { "API_URL": "http://localhost:3999/api" } } }
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "API_URL": "http://localhost:3999/api"
+          }
+        }
+      }
     },
     {
       "id": "env-04",
       "description": "The backend's BASE_API_URL is wrong, so the API is mounted under /v1 and every /api request is not found.",
-      "configOverride": { "backend": { "env": { "BASE_API_URL": "v1" } } }
+      "configOverride": {
+        "backend": {
+          "env": {
+            "BASE_API_URL": "v1"
+          }
+        }
+      }
     },
     {
       "id": "env-05",
       "description": "The frontend's Node.js heap is capped at 32 MB, so the frontend dev server runs out of memory.",
-      "configOverride": { "frontend": { "env": { "NODE_OPTIONS": "--max-old-space-size=32" } } }
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "NODE_OPTIONS": "--max-old-space-size=32"
+          }
+        }
+      }
     }
-  ]
+  ],
+  "cloud": {
+    "replace": {
+      "mongo:": "127.0.0.1:"
+    },
+    "imageSetup": "curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg && echo 'deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main' > /etc/apt/sources.list.d/mongodb-org-7.0.list && apt-get update && apt-get install -y --no-install-recommends mongodb-org-server mongodb-mongosh && rm -rf /var/lib/apt/lists/*",
+    "startServices": "mkdir -p /tmp/mongo && mongod --dbpath /tmp/mongo --bind_ip 127.0.0.1 --port 27017 --wiredTigerCacheSizeGB 0.25 --fork --logpath /tmp/mongod.log --quiet",
+    "serviceLogs": [
+      "/tmp/mongod.log"
+    ]
+  }
 }

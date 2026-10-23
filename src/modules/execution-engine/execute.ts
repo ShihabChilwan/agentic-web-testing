@@ -6,7 +6,7 @@ import path from 'node:path';
 import { PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
 import { ExecutionRequest, ExecutionResults, ScriptManifest, SCHEMA_VERSION, TestCases } from '../../shared/schemas.js';
-import type { RunManifest, SkippedScript, TargetConfig, TestArtifacts, TestResult } from '../../shared/schemas.js';
+import type { ConfigOverride, RunManifest, SkippedScript, TargetConfig, TestArtifacts, TestResult } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { startControlServer } from './control-server.js';
 import { childEnv } from './env.js';
@@ -292,6 +292,8 @@ export interface ExecuteRunOptions {
   /** A unified diff applied on top of the ref for this execution only (any path; recorded relative to the project root). */
   patch?: string;
   skipSeed?: boolean;
+  /** Values merged over the target config for this execution (environment variants, SPEC §11.3). */
+  configOverride?: ConfigOverride;
   /** Default: the next x-NN. */
   execId?: string;
   runsDir?: string;
@@ -332,10 +334,11 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
   if (patch !== undefined && (patch.startsWith('..') || path.isAbsolute(patch))) throw new Error(`The patch must be inside the project: ${options.patch}`);
   const execId = options.execId ?? (await nextExecId(paths.dir, manifest));
   if (manifest.executions.some((e) => e.execId === execId)) throw new Error(`Execution ${execId} is already in run.json; use another --exec-id`);
-  const request: ExecutionRequest = { execId, ref, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}) };
+  const override = options.configOverride ? { configOverride: options.configOverride } : {};
+  const request: ExecutionRequest = { execId, ref, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override };
 
   const { commit, tree } = await sourceTreeFor(config, repoDir, request, projectRoot);
-  const entry = { execId, ref, commit, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), analyzeStatus: 'pending' as const };
+  const entry = { execId, ref, commit, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override, analyzeStatus: 'pending' as const };
   try {
     await setExecution(paths.dir, { ...entry, executeStatus: 'running' });
   } catch (err) {
@@ -357,7 +360,7 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
       ...(options.startApp ? { startApp: options.startApp } : {}),
     });
     await setExecution(paths.dir, { ...entry, executeStatus: 'done' });
-    const atGenerationRef = ref === manifest.generationRef && !patch && !options.skipSeed;
+    const atGenerationRef = ref === manifest.generationRef && !patch && !options.skipSeed && !options.configOverride;
     return { ...result, runId, execId, atGenerationRef };
   } catch (err) {
     const error = options.signal?.aborted ? 'Interrupted' : errorSummary(err);

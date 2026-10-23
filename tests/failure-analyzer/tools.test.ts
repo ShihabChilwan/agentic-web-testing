@@ -126,6 +126,23 @@ describe('analyzer tools', () => {
     }
   });
 
+  it('answer the evaluation mapping and downloaded task results like paths that do not exist', async () => {
+    const pairs: Array<[string, string]> = [
+      [path.join(f.paths.evalDir, 'mapping.json'), path.join(f.paths.evalDir, 'no-such.json')],
+      [path.join(f.runsDir, 'cloud', 'local-1', 'bug-001', 'status.json'), path.join(f.runsDir, 'cloud', 'local-1', 'bug-999', 'status.json')],
+    ];
+    for (const [real, fake] of pairs) {
+      for (const form of [(p: string) => p, (p: string) => path.relative(tree.dir, p)]) {
+        for (const tool of ['read_file', 'list_files'] as const) {
+          const out = (input: string) => call(tool, { path: input }).then((o) => o.replace(input, '<path>'));
+          expect(await out(form(real)), `${tool} ${form(real)}`).toBe(await out(form(fake)));
+          expect(await out(form(real))).toMatch(/^Error/);
+        }
+      }
+    }
+    expect(await call('search_code', { pattern: 'execId' })).toBe('No matches.');
+  });
+
   it('the tree has no .git, and no tool output names the ref, commit, patch, other executions or the tree folder', async () => {
     expect(await call('list_files', { path: '.', depth: 3 })).not.toMatch(/\.git\b/);
     const outputs = [

@@ -61,9 +61,10 @@ describe('env', () => {
     expect(serviceEnv(config, 'frontend')).toEqual({ API_URL: 'http://localhost:3000/api' });
   });
 
-  it('passes only PATH and HOME from the parent to children', () => {
+  it('passes only PATH, HOME and PLAYWRIGHT_BROWSERS_PATH from the parent to children', () => {
     const parent = { PATH: '/bin', HOME: '/home/x', LLM_API_KEY: 'secret', AWS_ACCESS_KEY_ID: 'real' };
     expect(childEnv({ PORT: '1' }, parent)).toEqual({ PATH: '/bin', HOME: '/home/x', PORT: '1' });
+    expect(childEnv({}, { ...parent, PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright' })).toEqual({ PATH: '/bin', HOME: '/home/x', PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright' });
   });
 
   it('applyOverride does not change its input', () => {
