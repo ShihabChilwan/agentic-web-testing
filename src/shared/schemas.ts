@@ -1030,7 +1030,8 @@ export const CloudTaskStatus = z.strictObject({
   repeatId: z.string().min(1),
   taskIndex: z.number().int().nonnegative(),
   version: VersionId,
-  execId: ExecId,
+  /** null only when the task failed before it could run (status written by the entrypoint's fallback). */
+  execId: ExecId.nullable(),
   imageTag: z.string().min(1),
   sourceRunId: z.string().min(1),
   suiteHash: z.string().regex(/^[0-9a-f]{64}$/),
@@ -1053,7 +1054,7 @@ export const CloudTaskStatus = z.strictObject({
     limitBytes: z.number().int().nonnegative().nullable(),
     oomKills: z.number().int().nonnegative().nullable(),
   }),
-});
+}).refine((s) => s.execId !== null || s.outcome === 'failed', { message: 'execId may be null only for a failed task', path: ['execId'] });
 
 export const EvalMapping = z.strictObject({
   schemaVersion: SchemaVersion,
@@ -1065,7 +1066,8 @@ export const EvalMapping = z.strictObject({
   versions: z.array(
     z.strictObject({
       version: VersionId,
-      execId: ExecId,
+      /** null: the task failed before it ran, so there is no execution. */
+      execId: ExecId.nullable(),
       outcome: z.enum(['done', 'failed']),
       durationMs: z.number().int().nonnegative(),
       peakMemoryBytes: z.number().int().nonnegative().nullable(),

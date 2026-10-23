@@ -6,4 +6,5 @@ targets/*/repo/
 reports/
 .stryker-tmp/
 playwright-report/
-test-results/build/
+test-results/
+build/

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -29,6 +30,8 @@ export interface CloudContextOptions {
   projectRoot?: string;
   runsDir?: string;
   targetsDir?: string;
+  /** Install production dependencies in a temp folder and load the task's CLI there (default true; off in unit tests). */
+  checkInstall?: boolean;
   log?: (message: string) => void;
 }
 
@@ -73,6 +76,42 @@ function installLines(config: TargetConfig): string {
     .map((s) => ` && (cd ${path.posix.join(config.repoPath, s.cwd)} && ${s.install} && sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.lockfile-hash) \\\n`)
     .join('');
 }
+
+/**
+ * Installs only production dependencies (as the image does) into a temporary copy of `appDir` and loads the
+ * task's CLI there. A package that src/ needs at run time but that is a devDependency fails here, not in the cloud.
+ */
+export async function checkProductionInstall(appDir: string): Promise<void> {
+  const dir = await mkdtemp(path.join(tmpdir(), 'awt-prod-'));
+  const env = { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '' };
+  try {
+    await cp(appDir, dir, { recursive: true });
+    const step = async (what: string, file: string, args: string[]) => {
+      try {
+        await execFileAsync(file, args, { cwd: dir, env, maxBuffer: 50 * 1024 * 1024, timeout: 10 * 60_000 });
+      } catch (err) {
+        const { stderr = '', stdout = '' } = err as { stderr?: string; stdout?: string };
+        throw new Error(`${what} failed with production dependencies only:\n${(stderr || stdout).trim().split('\n').slice(0, 15).join('\n')}`, { cause: err });
+      }
+    };
+    await step('npm ci --omit=dev', 'npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund']);
+    await step('Loading the CLI (eval cloud-task --help)', path.join(dir, 'node_modules', '.bin', 'tsx'), ['src/cli.ts', 'eval', 'cloud-task', '--help']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/** The image's entrypoint.sh for the target's `cloud` settings. */
+export async function renderEntrypoint(cloud: Pick<NonNullable<EvaluationConfig['cloud']>, 'startServices' | 'serviceLogs'>): Promise<string> {
+  return fill(await readFile(path.join(TEMPLATE_DIR, 'entrypoint.sh'), 'utf8'), {
+    startServices: cloud.startServices || 'true',
+    serviceLogs: cloud.serviceLogs.map((f) => `--service-log ${f}`).join(' '),
+    serviceLogFiles: cloud.serviceLogs.join(' '),
+  });
+}
+
+/** Path of the plain-Node fallback that writes status.json when the task cannot (copied into the image). */
+export const FALLBACK_STATUS_SCRIPT = path.join(TEMPLATE_DIR, 'fallback-status.cjs');
 
 export interface CloudContextResult {
   outDir: string;
@@ -162,15 +201,19 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
       installServices: installLines(config),
     }),
   );
-  await writeFile(
-    path.join(imageDir, 'entrypoint.sh'),
-    fill(await template('entrypoint.sh'), {
-      startServices: cloud.startServices || 'true',
-      serviceLogs: cloud.serviceLogs.map((f) => `--service-log ${f}`).join(' '),
-    }),
-    { mode: 0o755 },
-  );
+  await writeFile(path.join(imageDir, 'entrypoint.sh'), await renderEntrypoint(cloud), { mode: 0o755 });
+  await cp(FALLBACK_STATUS_SCRIPT, path.join(imageDir, 'fallback-status.cjs'));
   await writeFile(path.join(outDir, '.dockerignore'), await template('dockerignore'));
+
+  if (options.checkInstall ?? true) {
+    log('Checking that the CLI loads with production dependencies only (npm ci --omit=dev in a temp folder)...');
+    try {
+      await checkProductionInstall(appDir);
+    } catch (err) {
+      await rm(outDir, { recursive: true, force: true });
+      throw err;
+    }
+  }
 
   const secrets = await findSecrets(outDir);
   if (secrets.length > 0) {

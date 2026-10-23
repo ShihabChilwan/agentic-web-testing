@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createCloudContext, findSecrets, replaceDeep } from '../../src/eval/cloud/context.js';
+import { createCloudContext, FALLBACK_STATUS_SCRIPT, findSecrets, renderEntrypoint, replaceDeep } from '../../src/eval/cloud/context.js';
 import { importRepeat } from '../../src/eval/cloud/import.js';
 import { findLeaks } from '../../src/eval/cloud/leaks.js';
 import { suiteHash } from '../../src/eval/cloud/suite.js';
@@ -192,6 +192,69 @@ describe('cloud task', () => {
   });
 });
 
+describe('entrypoint', () => {
+  /** An app folder like /app in the image: build.json, the fallback script and a stand-in for tsx that runs `task`. */
+  async function app(task: string, startServices = 'true') {
+    const s = await imageSetup();
+    const appDir = path.join(s.root, 'app');
+    await mkdir(path.join(appDir, 'image'), { recursive: true });
+    await mkdir(path.join(appDir, 'node_modules', '.bin'), { recursive: true });
+    await cp(path.join(s.imageDir, 'build.json'), path.join(appDir, 'image', 'build.json'));
+    await cp(FALLBACK_STATUS_SCRIPT, path.join(appDir, 'image', 'fallback-status.cjs'));
+    await writeFile(path.join(appDir, 'node_modules', '.bin', 'tsx'), `#!/bin/sh\n${task}\n`, { mode: 0o755 });
+    await writeFile(path.join(appDir, 'entrypoint.sh'), await renderEntrypoint({ startServices, serviceLogs: [s.serviceLog] }), { mode: 0o755 });
+    const run = () =>
+      spawnSync('sh', [path.join(appDir, 'entrypoint.sh')], {
+        env: { PATH: process.env.PATH, APP_DIR: appDir, RESULTS_DIR: s.resultsDir, CGROUP_DIR: s.cgroupDir, CLOUD_RUN_TASK_INDEX: '1', CLOUD_RUN_EXECUTION: 'local-1' },
+        encoding: 'utf8',
+      });
+    const status = async () => CloudTaskStatus.parse(JSON.parse(await readFile(path.join(s.resultsDir, 'local-1', 'bug-001', 'status.json'), 'utf8')));
+    return { s, run, status };
+  }
+
+  it('writes a failed status.json when the task crashes before writing its own (e.g. a missing module)', async () => {
+    const { s, run, status } = await app("echo \"Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'typescript'\" >&2; exit 3");
+    const result = run();
+    expect(result.status).toBe(3);
+    expect(await status()).toMatchObject({
+      version: 'bug-001',
+      execId: null,
+      outcome: 'failed',
+      error: 'eval cloud-task stopped before writing status.json; see the task log (exit code 3)',
+      execution: { ref: 'golden', patch: 'targets/fake/variants/bug-001.patch' },
+      memory: { peakBytes: 2147483648, limitBytes: 4294967296, oomKills: 0 },
+    });
+    expect(await readdir(path.join(s.resultsDir, 'local-1', 'bug-001'))).toContain('mongod.log');
+  });
+
+  it('writes a failed status.json when the services do not start, without running the task', async () => {
+    const { run, status } = await app('echo ran > "$RESULTS_DIR/ran"; exit 0', 'false');
+    expect(run().status).toBe(1);
+    expect((await status()).error).toBe("The target's services did not start; see the task log (exit code 1)");
+  });
+
+  it("keeps the task's own status.json and exit code", async () => {
+    const own = JSON.stringify({ own: true });
+    const { s, run } = await app(`mkdir -p "$RESULTS_DIR/local-1/bug-001" && echo '${own}' > "$RESULTS_DIR/local-1/bug-001/status.json"; exit 1`);
+    expect(run().status).toBe(1);
+    expect(JSON.parse(await readFile(path.join(s.resultsDir, 'local-1', 'bug-001', 'status.json'), 'utf8'))).toEqual({ own: true });
+    const ok = await app('exit 0');
+    expect(ok.run().status).toBe(0);
+    expect(await stat(path.join(ok.s.resultsDir, 'local-1')).then(() => true, () => false)).toBe(false);
+  });
+
+  it('an import lists a task that never ran without an execution', async () => {
+    const { s, run } = await app('exit 3');
+    run();
+    for (const index of [0, 2]) {
+      await runCloudTask({ resultsDir: s.resultsDir, imageDir: s.imageDir, runsDir: s.runsDir, projectRoot: s.root, env: { CLOUD_RUN_TASK_INDEX: String(index), CLOUD_RUN_EXECUTION: 'local-1' }, cgroupDir: s.cgroupDir, execute: fakeExecute(), log: s.log });
+    }
+    const { runId, mapping } = await importRepeat({ from: path.join(s.resultsDir, 'local-1'), runsDir: s.sourceRuns });
+    expect(mapping.versions.find((v) => v.version === 'bug-001')).toMatchObject({ execId: null, outcome: 'failed' });
+    expect((await readRunManifest(runPaths(runId, s.sourceRuns).runJson)).executions).toHaveLength(2);
+  });
+});
+
 describe('import', () => {
   async function runRepeat(s: Awaited<ReturnType<typeof imageSetup>>, repeat: string, logFor: (index: number) => string = () => 'ok\n') {
     for (const index of [0, 1, 2]) {
@@ -328,7 +391,7 @@ describe('build folder', () => {
     await writeFile(path.join(runDir, 'run.json'), JSON.stringify({ ...manifest(), generationCommit: golden, executions: [{ execId: 'x-01', ref: 'golden', commit: golden, executeStatus: 'done', analyzeStatus: 'pending' }] }));
 
     const outDir = path.join(root, 'build', 'cloud');
-    const options = { target: 'fake', runId: SOURCE_RUN, outDir, projectRoot: root, runsDir, targetsDir: path.join(root, 'targets') };
+    const options = { target: 'fake', runId: SOURCE_RUN, outDir, projectRoot: root, runsDir, targetsDir: path.join(root, 'targets'), checkInstall: false };
     const { build: b } = await createCloudContext(options);
 
     const app = execFileSync('find', ['.', '-type', 'f'], { cwd: path.join(outDir, 'app'), encoding: 'utf8' }).split('\n').filter(Boolean).sort();
@@ -345,7 +408,10 @@ describe('build folder', () => {
     expect(dockerfile).toContain('RUN apt-get install -y db');
     expect(dockerfile).toContain('git clone --quiet --branch golden /tmp/target.bundle targets/fake/repo');
     expect(dockerfile).toContain("(cd targets/fake/repo/server && npm ci && sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.lockfile-hash)");
-    expect(await readFile(path.join(outDir, 'image', 'entrypoint.sh'), 'utf8')).toContain('db --fork\nexec node_modules/.bin/tsx src/cli.ts eval cloud-task --results "${RESULTS_DIR:-/mnt/results}" --service-log /tmp/db.log');
+    const entrypoint = await readFile(path.join(outDir, 'image', 'entrypoint.sh'), 'utf8');
+    expect(entrypoint).toContain('if ! ( db --fork ); then');
+    expect(entrypoint).toContain('node_modules/.bin/tsx src/cli.ts eval cloud-task --results "$RESULTS_DIR" --service-log /tmp/db.log &');
+    expect(await stat(path.join(outDir, 'image', 'fallback-status.cjs'))).toBeTruthy();
     expect(execFileSync('git', ['bundle', 'list-heads', path.join(outDir, 'target.bundle')], { encoding: 'utf8' })).toContain(`${golden} refs/heads/golden`);
 
     // Refused: uncommitted changes, and anything that looks like a key.

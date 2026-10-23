@@ -48,7 +48,7 @@ export async function importRepeat(options: ImportRepeatOptions): Promise<Import
       if (s[key] !== first[key]) throw new Error(`Results mix ${key}s: ${first[key]} (${first.version}) and ${s[key]} (${s.version})`);
     }
   }
-  const execIds = statuses.map((s) => s.execId);
+  const execIds = statuses.flatMap((s) => (s.execId === null ? [] : [s.execId]));
   if (new Set(execIds).size !== execIds.length) throw new Error(`Two versions share an execution id: ${execIds.join(', ')}`);
 
   const source = runPaths(first.sourceRunId, runsDir);
@@ -68,24 +68,29 @@ export async function importRepeat(options: ImportRepeatOptions): Promise<Import
     await cp(source.scriptsDir, paths.scriptsDir, { recursive: true });
 
     for (const s of statuses) {
+      if (s.execId === null) {
+        log(`${s.version}: failed before it ran, no execution (${s.error ?? 'no error recorded'})`);
+        continue;
+      }
+      const execId = s.execId;
       const tarball = path.join(options.from, s.version, 'execution.tar.gz');
       if (await stat(tarball).then(() => true, () => false)) {
         await mkdir(path.join(paths.dir, 'executions'), { recursive: true });
         await execFileAsync('tar', ['-xzf', tarball, '-C', path.join(paths.dir, 'executions')]);
-        const leaks = await findLeaks(paths.executionDir(s.execId));
+        const leaks = await findLeaks(paths.executionDir(execId));
         if (leaks.length > 0) {
-          throw new Error(`${s.execId} would show the analyzer what it ran: ${leaks.map((l) => `${l.file}:${l.line} "${l.match}"`).join('; ')}`);
+          throw new Error(`${execId} would show the analyzer what it ran: ${leaks.map((l) => `${l.file}:${l.line} "${l.match}"`).join('; ')}`);
         }
       }
       await setExecution(paths.dir, {
-        execId: s.execId,
+        execId,
         ...s.execution,
         commit: s.execution.commit ?? manifest.generationCommit,
         executeStatus: s.outcome === 'done' ? 'done' : 'failed',
         analyzeStatus: 'pending',
         ...(s.error ? { error: s.error } : {}),
       });
-      log(`${s.execId}: ${s.outcome}${s.error ? ` (${s.error})` : ''}`);
+      log(`${execId}: ${s.outcome}${s.error ? ` (${s.error})` : ''}`);
     }
 
     const mapping = EvalMapping.parse({
