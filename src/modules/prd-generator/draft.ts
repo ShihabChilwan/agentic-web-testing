@@ -7,6 +7,7 @@ import type { AgentTool, SubmitSpec } from '../../agent/types.js';
 import { PrdApiEndpoint, PrdFeature, PrdRequirement, PrdUiRoute } from '../../shared/schemas.js';
 import type { Evidence, Prd } from '../../shared/schemas.js';
 import { MAX_BATCH_ITEMS } from './prompt.js';
+import { templateMatches, textPaths } from '../../shared/route-paths.js';
 
 type Feature = z.infer<typeof PrdFeature>;
 type Endpoint = z.infer<typeof PrdApiEndpoint>;
@@ -218,47 +219,44 @@ export class PrdDraft {
   }
 }
 
-/** A path as a template: parameter segments (":id", "{id}", "<id>", "${id}") all become ":". */
-export function pathTemplate(p: string): string {
-  return p
-    .split('?')[0]!
-    .replace(/\/+$/, '')
-    .split('/')
-    .map((seg) => (/^(:\w+|\{\w+\}|<[^>]+>|\$\{[^}]+\})$/.test(seg) ? ':' : seg))
-    .join('/');
-}
-
-/** The paths a text mentions ("GET /api/items/:id returns …" → ["/api/items/:id"]). */
-function mentionedPaths(text: string): string[] {
-  return [...text.matchAll(/\/[A-Za-z0-9_:\-<>{}$./]*/g)].map((m) => pathTemplate(m[0].replace(/[.,:;]+$/, '')));
-}
-
 /** How many items of each kind the draft holds, to tell what a later round added. */
 export function draftCounts(draft: PrdDraft) {
   return { features: draft.features.length, apiEndpoints: draft.apiEndpoints.length, uiRoutes: draft.uiRoutes.length, requirements: draft.requirements.length };
 }
 
+/** Whether any requirement's statement or criterion names a path that fits this route template. */
+function named(draft: PrdDraft, template: string): boolean {
+  const paths = textPaths(draft.requirements.flatMap((r) => [r.statement, ...r.acceptanceCriteria.map((c) => c.text)]));
+  return paths.some((p) => templateMatches(template, p));
+}
+
 /**
- * Endpoints and pages added since `before` that no requirement names: a route without a requirement gets no test
- * case (test cases are written per requirement), so the completeness round must describe each one it adds.
+ * Endpoints added since `before`, and every page route (a catch-all excepted), that no requirement names: test cases
+ * are written per requirement, so a route without one gets no test, and a page is only opened by a ui test case
+ * whose requirement names it (SPEC §4, §5).
  */
 export function uncitedAdditions(draft: PrdDraft, before: ReturnType<typeof draftCounts>): string[] {
-  const named = new Set(draft.requirements.flatMap((r) => [r.statement, ...r.acceptanceCriteria.map((c) => c.text)]).flatMap(mentionedPaths));
   const problems: string[] = [];
   for (const e of draft.apiEndpoints.slice(before.apiEndpoints)) {
-    if (!named.has(pathTemplate(e.path))) problems.push(`${e.method} ${e.path} was added but no requirement names it; add a requirement whose statement or a criterion contains ${e.path}`);
+    if (!named(draft, e.path)) problems.push(`${e.method} ${e.path} was added but no requirement names it; add a requirement whose statement or a criterion contains ${e.path}`);
   }
-  for (const r of draft.uiRoutes.slice(before.uiRoutes)) {
-    if (!named.has(pathTemplate(r.path))) problems.push(`The page ${r.path} was added but no requirement names it; add a requirement whose statement or a criterion contains ${r.path}`);
+  for (const r of draft.uiRoutes) {
+    if (r.path.includes('*') || named(draft, r.path)) continue;
+    problems.push(`No requirement names the page ${r.path}; add a requirement for what it shows whose statement or a criterion contains ${r.path}`);
   }
   return problems;
 }
 
-/** finish_completeness: accepted when every endpoint and page added in the round is named by a requirement. */
+/** The recorded pages that no requirement names yet (shown in the completeness round's task). */
+export function unnamedPages(draft: PrdDraft): string[] {
+  return draft.uiRoutes.map((r) => r.path).filter((p) => !p.includes('*') && !named(draft, p));
+}
+
+/** finish_completeness: accepted when every endpoint added in the round, and every page, is named by a requirement. */
 export function createCompletenessSubmit(draft: PrdDraft, before: ReturnType<typeof draftCounts>): SubmitSpec<CompletenessInput> {
   return {
     name: 'finish_completeness',
-    description: 'Finish the completeness check. Every endpoint and page you added must be named by a requirement.',
+    description: 'Finish the completeness check. Every endpoint you added, and every page, must be named by a requirement.',
     schema: CompletenessInput,
     validate: () => listProblems(uncitedAdditions(draft, before)),
   };

@@ -247,6 +247,10 @@ export interface FeatureTaskInput {
   gapRound?: boolean;
   /** Gap round only: the problems of the failed first session's last submit. */
   previousProblems?: string[];
+  /** The PRD's page routes; a ui test case names the page it opens by one of these paths. */
+  pages?: Prd['uiRoutes'];
+  /** Set for the page round: pages no test case opens yet, which these requirements name. */
+  pageRound?: string[];
 }
 
 /** The user message for one feature session. */
@@ -262,9 +266,11 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
     .join('\n');
   const disabled = Object.keys(config.backend.disabledServices);
   const parts = [
-    input.gapRound
-      ? `These requirements of feature ${feature.id} got no test case and no decline yet. Write test cases for them, or decline each one you cannot test.`
-      : `Write test cases for feature ${feature.id}.`,
+    input.pageRound
+      ? `No test case opens these pages yet: ${input.pageRound.join(', ')}. Write ui test cases for the requirements below that open them (name the page by its path in a step, e.g. "Open ${input.pageRound[0]}") and check what the page shows, or decline a requirement whose page cannot be tested.`
+      : input.gapRound
+        ? `These requirements of feature ${feature.id} got no test case and no decline yet. Write test cases for them, or decline each one you cannot test.`
+        : `Write test cases for feature ${feature.id}.`,
     `Feature ${feature.id}: ${feature.name}. ${feature.description}`,
     `## Requirements (write test cases only for these)\n${reqText}`,
     `## Limits\nAt most ${quota} test cases in this submission, and at most 4 per requirement.`,
@@ -281,6 +287,12 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
     ].join('\n'),
     `## Code that implements these requirements, and the files it imports\n${evidence.blocks.map(render).join('\n\n') || '(none could be read)'}`,
   ];
+  const pages = (input.pages ?? []).filter((p) => !p.path.includes('*')); // a catch-all cannot be opened
+  if (pages.length > 0) {
+    parts.push(
+      `## Pages of the frontend\nA ui test case names the page it opens by its path from this list, in a step such as "Open /path" (with the real value for a parameter such as :id).\n${pages.map((p) => `- ${p.path}${p.authRequired ? ' (login required)' : ''}: ${p.summary.length > 80 ? `${p.summary.slice(0, 79)}…` : p.summary}`).join('\n')}`,
+    );
+  }
   if (input.endpoints && input.endpoints.length > 0) {
     parts.push(
       `## Endpoints you may use in steps to set up data\nAny of these may be called to create or prepare data (a setup step). Expected values still have to come from the code, fixtures or observed facts.\n${renderEndpointIndex(input.endpoints)}`,

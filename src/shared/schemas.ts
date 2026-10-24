@@ -400,12 +400,22 @@ export const PartlyCoveredRequirement = z.object({
   reason: z.string().min(1),
 });
 
+/** Which of the PRD's page routes a ui test case opens (named by path in its steps), and why the others are not. */
+export const PageCoverage = z.object({
+  /** Page routes that can be opened (a catch-all route is not counted). */
+  total: z.number().int().nonnegative(),
+  opened: z.number().int().nonnegative(),
+  unopened: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1) })),
+});
+
 export const TestCaseCoverage = z.object({
   requirementsTotal: z.number().int().nonnegative(),
   requirementsCovered: z.number().int().nonnegative(),
   uncovered: z.array(UncoveredRequirement),
   /** Covered requirements with a part declined as untestable; the reasons are kept here. */
   partial: z.array(PartlyCoveredRequirement).default([]),
+  /** Absent in files written before page coverage existed. */
+  pages: PageCoverage.optional(),
 });
 
 export const TestCases = z.object({
@@ -422,6 +432,7 @@ export type TestCategory = z.infer<typeof TestCategory>;
 export type UncoveredReasonKind = z.infer<typeof UncoveredReasonKind>;
 export type UncoveredRequirement = z.infer<typeof UncoveredRequirement>;
 export type PartlyCoveredRequirement = z.infer<typeof PartlyCoveredRequirement>;
+export type PageCoverage = z.infer<typeof PageCoverage>;
 
 // ---------------------------------------------------------------------------
 // Module 3 — scripts/manifest.json (also used by the one-prompt ablation)
@@ -1275,6 +1286,8 @@ export const RunView = z.object({
     requirements: z.number().int().nonnegative(),
     covered: z.number().int().nonnegative(),
     partial: z.number().int().nonnegative(),
+    /** Pages a ui test case opens; null when testcases.json has no page coverage (older files). */
+    pages: z.object({ total: z.number().int().nonnegative(), opened: z.number().int().nonnegative() }).nullable(),
     testCases: z.number().int().nonnegative(),
     scripts: z.object({
       passed: z.number().int().nonnegative(),

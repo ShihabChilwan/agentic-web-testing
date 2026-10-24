@@ -92,6 +92,7 @@ For each missing endpoint or page:
 Requirements follow the same rules as in the first pass: today's behaviour in neutral words, one behaviour per requirement, a layer ("api", "ui" or "e2e"), 1 to 4 concrete criteria each with evidence of at most 100 lines that you have read; a ui or e2e requirement cites page or component code from the frontend.
 
 Do not record anything that is already listed. Each add_* call checks its whole batch and stores it only if every item is valid; ids continue from the last stored one. Send at most ${MAX_BATCH_ITEMS} items per call.
+Every page must be named by a requirement, also those the first pass recorded: the task lists the ones that are not yet.
 When nothing is missing, or everything you found is recorded, call finish_completeness. Recording nothing is a valid result when the first pass was complete.`;
 }
 
@@ -102,6 +103,8 @@ export function buildCompletenessTask(
     features: Array<{ id: string; name: string }>;
     apiEndpoints: Array<{ method: string; path: string }>;
     uiRoutes: Array<{ path: string }>;
+    /** Recorded pages that no requirement names by path. */
+    unnamedPages: string[];
     requirements: number;
     nextFeatureId: string;
     nextRequirementId: string;
@@ -116,5 +119,10 @@ export function buildCompletenessTask(
     `Page routes already recorded (${recorded.uiRoutes.length}):`,
     ...recorded.uiRoutes.map((r) => `- ${r.path}`),
     `Requirements recorded: ${recorded.requirements}. Next requirement id: ${recorded.nextRequirementId}.`,
+    ...(recorded.unnamedPages.length > 0
+      ? [
+          `Pages that no requirement names by its path yet (${recorded.unnamedPages.length}): ${recorded.unnamedPages.join(', ')}. Read each page's component and add a requirement for what it shows, with the path in its statement or a criterion; a ui test can only be written for a page that a requirement names.`,
+        ]
+      : []),
   ].join('\n');
 }

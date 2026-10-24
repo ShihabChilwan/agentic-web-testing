@@ -13,7 +13,7 @@ import { Prd } from '../../shared/schemas.js';
 import type { StageAgentSummary, StageCompletenessSummary, TargetConfig } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { checkoutRef } from '../execution-engine/lifecycle.js';
-import { createCompletenessSubmit, createDraftTools, createSubmit, draftCounts, featureId, PrdDraft, RECORDING_TOOLS, requirementId } from './draft.js';
+import { createCompletenessSubmit, createDraftTools, createSubmit, draftCounts, featureId, PrdDraft, RECORDING_TOOLS, requirementId, unnamedPages } from './draft.js';
 import type { SubmitInput } from './draft.js';
 import { buildCompletenessSystemPrompt, buildCompletenessTask, buildSystemPrompt, buildTask } from './prompt.js';
 
@@ -99,6 +99,7 @@ async function runCompletenessRound(
     features: draft.features,
     apiEndpoints: draft.apiEndpoints,
     uiRoutes: draft.uiRoutes,
+    unnamedPages: unnamedPages(draft),
     requirements: draft.requirements.length,
     nextFeatureId: featureId(draft.features.length + 1),
     nextRequirementId: requirementId(draft.requirements.length + 1),

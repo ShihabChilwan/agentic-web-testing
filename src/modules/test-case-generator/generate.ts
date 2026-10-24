@@ -18,6 +18,7 @@ import {
   UncoveredReasonKind,
 } from '../../shared/schemas.js';
 import type {
+  PageCoverage,
   PrdRequirement,
   StageGenerationSummary,
   TargetConfig,
@@ -27,7 +28,7 @@ import type {
   UncoveredRequirement,
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
-import { checkSubmission, missingNegativeCases, SubmitTestCases, toTestCase } from './checks.js';
+import { checkSubmission, missingNegativeCases, openablePages, pagesOpened, stepPaths, SubmitTestCases, templateMatches, toTestCase } from './checks.js';
 import type { TestCaseDraft } from './checks.js';
 import { buildFeatureTask, buildGrounding, collectEvidence, linesAtCommit } from './context.js';
 import { readFacts } from '../execution-engine/facts.js';
@@ -79,6 +80,8 @@ interface SessionInput {
   quota: number;
   gapRound: boolean;
   previousProblems?: string[];
+  /** Page round: pages no test case opens yet; the session must open each one or decline a requirement naming it. */
+  pageRound?: string[];
 }
 
 async function runSession(
@@ -91,6 +94,7 @@ async function runSession(
     transcriptsDir: string;
     facts: TargetFacts | null;
     endpoints: Prd['apiEndpoints'];
+    pages: Prd['uiRoutes'];
   },
 ): Promise<SessionOutcome> {
   const evidence = await collectEvidence(input.requirements, deps.read);
@@ -100,14 +104,14 @@ async function runSession(
       {
         purpose: 'cases',
         system: buildSystemPrompt(),
-        task: buildFeatureTask({ ...input, evidence, config: deps.config, facts: deps.facts, endpoints: deps.endpoints }),
+        task: buildFeatureTask({ ...input, evidence, config: deps.config, facts: deps.facts, endpoints: deps.endpoints, pages: deps.pages }),
         tools: [],
         submit: {
           name: 'submit_test_cases',
           description: 'Submit the test cases for these requirements, and the requirements you decline with a reason.',
           schema: SubmitTestCases,
-          validate: (sub) =>
-            checkSubmission(sub, {
+          validate: (sub) => [
+            ...checkSubmission(sub, {
               requirements: input.requirements,
               fixtures: deps.config.fixtures,
               grounding,
@@ -118,7 +122,10 @@ async function runSession(
                 ...(deps.config.auth ? { loginPath: deps.config.auth.login.path } : {}),
                 accountResources: deps.config.accountResources,
               },
+              pages: deps.pages.map((p) => p.path),
             }),
+            ...(input.pageRound ? pageRoundProblems(sub, input.pageRound, input.requirements) : []),
+          ],
         },
         budget: SESSION_BUDGET,
       },
@@ -139,6 +146,20 @@ async function runSession(
     }
     throw err;
   }
+}
+
+/** Whether a requirement names a page: its statement or a criterion contains a path that fits the page's route. */
+export function namesPage(r: PrdRequirement, page: string): boolean {
+  return stepPaths([r.statement, ...r.acceptanceCriteria.map((c) => c.text)]).some((p) => templateMatches(page, p));
+}
+
+/** Page round: every page asked for is opened by a submitted ui case, or a requirement naming it is declined. */
+export function pageRoundProblems(sub: SubmitTestCases, pages: readonly string[], requirements: readonly PrdRequirement[]): string[] {
+  const opened = new Set(sub.testCases.filter((c) => c.layer === 'ui').flatMap((c) => pagesOpened(c.steps, pages)));
+  const declined = new Set(sub.declined.map((d) => d.requirementId));
+  return pages
+    .filter((page) => !opened.has(page) && !requirements.some((r) => declined.has(r.id) && namesPage(r, page)))
+    .map((page) => `No ui test case opens ${page}; add one that names it in a step (e.g. "Open ${page}"), or decline the requirement that describes it with the reason`);
 }
 
 const zeroCounts = <K extends string>(keys: readonly K[]) => Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
@@ -191,7 +212,7 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     const llm = options.createLlm
       ? await options.createLlm(llmConfig, paths.llmCalls)
       : await createLLMClient(llmConfig, { callLogFile: paths.llmCalls, pricingFile: PRICING_FILE });
-    const deps = { llm, llmConfig, config, read, transcriptsDir: paths.transcriptsDir, facts, endpoints: prd.apiEndpoints };
+    const deps = { llm, llmConfig, config, read, transcriptsDir: paths.transcriptsDir, facts, endpoints: prd.apiEndpoints, pages: prd.uiRoutes };
 
     const features = prd.features
       .map((feature) => ({ feature, requirements: prd.requirements.filter((r) => r.featureId === feature.id) }))
@@ -222,15 +243,33 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     });
     if (gapInputs.length > 0) log(`Gap round: ${gapInputs.reduce((n, g) => n + g.requirements.length, 0)} requirements in ${gapInputs.length} features`);
     const gap = await Promise.all(gapInputs.map((g) => runSession(g, deps)));
+    remaining -= gap.reduce((n, o) => n + o.cases.length, 0) - gapInputs.reduce((n, g) => n + g.quota, 0);
+
+    // Page round: pages no ui case opens get one session per feature, built from the ui/e2e requirements naming them.
+    const pagePaths = openablePages(prd.uiRoutes.map((p) => p.path));
+    const openedBy = (outcomes: SessionOutcome[]) =>
+      new Set(outcomes.flatMap((o) => o.cases).filter((c) => c.layer === 'ui').flatMap((c) => pagesOpened(c.steps, pagePaths)));
+    const unopened = pagePaths.filter((page) => !openedBy([...first, ...gap]).has(page));
+    const pageInputs: SessionInput[] = [];
+    for (const f of features) {
+      const asked = unopened.filter((page) => f.requirements.some((r) => r.layer !== 'api' && namesPage(r, page)));
+      const requirements = f.requirements.filter((r) => r.layer !== 'api' && asked.some((page) => namesPage(r, page)));
+      const quota = Math.min(remaining, asked.length);
+      if (requirements.length === 0 || quota <= 0) continue;
+      remaining -= quota;
+      pageInputs.push({ feature: f.feature, requirements, quota, gapRound: true, pageRound: asked });
+    }
+    if (pageInputs.length > 0) log(`Page round: ${pageInputs.reduce((n, p) => n + p.pageRound!.length, 0)} pages in ${pageInputs.length} features`);
+    const pageOutcomes = await Promise.all(pageInputs.map((p) => runSession(p, deps)));
 
     // Ids in code, after every session: feature order, then requirement order in the PRD.
     const order = new Map(prd.requirements.map((r, i) => [r.id, i]));
     const firstReq = (c: TestCaseDraft) => Math.min(...c.requirementIds.map((id) => order.get(id) ?? Infinity));
-    const drafts = [...first, ...gap].flatMap((o) => o.cases).sort((a, b) => firstReq(a) - firstReq(b));
+    const drafts = [...first, ...gap, ...pageOutcomes].flatMap((o) => o.cases).sort((a, b) => firstReq(a) - firstReq(b));
     const testCases: TestCase[] = drafts.map((c, i) => toTestCase(c, `TC-${String(i + 1).padStart(3, '0')}`));
 
     const covered = new Set(testCases.flatMap((c) => c.requirementIds));
-    const allDeclined = [...first, ...gap].flatMap((o) => o.declined);
+    const allDeclined = [...first, ...gap, ...pageOutcomes].flatMap((o) => o.declined);
     const declined = allDeclined.filter((d) => !covered.has(d.requirementId));
     // A decline for a covered requirement names the part that cannot be tested; keep its reason.
     const partial: PartlyCoveredRequirement[] = allDeclined
@@ -253,16 +292,17 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
       schemaVersion: '1.0',
       generatedAt: new Date().toISOString(),
       testCases,
-      coverage: { requirementsTotal: prd.requirements.length, requirementsCovered: covered.size, uncovered, partial },
+      coverage: { requirementsTotal: prd.requirements.length, requirementsCovered: covered.size, uncovered, partial, pages: pageCoverage(prd, testCases) },
     });
     await writeFile(paths.testCases, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
 
-    const outcomes = [...first, ...gap];
+    const outcomes = [...first, ...gap, ...pageOutcomes];
     const warnings = [
       ...factWarnings,
       ...missingNegativeCases(prd.requirements, drafts),
       ...features.flatMap((f, i) => (first[i]!.failure ? [`${f.feature.id}: first session failed (${first[i]!.failure})`] : [])),
       ...gapInputs.flatMap((g, i) => (gap[i]!.failure ? [`${g.feature.id}: gap-round session failed (${gap[i]!.failure})`] : [])),
+      ...pageInputs.flatMap((p, i) => (pageOutcomes[i]!.failure ? [`${p.feature.id}: page-round session failed (${pageOutcomes[i]!.failure})`] : [])),
       ...prd.requirements.filter((r) => !covered.has(r.id) && !declinedIds.has(r.id)).map((r) => `${r.id} has no test case and no reason from the model`),
     ];
     const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => l.purpose === 'cases' && l.ts >= startedAt);
@@ -296,6 +336,24 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
   }
 }
 
+/**
+ * Which of the PRD's pages a ui test case opens (SPEC §5), and why the others are not: no ui or e2e requirement
+ * names them, or the requirements naming them got no case that opens them. A catch-all route is not counted.
+ */
+export function pageCoverage(prd: Prd, testCases: readonly TestCase[]): PageCoverage {
+  const pages = openablePages(prd.uiRoutes.map((p) => p.path));
+  const opened = new Set(testCases.filter((c) => c.layer === 'ui').flatMap((c) => pagesOpened(c.steps, pages)));
+  const unopened = pages
+    .filter((page) => !opened.has(page))
+    .map((path) => ({
+      path,
+      reason: prd.requirements.some((r) => r.layer !== 'api' && namesPage(r, path))
+        ? 'The ui or e2e requirements that describe it got no test case that opens it.'
+        : 'No ui or e2e requirement describes this page.',
+    }));
+  return { total: pages.length, opened: opened.size, unopened };
+}
+
 /** Lines for a person: totals, coverage, rejections and warnings. */
 export function describeCasesSummary(result: GenerateTestCasesResult): string[] {
   const { summary: s, testCases: t } = result;
@@ -304,6 +362,11 @@ export function describeCasesSummary(result: GenerateTestCasesResult): string[] 
   return [
     `${t.testCases.length} test cases (api ${s.casesByLayer.api}, ui ${s.casesByLayer.ui}; ${byCategory})`,
     `coverage: ${t.coverage.requirementsCovered} of ${t.coverage.requirementsTotal} requirements; uncovered ${t.coverage.uncovered.length}${byReason ? ` (${byReason})` : ''}; partly untestable ${t.coverage.partial.length}`,
+    ...(t.coverage.pages && t.coverage.pages.total > 0
+      ? [
+          `pages opened by a ui test case: ${t.coverage.pages.opened} of ${t.coverage.pages.total}${t.coverage.pages.unopened.length > 0 ? `; not opened: ${t.coverage.pages.unopened.map((u) => u.path).join(', ')}` : ''}`,
+        ]
+      : []),
     `${s.sessions} sessions, ${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}`,
     `rejected submits: ${s.rejected.invalidInput} invalid input, ${s.rejected.checkFailed} failed checks`,
     ...s.warnings.map((w) => `Warning: ${w}`),

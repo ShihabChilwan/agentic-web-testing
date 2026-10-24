@@ -92,6 +92,7 @@ function overview() {
     h('div', { class: 'tiles' },
       tile(c.covered + ' / ' + c.requirements, 'requirements with a test case'),
       tile(c.partial, 'partly untestable'),
+      c.pages ? tile(c.pages.opened + ' / ' + c.pages.total, 'pages opened by a test case') : null,
       tile(c.testCases, 'test cases'),
       tile(s.passed, 'scripts passed on ' + V.run.generationRef),
       tile(s.assertionFailed, 'scripts disagree with ' + V.run.generationRef),

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describeCasesSummary } from '../../src/modules/test-case-generator/generate.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import { checkSubmission, fixtureExists, isGrounded, isGroundedIn, missingNegativeCases } from '../../src/modules/test-case-generator/checks.js';
@@ -153,7 +154,8 @@ function fakeBySession(script: Record<string, ChatResponse[]>) {
     const first = req.messages[0];
     const task = first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '';
     const feature = /feature (F-\d+)/.exec(task)?.[1] ?? '?';
-    const key = `${task.includes('got no test case') ? 'gap:' : ''}${feature}`;
+    const round = task.includes('No test case opens these pages yet') ? 'page:' : task.includes('got no test case') ? 'gap:' : '';
+    const key = `${round}${round === 'page:' ? (/Feature (F-\d+)/.exec(task)?.[1] ?? '?') : feature}`;
     tasks[key] = task;
     const next = script[key]?.shift();
     if (!next) throw new Error(`no scripted response for ${key}`);
@@ -181,6 +183,7 @@ describe('generateTestCases', () => {
       requirementsCovered: 2,
       uncovered: [{ requirementId: 'REQ-003', reasonKind: 'third-party-disabled', reason: 'The reset token only travels by email.' }],
       partial: [],
+      pages: { total: 0, opened: 0, unopened: [] }, // this PRD lists no pages
     });
     expect(result.summary).toMatchObject({
       sessions: 2,
@@ -521,5 +524,75 @@ describe('test case prompt', () => {
 
     it('is the same for every target and names no app', () => {
     expect(buildSystemPrompt()).not.toMatch(/ecommerce|product|cart|mongo|mern|client\/app/i);
+  });
+});
+
+describe('pages', () => {
+  // Pages of the frontend: /login is opened by REQ-002's case; /settings is named by a ui requirement but no case opens it
+  // until the page round; /about is named by no ui requirement; "/*" is a catch-all and never counted.
+  const withPages = (): Prd => {
+    const p = prd();
+    p.uiRoutes = [
+      { path: '/login', summary: 'Sign-in page', authRequired: false, evidence: [{ file: 'client/app/Login.js', lines: [1, 3] }] },
+      { path: '/settings', summary: 'Settings page', authRequired: true, evidence: [{ file: 'client/app/Login.js', lines: [1, 3] }] },
+      { path: '/about', summary: 'About page', authRequired: false, evidence: [{ file: 'client/app/Login.js', lines: [1, 3] }] },
+      { path: '/*', summary: 'Not found', authRequired: false, evidence: [{ file: 'client/app/Login.js', lines: [1, 3] }] },
+    ];
+    p.requirements = [
+      ...p.requirements,
+      { id: 'REQ-004', featureId: 'F-01', layer: 'ui', priority: 'low', statement: 'The /settings page shows the email.', acceptanceCriteria: [criterion('The heading is visible', 'client/app/Login.js', [1, 3])] },
+    ];
+    return p;
+  };
+  const opensLogin = uiCase({ steps: ['Open /login', 'Look at the heading'] });
+  const opensSettings = uiCase({ requirementIds: ['REQ-004'], title: 'Settings show the email', steps: ['Log in as users.alice', 'Open http://localhost:8080/settings'] });
+  const reset = submit([], [{ requirementId: 'REQ-003', reasonKind: 'third-party-disabled', reason: 'Email only.' }]);
+
+  it('asks every ui test case to name the page it opens by its path, and lists the pages in the task', async () => {
+    const { runsDir } = await makeRun(withPages());
+    const { llm, tasks } = fakeBySession({
+      'F-01': [submit([uiCase(), tc(), opensSettings]), submit([opensLogin, tc(), opensSettings])],
+      'F-02': [reset],
+    });
+    await run(runsDir, llm);
+    const rejection = JSON.stringify(llm.requests.find((r) => JSON.stringify(r.messages.at(-1)).includes('a ui test case names the page'))!.messages.at(-1));
+    expect(rejection).toContain('testCases[0]: a ui test case names the page it opens by its path from the page list, e.g. \\"Open /login\\"');
+    expect(tasks['F-01']).toContain('## Pages of the frontend');
+    expect(tasks['F-01']).toContain('- /settings (login required): Settings page');
+    expect(tasks['F-01']).not.toContain('- /*'); // a catch-all cannot be opened
+  });
+
+  it('runs a page round for pages no case opens, from the ui requirements naming them, and records page coverage', async () => {
+    const { runsDir, paths } = await makeRun(withPages());
+    const { llm, tasks } = fakeBySession({
+      'F-01': [submit([opensLogin, tc()], [{ requirementId: 'REQ-004', reasonKind: 'other', reason: 'later' }])],
+      'F-02': [reset],
+      'page:F-01': [submit([opensSettings])],
+    });
+    const result = await run(runsDir, llm);
+    expect(tasks['page:F-01']).toContain('No test case opens these pages yet: /settings.');
+    expect(tasks['page:F-01']).toContain('- REQ-004 [layer ui');
+    expect(tasks['page:F-01']).not.toContain('- REQ-001 ');
+    const file = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8')));
+    expect(file.testCases.map((c) => c.requirementIds[0])).toEqual(['REQ-001', 'REQ-002', 'REQ-004']);
+    expect(file.coverage.pages).toEqual({ total: 3, opened: 2, unopened: [{ path: '/about', reason: 'No ui or e2e requirement describes this page.' }] });
+    expect(result.summary.sessions).toBe(3);
+    expect(describeCasesSummary(result)).toContain('pages opened by a ui test case: 2 of 3; not opened: /about');
+  });
+
+  it('requires the page round to open each page asked for, unless a requirement naming it is declined', async () => {
+    const { runsDir, paths } = await makeRun(withPages());
+    const { llm } = fakeBySession({
+      'F-01': [submit([opensLogin, tc()], [{ requirementId: 'REQ-004', reasonKind: 'other', reason: 'later' }])],
+      'F-02': [reset],
+      'page:F-01': [submit([opensLogin]), submit([], [{ requirementId: 'REQ-004', reasonKind: 'data-not-reachable', reason: 'Settings need a disabled service.' }])],
+    });
+    await run(runsDir, llm);
+    expect(JSON.stringify(llm.requests.at(-1)!.messages.at(-1))).toContain('No ui test case opens /settings');
+    const file = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8')));
+    expect(file.coverage.pages?.unopened.map((u) => [u.path, u.reason])).toEqual([
+      ['/settings', 'The ui or e2e requirements that describe it got no test case that opens it.'],
+      ['/about', 'No ui or e2e requirement describes this page.'],
+    ]);
   });
 });

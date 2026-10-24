@@ -8,6 +8,9 @@ import {
   UncoveredRequirement,
 } from '../../shared/schemas.js';
 import type { Prd, PrdRequirement, TestCase as TestCaseType } from '../../shared/schemas.js';
+import { isParam, templateMatches, textPaths } from '../../shared/route-paths.js';
+
+export { templateMatches };
 
 /**
  * A test case as the model writes it. Code fills in everything derivable: the test case id (after every
@@ -112,6 +115,8 @@ export interface CheckContext {
   quota: number;
   /** When set, the API rules (read back after a write, more than a status, found and not found) apply. */
   api?: ApiRules;
+  /** The PRD's page routes: a ui test case must name the page it opens by one of these paths (SPEC §5). */
+  pages?: string[];
 }
 
 export interface StepRequest {
@@ -132,17 +137,9 @@ export function stepRequests(steps: readonly string[]): StepRequest[] {
   );
 }
 
-/** A path template's segments: ":id", "{id}" and "<id>" are parameters. */
-const isParam = (segment: string) => /^(:\w+|\{\w+\}|<[^>]+>|\$\{[^}]+\})$/.test(segment);
-
 /** The PRD endpoint a step's request goes to: method and path match, parameters match any one segment; the most literal match wins. */
 export function matchEndpoint(method: string, path: string, endpoints: Prd['apiEndpoints']): Prd['apiEndpoints'][number] | undefined {
-  const parts = path.split('/').filter(Boolean);
-  const matches = endpoints.filter((e) => {
-    if (e.method !== method) return false;
-    const template = e.path.split('?')[0]!.split('/').filter(Boolean);
-    return template.length === parts.length && template.every((t, i) => isParam(t) || t === parts[i]);
-  });
+  const matches = endpoints.filter((e) => e.method === method && templateMatches(e.path, path));
   const literal = (e: Prd['apiEndpoints'][number]) => e.path.split('/').filter((t) => t && !isParam(t)).length;
   return matches.sort((a, b) => literal(b) - literal(a))[0];
 }
@@ -153,6 +150,18 @@ export function resourceOf(path: string, apiPrefix: string): string {
   const rest = path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
   const first = rest.split('/').filter(Boolean)[0] ?? '';
   return `${prefix}/${first}`;
+}
+
+/** Paths a step names (see textPaths). */
+export const stepPaths = (steps: readonly string[]): string[] => textPaths(steps);
+
+/** Page routes a test case can be asked to open: a catch-all route ("*") cannot be. */
+export const openablePages = (pages: readonly string[]) => pages.filter((p) => !p.includes('*'));
+
+/** The PRD pages a ui test case's steps open (named by path). */
+export function pagesOpened(steps: readonly string[], pages: readonly string[]): string[] {
+  const paths = stepPaths(steps);
+  return openablePages(pages).filter((page) => paths.some((p) => templateMatches(page, p)));
 }
 
 const isStatusCode = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 100 && v <= 599;
@@ -280,6 +289,15 @@ export function checkSubmission(sub: SubmitTestCases, ctx: CheckContext): string
     if (n > MAX_TEST_CASES_PER_REQUIREMENT) problems.push(`${id} has ${n} test cases; at most ${MAX_TEST_CASES_PER_REQUIREMENT}`);
   }
   if (ctx.api) problems.push(...apiRuleProblems(sub, ctx.api));
+  const pages = openablePages(ctx.pages ?? []);
+  if (pages.length > 0) {
+    sub.testCases.forEach((tc, i) => {
+      if (tc.layer !== 'ui' || pagesOpened(tc.steps, pages).length > 0) return;
+      problems.push(
+        `testCases[${i}]: a ui test case names the page it opens by its path from the page list, e.g. "Open ${pages[0]}"; none of its steps names one of the pages listed`,
+      );
+    });
+  }
   // A decline for a requirement that also has test cases is not a mistake: it records the part that
   // cannot be tested (e.g. an email-only happy path). Code keeps it as a partial decline (coverage.partial).
   const declined = new Set<string>();

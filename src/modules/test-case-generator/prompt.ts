@@ -12,7 +12,8 @@ You get one feature at a time: its requirements, the code that implements them a
 - priority: usually the requirement's priority.
 - preconditions: what must be true before the test starts, in plain words (may be empty).
 - fixturesUsed: the fixture paths the test relies on, e.g. users.<name> (may be empty).
-- steps: short, concrete actions a script writer can follow ("Send POST /api/items with an empty name", "Open the sign-in page", "Fill in the email field").
+- steps: short, concrete actions a script writer can follow ("Send POST /api/items with an empty name", "Open /login", "Fill in the email field"). A ui test case names each page it opens by its path from the page list in the task.
+  Bad: "Open the sign-in page". Good: "Open /login".
 - expected: the observable results, in order (they are numbered for you). Each has a description of one result, "readBack": true when it checks a read made after the test's last write, and optionally a value: literal data that appears exactly in the code or fixtures you were given, such as a status code, a message string or a URL path. Checks like "is visible" or "is shown" have no value; the description says what to check. When the text is not in the code you were given, leave the value out.
   Bad: { "description": "An error is shown", "value": "Something went wrong" } when that text is not in the code.
   Bad: { "description": "The dashboard is shown", "value": true }.

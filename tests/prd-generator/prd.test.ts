@@ -8,7 +8,7 @@ import { LLMBudgetExceededError } from '../../src/llm/errors.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { FakeStep } from '../../src/llm/fake.js';
 import { buildSystemPrompt, buildTask, describeCompleteness, generatePrd } from '../../src/modules/prd-generator/index.js';
-import { draftCounts, pathTemplate, PrdDraft, uncitedAdditions } from '../../src/modules/prd-generator/draft.js';
+import { draftCounts, PrdDraft, uncitedAdditions, unnamedPages } from '../../src/modules/prd-generator/draft.js';
 import { buildCompletenessSystemPrompt } from '../../src/modules/prd-generator/prompt.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { Prd, RunManifest, TargetConfig } from '../../src/shared/schemas.js';
@@ -83,7 +83,7 @@ const requirement = ({ evidence, ...over }: Record<string, unknown> = {}): any =
   id: 'REQ-001',
   featureId: 'F-01',
   layer: 'api',
-  statement: 'Logging in with a wrong password is rejected.',
+  statement: 'Logging in on /login with a wrong password is rejected.',
   acceptanceCriteria: [{ text: 'The response is 400', evidence: evidence ?? [{ file: 'server/routes/auth.js', lines: [12, 20] }] }],
   priority: 'high',
   ...over,
@@ -415,7 +415,7 @@ describe('completeness round', () => {
     ]);
     const result = await promise;
     const rejected = JSON.stringify(llm.requests[mainSteps().length + 2]!.messages.at(-1));
-    expect(rejected).toContain('The page /settings/profile was added but no requirement names it; add a requirement whose statement or a criterion contains /settings/profile');
+    expect(rejected).toContain('No requirement names the page /settings/profile; add a requirement for what it shows whose statement or a criterion contains /settings/profile');
     expect(result.completeness.added.requirements).toBe(1);
   });
 
@@ -433,15 +433,35 @@ describe('completeness round', () => {
     ]);
   });
 
-  it('matches paths by template: any parameter style, trailing slash and punctuation ignored', () => {
-    expect(pathTemplate('/api/items/:id')).toBe(pathTemplate('/api/items/<itemId>'));
-    expect(pathTemplate('/api/items/{id}/')).toBe('/api/items/:');
+  it('asks for a requirement naming each added endpoint and every page, a catch-all excepted; paths match by template', () => {
     const draft = new PrdDraft({ scope: { root: repoDir, forbiddenPaths: [] }, apiPrefix: '/api', frontendRoots: ['client/app'] });
+    draft.uiRoutes.push(route({ path: '/about' }), route({ path: '/*' })); // recorded by the first pass
     const before = draftCounts(draft);
     draft.apiEndpoints.push(endpoint({ method: 'GET', path: '/api/items/:id' }));
-    draft.uiRoutes.push(route({ path: '/settings/profile' }));
-    expect(uncitedAdditions(draft, before)).toHaveLength(2);
-    draft.requirements.push(requirement({ statement: 'GET /api/items/<id> returns the item.', acceptanceCriteria: [{ text: 'Opening /settings/profile, shows the email', evidence: [] }] }));
+    draft.uiRoutes.push(route({ path: '/product/:slug' }));
+    expect(unnamedPages(draft)).toEqual(['/about', '/product/:slug']);
+    expect(uncitedAdditions(draft, before)).toEqual([
+      'GET /api/items/:id was added but no requirement names it; add a requirement whose statement or a criterion contains /api/items/:id',
+      'No requirement names the page /about; add a requirement for what it shows whose statement or a criterion contains /about',
+      'No requirement names the page /product/:slug; add a requirement for what it shows whose statement or a criterion contains /product/:slug',
+    ]);
+    draft.requirements.push(
+      requirement({ statement: 'GET /api/items/<id> returns the item.', acceptanceCriteria: [{ text: 'Opening /product/blue-shirt, shows its price', evidence: [] }] }),
+      requirement({ id: 'REQ-002', statement: 'The page at http://localhost:8080/about shows the team.' }),
+    );
     expect(uncitedAdditions(draft, before)).toEqual([]);
+  });
+
+  it("lists the first pass's unnamed pages in the round's task", async () => {
+    const unnamedRoute = route({ path: '/about', evidence: [{ file: 'client/app/routes.js', lines: [1, 5] }] });
+    const steps = happySteps();
+    steps.splice(5, 1, call('add_ui_routes', { routes: [route(), unnamedRoute] }));
+    const aboutRequirement = requirement({ id: 'REQ-002', layer: 'ui', statement: 'The /about page shows the team.', acceptanceCriteria: [{ text: 'The team list is shown', evidence: [{ file: 'client/app/Login.js', lines: [1, 10] }] }] });
+    steps.splice(-1, 1, call('add_requirements', { requirements: [aboutRequirement] }), call('finish_completeness', {}));
+    const { llm, promise } = await run(steps);
+    const result = await promise;
+    const task = JSON.stringify(llm.requests[mainSteps().length]!.messages[0]);
+    expect(task).toContain('Pages that no requirement names by its path yet (1): /about.');
+    expect(result.completeness.added.requirements).toBe(1);
   });
 });
