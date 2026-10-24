@@ -53,12 +53,17 @@ export async function loadEvaluationConfig(dir: string): Promise<EvaluationConfi
   return EvaluationConfig.parse(JSON.parse(text));
 }
 
-/** The changed lines of every targets/<name>/dev-bugs/*.patch (SPEC §11.2 step 4). */
+/**
+ * The changed lines of every patch under targets/<name>/dev-bugs/, at any depth: the hand-written dev bugs and
+ * earlier trial draws (SPEC §11.2 step 4). Each is named by its path inside dev-bugs/.
+ */
 export async function readDevBugs(targetDir: string): Promise<DevBugLines[]> {
   const dir = path.join(targetDir, 'dev-bugs');
-  const names = await readdir(dir).catch(() => [] as string[]);
+  const names = await readdir(dir, { recursive: true }).catch(() => [] as string[]);
   const out: DevBugLines[] = [];
-  for (const name of names.filter((n) => n.endsWith('.patch')).sort()) out.push(...changedLines(name, await readFile(path.join(dir, name), 'utf8')));
+  for (const name of names.filter((n) => n.endsWith('.patch')).sort()) {
+    out.push(...changedLines(name.split(path.sep).join('/'), await readFile(path.join(dir, name), 'utf8')));
+  }
   return out;
 }
 

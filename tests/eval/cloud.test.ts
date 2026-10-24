@@ -424,6 +424,19 @@ describe('build folder', () => {
     expect(await stat(path.join(outDir, 'image', 'fallback-status.cjs'))).toBeTruthy();
     expect(execFileSync('git', ['bundle', 'list-heads', path.join(outDir, 'target.bundle')], { encoding: 'utf8' })).toContain(`${golden} refs/heads/golden`);
 
+    // A development draw under dev-bugs/: only its patches are copied into the image, not the rest of dev-bugs/.
+    await write('targets/fake/dev-bugs/trial-1/variants.json', JSON.stringify({ ...example('variants.json'), target: 'fake', goldenCommit: golden, variants: [{ ...example('variants.json').variants[0], patch: 'dev-bugs/trial-1/variants/bug-001.patch' }] }));
+    await write('targets/fake/dev-bugs/trial-1/variants/bug-001.patch', '--- a/y\n+++ b/y\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '--quiet', '-m', 'trial draw');
+    const trial = await createCloudContext({ ...options, variantsFile: 'dev-bugs/trial-1/variants.json' });
+    expect(trial.build.versions.map((v) => [v.version, v.patch ?? null])).toEqual([
+      ['golden', null],
+      ['bug-001', 'targets/fake/dev-bugs/trial-1/variants/bug-001.patch'],
+    ]);
+    const trialApp = execFileSync('find', ['.', '-path', '*dev-bugs*', '-type', 'f'], { cwd: path.join(outDir, 'app'), encoding: 'utf8' }).split('\n').filter(Boolean);
+    expect(trialApp).toEqual(['./targets/fake/dev-bugs/trial-1/variants/bug-001.patch']);
+
     // Refused: uncommitted changes, and anything that looks like a key.
     await write('src/cli.ts', '// changed\n');
     await expect(createCloudContext(options)).rejects.toThrow(/Commit first/);

@@ -30,6 +30,8 @@ export interface CloudContextOptions {
   projectRoot?: string;
   runsDir?: string;
   targetsDir?: string;
+  /** The variant list to build the image for, relative to targets/<name>/ (default variants.json; e.g. a development draw under dev-bugs/). */
+  variantsFile?: string;
   /** Install production dependencies in a temp folder and load the task's CLI there (default true; off in unit tests). */
   checkInstall?: boolean;
   log?: (message: string) => void;
@@ -137,7 +139,8 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
   const { config, repoDir, targetDir } = await loadTargetConfig(options.target, { targetsDir, projectRoot });
   const evaluation: EvaluationConfig = await loadEvaluationConfig(targetDir);
   const cloud = evaluation.cloud ?? { replace: {}, imageSetup: '', startServices: '', serviceLogs: [] };
-  const variants = Variants.parse(JSON.parse(await readFile(targetPaths(options.target, targetsDir).variants, 'utf8')));
+  const variantsFile = path.join(targetPaths(options.target, targetsDir).dir, options.variantsFile ?? 'variants.json');
+  const variants = Variants.parse(JSON.parse(await readFile(variantsFile, 'utf8')));
   const runDir = runPaths(options.runId, options.runsDir ?? RUNS_DIR).dir;
   const manifest = await readRunManifest(path.join(runDir, 'run.json'));
   if (manifest.target !== options.target) throw new Error(`Run ${options.runId} is for ${manifest.target}, not ${options.target}`);
@@ -159,6 +162,13 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
   await git(projectRoot, ['archive', '--format=tar', '-o', tarFile, 'HEAD', '--', '.', ...excludes]);
   await execFileAsync('tar', ['-x', '-f', tarFile, '-C', appDir]);
   await rm(tarFile);
+  // Patches of a development draw live under dev-bugs/, which the export leaves out: copy just those the versions use.
+  for (const v of variants.variants) {
+    if (v.kind !== 'code') continue;
+    const to = path.join(appDir, path.relative(projectRoot, targetDir), v.patch);
+    await mkdir(path.dirname(to), { recursive: true });
+    await cp(path.join(targetDir, v.patch), to);
+  }
   const relTargetDir = path.relative(targetsDir, targetDir);
   const appTargetConfig = path.join(appDir, 'targets', relTargetDir, 'target.config.json');
   const rawConfig = JSON.parse(await readFile(appTargetConfig, 'utf8')) as unknown;

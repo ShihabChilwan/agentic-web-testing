@@ -39,7 +39,7 @@
     {
       "id": "bug-001",
       "kind": "code",
-      "patch": "variants/bug-001.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-001.patch",
       "layer": "frontend",
       "mutator": "MethodExpression",
       "strykerMutantId": "1281",
@@ -59,7 +59,7 @@
     {
       "id": "bug-002",
       "kind": "code",
-      "patch": "variants/bug-002.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-002.patch",
       "layer": "backend",
       "mutator": "BooleanLiteral",
       "strykerMutantId": "6338",
@@ -79,7 +79,7 @@
     {
       "id": "bug-003",
       "kind": "code",
-      "patch": "variants/bug-003.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-003.patch",
       "layer": "backend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "6990",
@@ -99,7 +99,7 @@
     {
       "id": "bug-004",
       "kind": "code",
-      "patch": "variants/bug-004.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-004.patch",
       "layer": "frontend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "4494",
@@ -119,7 +119,7 @@
     {
       "id": "bug-005",
       "kind": "code",
-      "patch": "variants/bug-005.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-005.patch",
       "layer": "frontend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "4447",
@@ -139,7 +139,7 @@
     {
       "id": "bug-006",
       "kind": "code",
-      "patch": "variants/bug-006.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-006.patch",
       "layer": "backend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "5208",
@@ -159,7 +159,7 @@
     {
       "id": "bug-007",
       "kind": "code",
-      "patch": "variants/bug-007.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-007.patch",
       "layer": "backend",
       "mutator": "BooleanLiteral",
       "strykerMutantId": "5266",
@@ -179,7 +179,7 @@
     {
       "id": "bug-008",
       "kind": "code",
-      "patch": "variants/bug-008.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-008.patch",
       "layer": "backend",
       "mutator": "EqualityOperator",
       "strykerMutantId": "6952",
@@ -199,7 +199,7 @@
     {
       "id": "bug-009",
       "kind": "code",
-      "patch": "variants/bug-009.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-009.patch",
       "layer": "backend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "6558",
@@ -219,7 +219,7 @@
     {
       "id": "bug-010",
       "kind": "code",
-      "patch": "variants/bug-010.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-010.patch",
       "layer": "backend",
       "mutator": "BooleanLiteral",
       "strykerMutantId": "4916",
@@ -239,7 +239,7 @@
     {
       "id": "bug-011",
       "kind": "code",
-      "patch": "variants/bug-011.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-011.patch",
       "layer": "backend",
       "mutator": "ConditionalExpression",
       "strykerMutantId": "5707",
@@ -259,7 +259,7 @@
     {
       "id": "bug-012",
       "kind": "code",
-      "patch": "variants/bug-012.patch",
+      "patch": "dev-bugs/trial-20261022/variants/bug-012.patch",
       "layer": "backend",
       "mutator": "LogicalOperator",
       "strykerMutantId": "5728",

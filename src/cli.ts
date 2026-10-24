@@ -295,9 +295,15 @@ evaluation
   .description('Write build/cloud/: the Docker build folder for the executor image (one target, one run\'s suite)')
   .requiredOption('--target <name>', 'target under targets/<name>/')
   .requiredOption('--run <runId>', 'run whose scripts the image executes')
-  .action(async (opts: { target: string; run: string }) => {
+  .option('--variants <file>', 'variant list relative to targets/<name>/ (default variants.json; e.g. dev-bugs/trial-20261022/variants.json)')
+  .action(async (opts: { target: string; run: string; variants?: string }) => {
     try {
-      const { outDir, build } = await createCloudContext({ target: opts.target, runId: opts.run, log: (m) => console.log(m) });
+      const { outDir, build } = await createCloudContext({
+        target: opts.target,
+        runId: opts.run,
+        ...(opts.variants ? { variantsFile: opts.variants } : {}),
+        log: (m) => console.log(m),
+      });
       console.log(`build folder: ${outDir}`);
       console.log(`image tag: ${build.imageTag} (${build.versions.length} versions: task index 0 = ${build.versions[0]!.version})`);
     } catch (err) {

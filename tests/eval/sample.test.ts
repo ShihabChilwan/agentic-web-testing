@@ -3,10 +3,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
 import { applyMutant, filePatch, mutantLines } from '../../src/eval/patch.js';
 import { candidatesFrom, changedLines, devBugOverlap, draw, near, shuffle, type Candidate } from '../../src/eval/sample.js';
 import { MutationReport } from '../../src/eval/stryker.js';
-import { envSignature } from '../../src/eval/variants.js';
+import { envSignature, readDevBugs } from '../../src/eval/variants.js';
 import { startFailure } from '../../src/eval/start-check.js';
 
 // Real Stryker 10.0.0 output (tests/fixtures/stryker/README.md) and the real dev-bug patches.
@@ -53,6 +54,23 @@ describe('dev-bug overlap', () => {
     const dev2 = await readFile(new URL('dev-002-login-redirects-home.patch', devBugDir), 'utf8');
     expect(changedLines('dev-001.patch', dev1)).toEqual([{ patch: 'dev-001.patch', file: AUTH, lines: [48] }]);
     expect(changedLines('dev-002.patch', dev2)).toEqual([{ patch: 'dev-002.patch', file: LOGIN, lines: [32] }]);
+  });
+
+  it('reads every patch under dev-bugs/, nested trial draws included', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dev-bugs-'));
+    tempDirs.push(dir);
+    await mkdir(path.join(dir, 'dev-bugs', 'trial-x', 'variants'), { recursive: true });
+    await writeFile(path.join(dir, 'dev-bugs', 'a.patch'), '--- a/x.js\n+++ b/x.js\n@@ -3,1 +3,1 @@\n-a\n+b\n');
+    await writeFile(path.join(dir, 'dev-bugs', 'trial-x', 'variants', 'bug-001.patch'), '--- a/y.js\n+++ b/y.js\n@@ -9,1 +9,1 @@\n-a\n+b\n');
+    await writeFile(path.join(dir, 'dev-bugs', 'EXPECTED.md'), '# notes\n');
+    expect(await readDevBugs(dir)).toEqual([
+      { patch: 'a.patch', file: 'x.js', lines: [3] },
+      { patch: 'trial-x/variants/bug-001.patch', file: 'y.js', lines: [9] },
+    ]);
+    // The real target: the two hand-written dev bugs and the 12 bugs of the trial draw.
+    const real = await readDevBugs(fileURLToPath(new URL('../../targets/mern-ecommerce/', import.meta.url)));
+    expect(real).toHaveLength(14);
+    expect(real).toContainEqual({ patch: 'trial-20261022/variants/bug-006.patch', file: AUTH, lines: [40] });
   });
 
   it('marks the line before an insertion, and ignores removed lines that look like headers', () => {
