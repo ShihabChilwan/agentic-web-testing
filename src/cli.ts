@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { describeSummary, generatePrd } from './modules/prd-generator/index.js';
+import { describeCompleteness, describeSummary, generatePrd } from './modules/prd-generator/index.js';
 import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
 import { describeExecution, executeRun } from './modules/execution-engine/index.js';
@@ -50,6 +50,7 @@ agent
         `${prd.features.length} features, ${prd.apiEndpoints.length} endpoints, ${prd.uiRoutes.length} UI routes, ${prd.requirements.length} requirements; ${Math.round(result.agent.durationMs / 1000)} s`,
       );
       for (const line of describeSummary(result.summary)) console.log(line);
+      for (const line of describeCompleteness(result.completeness)) console.log(line);
     } catch (err) {
       console.error(`prd failed: ${errorSummary(err)}`);
       if (runDir) {

@@ -142,7 +142,7 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
       if (stage === 'prd' || stage === 'cases' || stage === 'scripts') {
         const done = manifest?.stages[stage]?.status === 'done' && (stage !== 'prd' || (await exists(runPaths(manifest.runId, runsDir).prd)));
         if (manifest && done) {
-          reports.push({ stage, action: 'reused', ...(await stageCost(stage, manifest)), detail: manifest.stages[stage]!.status });
+          reports.push({ stage, action: 'reused', ...(await stageCost(stage, manifest)), detail: stageDetail(stage, manifest) });
           continue;
         }
         options.onStage?.(stage, { runDir, execId });
@@ -155,7 +155,8 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
         } else {
           await fns.generateScripts({ runId: runId!, ...common, ...signal });
         }
-        reports.push({ stage, action: 'ran', ...(await stageCost(stage, (await manifestOf())!)), detail: 'done' });
+        const after = (await manifestOf())!;
+        reports.push({ stage, action: 'ran', ...(await stageCost(stage, after)), detail: stageDetail(stage, after) });
       } else if (stage === 'execute') {
         const valid = await validGoldenExecution(runDir!, manifest!);
         if (valid) {
@@ -190,6 +191,14 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
     }
   }
   return { runId, stages: reports, failure: null, suspectedDefects: runId ? await readSuspectedDefects(runPaths(runId, runsDir).dir) : [] };
+}
+
+/** The stage's status, plus for prd what its completeness round added. */
+function stageDetail(stage: 'prd' | 'cases' | 'scripts', manifest: RunManifest): string {
+  const state = manifest.stages[stage]!;
+  const c = stage === 'prd' ? state.completeness : undefined;
+  if (!c) return state.status;
+  return `${state.status}; completeness round +${c.added.apiEndpoints} endpoints, +${c.added.uiRoutes} pages, +${c.added.requirements} requirements${c.error ? ' (ended early)' : ''}`;
 }
 
 function describeResults(execId: string, r: ExecutionResults): string {

@@ -74,3 +74,47 @@ export function buildTask(config: TargetConfig): string {
   }
   return lines.join('\n');
 }
+
+/** The completeness round's system prompt (SPEC §4): general words, nothing app-specific. */
+export function buildCompletenessSystemPrompt(): string {
+  return `You are a senior QA analyst checking a requirements document for completeness. A first pass read the source code of a web application and recorded API endpoints, frontend page routes, features and requirements; they are listed in the task. Find what it missed, with list_files, read_file and search_code. You cannot run the application.
+
+## Where routes are usually missed
+- API routers mounted under a path in another file (a sub-router included with a prefix), and route files the first pass did not open: compare the route files in the code with the endpoints listed.
+- Pages nested inside another page: child routes, tabs, and sections of a dashboard or admin area. They are often defined in the parent page or in a data file such as a menu or a list of links, not in the main router.
+- Pages and endpoints for one role only (an administrator or another privileged user).
+- Endpoints to read or update one item by its id, and search or filter endpoints.
+
+## What to record
+For each missing endpoint or page:
+1. Record it with add_api_endpoints or add_ui_routes, with evidence on the code that defines it (for a nested page: the route or link definition, and the component it renders). Use the full path as a user or client sees it, e.g. a page nested under /settings at "profile" is /settings/profile.
+2. Add at least one requirement for what it does with add_requirements, in an existing feature or a new one (add_features first). Its statement or one of its criteria must contain the path, e.g. "GET /api/items/:id returns the item" or "The /settings/profile page shows the user's email".
+Requirements follow the same rules as in the first pass: today's behaviour in neutral words, one behaviour per requirement, a layer ("api", "ui" or "e2e"), 1 to 4 concrete criteria each with evidence of at most 100 lines that you have read; a ui or e2e requirement cites page or component code from the frontend.
+
+Do not record anything that is already listed. Each add_* call checks its whole batch and stores it only if every item is valid; ids continue from the last stored one. Send at most ${MAX_BATCH_ITEMS} items per call.
+When nothing is missing, or everything you found is recorded, call finish_completeness. Recording nothing is a valid result when the first pass was complete.`;
+}
+
+/** The completeness round's task: the target facts of the first pass plus what is recorded so far. */
+export function buildCompletenessTask(
+  config: TargetConfig,
+  recorded: {
+    features: Array<{ id: string; name: string }>;
+    apiEndpoints: Array<{ method: string; path: string }>;
+    uiRoutes: Array<{ path: string }>;
+    requirements: number;
+    nextFeatureId: string;
+    nextRequirementId: string;
+  },
+): string {
+  return [
+    buildTask(config).replace('Write the requirements document for the application in this repository.', 'Check the requirements document of the application in this repository for missing endpoints and pages.'),
+    '',
+    `Features (${recorded.features.length}): ${recorded.features.map((f) => `${f.id} ${f.name}`).join('; ') || 'none'}. Next feature id: ${recorded.nextFeatureId}.`,
+    `API endpoints already recorded (${recorded.apiEndpoints.length}):`,
+    ...recorded.apiEndpoints.map((e) => `- ${e.method} ${e.path}`),
+    `Page routes already recorded (${recorded.uiRoutes.length}):`,
+    ...recorded.uiRoutes.map((r) => `- ${r.path}`),
+    `Requirements recorded: ${recorded.requirements}. Next requirement id: ${recorded.nextRequirementId}.`,
+  ].join('\n');
+}

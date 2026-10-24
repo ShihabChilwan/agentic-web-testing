@@ -757,6 +757,18 @@ export const StageAgentSummary = z.object({
   }),
 });
 
+/** The PRD completeness round (§4): its session summary, what it added, and why it stopped early if it did. */
+export const StageCompletenessSummary = StageAgentSummary.extend({
+  added: z.object({
+    features: z.number().int().nonnegative(),
+    apiEndpoints: z.number().int().nonnegative(),
+    uiRoutes: z.number().int().nonnegative(),
+    requirements: z.number().int().nonnegative(),
+  }),
+  /** Set when the round ended without an accepted finish; what it stored is kept. */
+  error: z.string().optional(),
+});
+
 const count = z.number().int().nonnegative();
 
 /**
@@ -816,6 +828,8 @@ export const StageState = z.object({
   /** Why the stage failed (e.g. LLMBudgetExceededError). No secrets. */
   error: z.string().optional(),
   agent: StageAgentSummary.optional(),
+  /** PRD stage only: the completeness round (absent in files written before it existed). */
+  completeness: StageCompletenessSummary.optional(),
   generation: StageGenerationSummary.optional(),
   scripts: StageScriptsSummary.optional(),
 });
@@ -868,6 +882,7 @@ export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
 export type StageAgentSummary = z.infer<typeof StageAgentSummary>;
 export type StageGenerationSummary = z.infer<typeof StageGenerationSummary>;
+export type StageCompletenessSummary = z.infer<typeof StageCompletenessSummary>;
 export type StageScriptsSummary = z.infer<typeof StageScriptsSummary>;
 export type RunExecution = z.infer<typeof RunExecution>;
 export type RunManifest = z.infer<typeof RunManifest>;

@@ -218,6 +218,57 @@ export class PrdDraft {
   }
 }
 
+/** A path as a template: parameter segments (":id", "{id}", "<id>", "${id}") all become ":". */
+export function pathTemplate(p: string): string {
+  return p
+    .split('?')[0]!
+    .replace(/\/+$/, '')
+    .split('/')
+    .map((seg) => (/^(:\w+|\{\w+\}|<[^>]+>|\$\{[^}]+\})$/.test(seg) ? ':' : seg))
+    .join('/');
+}
+
+/** The paths a text mentions ("GET /api/items/:id returns …" → ["/api/items/:id"]). */
+function mentionedPaths(text: string): string[] {
+  return [...text.matchAll(/\/[A-Za-z0-9_:\-<>{}$./]*/g)].map((m) => pathTemplate(m[0].replace(/[.,:;]+$/, '')));
+}
+
+/** How many items of each kind the draft holds, to tell what a later round added. */
+export function draftCounts(draft: PrdDraft) {
+  return { features: draft.features.length, apiEndpoints: draft.apiEndpoints.length, uiRoutes: draft.uiRoutes.length, requirements: draft.requirements.length };
+}
+
+/**
+ * Endpoints and pages added since `before` that no requirement names: a route without a requirement gets no test
+ * case (test cases are written per requirement), so the completeness round must describe each one it adds.
+ */
+export function uncitedAdditions(draft: PrdDraft, before: ReturnType<typeof draftCounts>): string[] {
+  const named = new Set(draft.requirements.flatMap((r) => [r.statement, ...r.acceptanceCriteria.map((c) => c.text)]).flatMap(mentionedPaths));
+  const problems: string[] = [];
+  for (const e of draft.apiEndpoints.slice(before.apiEndpoints)) {
+    if (!named.has(pathTemplate(e.path))) problems.push(`${e.method} ${e.path} was added but no requirement names it; add a requirement whose statement or a criterion contains ${e.path}`);
+  }
+  for (const r of draft.uiRoutes.slice(before.uiRoutes)) {
+    if (!named.has(pathTemplate(r.path))) problems.push(`The page ${r.path} was added but no requirement names it; add a requirement whose statement or a criterion contains ${r.path}`);
+  }
+  return problems;
+}
+
+/** finish_completeness: accepted when every endpoint and page added in the round is named by a requirement. */
+export function createCompletenessSubmit(draft: PrdDraft, before: ReturnType<typeof draftCounts>): SubmitSpec<CompletenessInput> {
+  return {
+    name: 'finish_completeness',
+    description: 'Finish the completeness check. Every endpoint and page you added must be named by a requirement.',
+    schema: CompletenessInput,
+    validate: () => listProblems(uncitedAdditions(draft, before)),
+  };
+}
+
+export const CompletenessInput = z.object({
+  notes: z.string().optional().describe('Optional: what you checked, or why nothing was missing'),
+});
+export type CompletenessInput = z.infer<typeof CompletenessInput>;
+
 const batch = <T extends z.ZodType>(item: T) => z.array(item).min(1).max(MAX_BATCH_ITEMS);
 
 export const SubmitInput = z.object({

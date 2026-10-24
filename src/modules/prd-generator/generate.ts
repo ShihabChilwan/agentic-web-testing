@@ -10,15 +10,17 @@ import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE } from '../../shared/paths.js';
 import { createRun, errorSummary, llmSettings, setStage } from '../../shared/run-manifest.js';
 import { Prd } from '../../shared/schemas.js';
-import type { StageAgentSummary } from '../../shared/schemas.js';
+import type { StageAgentSummary, StageCompletenessSummary, TargetConfig } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { checkoutRef } from '../execution-engine/lifecycle.js';
-import { createDraftTools, createSubmit, PrdDraft, RECORDING_TOOLS } from './draft.js';
+import { createCompletenessSubmit, createDraftTools, createSubmit, draftCounts, featureId, PrdDraft, RECORDING_TOOLS, requirementId } from './draft.js';
 import type { SubmitInput } from './draft.js';
-import { buildSystemPrompt, buildTask } from './prompt.js';
+import { buildCompletenessSystemPrompt, buildCompletenessTask, buildSystemPrompt, buildTask } from './prompt.js';
 
 /** Turns allowed beyond the exploring ceiling, for the add_* batches, nudges and submit. */
 export const PRD_EXTRA_TURNS = 40;
+/** Exploring calls of the completeness round (SPEC §4, §12); its add_* calls do not count. */
+export const COMPLETENESS_EXPLORATION_CEILING = 60;
 
 export interface GeneratePrdOptions {
   target: string;
@@ -45,6 +47,7 @@ export interface GeneratePrdResult {
   prd: Prd;
   agent: Omit<AgentResult<SubmitInput>, 'output'>;
   summary: StageAgentSummary;
+  completeness: StageCompletenessSummary;
 }
 
 type SessionDetails = { turns: number; toolCalls: number; budgetExhausted: boolean; toolStats: Record<string, ToolStats> };
@@ -63,6 +66,61 @@ export function describeSummary(summary: StageAgentSummary): string[] {
     lines.push(`Warning: exploration stopped at the ceiling (${summary.toolCallCeiling} calls); the document may be incomplete.`);
   }
   return lines;
+}
+
+/** One line for a person: what the completeness round added, and a warning when it stopped early. */
+export function describeCompleteness(c: StageCompletenessSummary): string[] {
+  const a = c.added;
+  const lines = [`completeness round: added ${a.apiEndpoints} API endpoint(s), ${a.uiRoutes} page(s), ${a.requirements} requirement(s), ${a.features} feature(s); ${c.toolCalls} exploring calls`];
+  if (c.error) lines.push(`Warning: the completeness round ended early (${c.error}); what it recorded is kept.`);
+  return lines;
+}
+
+/**
+ * The completeness round (SPEC §4): a second session with the read-only tools and the same draft looks for
+ * endpoints and pages the first pass missed and describes each in a requirement. It never fails the stage: when it
+ * ends without an accepted finish, what it stored is kept and the reason recorded.
+ */
+async function runCompletenessRound(
+  draft: PrdDraft,
+  deps: { config: TargetConfig; scope: { root: string; forbiddenPaths: string[] }; llm: LLMClient; llmConfig: LLMConfig; transcriptsDir: string },
+): Promise<StageCompletenessSummary> {
+  const before = draftCounts(draft);
+  const added = () => {
+    const now = draftCounts(draft);
+    return {
+      features: now.features - before.features,
+      apiEndpoints: now.apiEndpoints - before.apiEndpoints,
+      uiRoutes: now.uiRoutes - before.uiRoutes,
+      requirements: now.requirements - before.requirements,
+    };
+  };
+  const task = buildCompletenessTask(deps.config, {
+    features: draft.features,
+    apiEndpoints: draft.apiEndpoints,
+    uiRoutes: draft.uiRoutes,
+    requirements: draft.requirements.length,
+    nextFeatureId: featureId(draft.features.length + 1),
+    nextRequirementId: requirementId(draft.requirements.length + 1),
+  });
+  const ceiling = COMPLETENESS_EXPLORATION_CEILING;
+  try {
+    const result = await runAgent(
+      {
+        purpose: 'prd',
+        system: buildCompletenessSystemPrompt(),
+        task,
+        tools: [...createRepoTools(deps.scope), ...createDraftTools(draft)],
+        submit: createCompletenessSubmit(draft, before),
+        budget: { maxToolCalls: ceiling, maxTurns: ceiling + PRD_EXTRA_TURNS },
+      },
+      { llm: deps.llm, contextTokens: deps.llmConfig.contextTokens, transcriptDir: deps.transcriptsDir },
+    );
+    return { ...stageSummary(result, ceiling), added: added() };
+  } catch (err) {
+    if (!(err instanceof AgentBudgetError || err instanceof AgentSubmitError)) throw err;
+    return { ...stageSummary(err.details, ceiling), added: added(), error: errorSummary(err) };
+  }
 }
 
 /** The run.json summary of an agent session. Rejections count only the recording (add_*) tools. */
@@ -133,15 +191,18 @@ export async function generatePrd(options: GeneratePrdOptions): Promise<Generate
       { llm, contextTokens: llmConfig.contextTokens, transcriptDir: paths.transcriptsDir },
     );
 
+    log('Completeness round: looking for endpoints and pages the first pass missed');
+    const completeness = await runCompletenessRound(draft, { config, scope, llm, llmConfig, transcriptsDir: paths.transcriptsDir });
+
     const prd = Prd.parse(
       draft.toPrd({ target: config.name, sourceRef: ref, generatedAt: new Date().toISOString() }, result.output),
     );
     await writeFile(paths.prd, `${JSON.stringify(prd, null, 2)}\n`, 'utf8');
     const summary = stageSummary(result, ceiling);
-    await setStage(paths.dir, 'prd', { status: 'done', startedAt, finishedAt: new Date().toISOString(), agent: summary });
+    await setStage(paths.dir, 'prd', { status: 'done', startedAt, finishedAt: new Date().toISOString(), agent: summary, completeness });
 
     const { output: _output, ...agent } = result;
-    return { runId, runDir: paths.dir, prdFile: paths.prd, prd, agent, summary };
+    return { runId, runDir: paths.dir, prdFile: paths.prd, prd, agent, summary, completeness };
   } catch (err) {
     const details = err instanceof AgentBudgetError || err instanceof AgentSubmitError ? err.details : undefined;
     await setStage(paths.dir, 'prd', {

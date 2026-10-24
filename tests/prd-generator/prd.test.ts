@@ -7,8 +7,9 @@ import { AgentSubmitError } from '../../src/agent/types.js';
 import { LLMBudgetExceededError } from '../../src/llm/errors.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { FakeStep } from '../../src/llm/fake.js';
-import { PrdDraft } from '../../src/modules/prd-generator/draft.js';
-import { buildSystemPrompt, buildTask, generatePrd } from '../../src/modules/prd-generator/index.js';
+import { buildSystemPrompt, buildTask, describeCompleteness, generatePrd } from '../../src/modules/prd-generator/index.js';
+import { draftCounts, pathTemplate, PrdDraft, uncitedAdditions } from '../../src/modules/prd-generator/draft.js';
+import { buildCompletenessSystemPrompt } from '../../src/modules/prd-generator/prompt.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { Prd, RunManifest, TargetConfig } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
@@ -98,6 +99,8 @@ const happySteps = (): FakeStep[] => [
   call('add_ui_routes', { routes: [route()] }),
   call('add_requirements', { requirements: [requirement()] }),
   call('submit_prd', { assumptions: ['Password reset email is untestable'], openQuestions: [] }),
+  // The completeness round (§4) finds nothing more.
+  call('finish_completeness', { notes: 'Every route file and page was already listed' }),
 ];
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -145,7 +148,9 @@ describe('generatePrd', () => {
     expect(manifest.stages.prd).toMatchObject({ status: 'done', startedAt: expect.any(String), finishedAt: expect.any(String) });
     expect(manifest.stages.prd?.agent).toEqual(result.summary);
     expect(manifest.llm.reasoningEffort.prd).toBe('medium');
-    expect(await readdir(path.join(result.runDir, 'transcripts'))).toEqual(['prd-1.jsonl']);
+    expect(await readdir(path.join(result.runDir, 'transcripts'))).toEqual(['prd-1.jsonl', 'prd-2.jsonl']);
+    expect(manifest.stages.prd?.completeness).toMatchObject({ turns: 1, toolCalls: 0, toolCallCeiling: 60, added: { features: 0, apiEndpoints: 0, uiRoutes: 0, requirements: 0 } });
+    expect(manifest.stages.prd?.completeness?.error).toBeUndefined();
   });
 
   it('returns a rejected batch to the model, stores nothing from it, and accepts the corrected batch', async () => {
@@ -362,5 +367,81 @@ describe('PRD prompts', () => {
     const task = buildTask({ ...config, frontend, backend: { ...config.backend, disabledServices: {} } });
     expect(task).toContain('source is under: client.');
     expect(task).toContain('(email, payments, OAuth, external storage) are disabled');
+  });
+});
+
+describe('completeness round', () => {
+  const mainSteps = () => happySteps().slice(0, -1); // up to submit_prd
+  const nested = route({ path: '/settings/profile', summary: 'Profile tab of the settings page', authRequired: true, evidence: [{ file: 'client/app/routes.js', lines: [6, 9] }] });
+  const nestedRequirement = requirement({
+    id: 'REQ-002',
+    layer: 'ui',
+    statement: 'A logged-in user sees their email on the profile tab.',
+    acceptanceCriteria: [{ text: 'The /settings/profile page shows the email field', evidence: [{ file: 'client/app/Login.js', lines: [1, 20] }] }],
+  });
+
+  it('adds what the first pass missed, each page or endpoint named by a requirement, and records the counts', async () => {
+    const { llm, promise } = await run([
+      ...mainSteps(),
+      call('search_code', { pattern: 'path' }),
+      call('add_ui_routes', { routes: [nested] }),
+      call('add_requirements', { requirements: [nestedRequirement] }),
+      call('finish_completeness', {}),
+    ]);
+    const result = await promise;
+    expect(result.prd.uiRoutes.map((r) => r.path)).toEqual(['/login', '/settings/profile']);
+    expect(result.prd.requirements.map((r) => r.id)).toEqual(['REQ-001', 'REQ-002']);
+    expect(result.completeness).toMatchObject({ toolCalls: 1, added: { features: 0, apiEndpoints: 0, uiRoutes: 1, requirements: 1 } });
+    expect(result.summary.toolCallsByTool.add_ui_routes).toBe(1); // the first session's summary stays its own
+    // The round's task lists what is recorded and the next ids; its system prompt is the round's own.
+    const roundStart = llm.requests[mainSteps().length]!;
+    const task = roundStart.messages[0]!;
+    const text = task.role === 'user' ? task.content.map((b) => (b.type === 'text' ? b.text : '')).join('') : '';
+    expect(text).toContain('- POST /api/auth/login');
+    expect(text).toContain('- /login');
+    expect(text).toContain('Next requirement id: REQ-002.');
+    expect(roundStart.system).toBe(buildCompletenessSystemPrompt());
+    const manifest = RunManifest.parse(await readJson(path.join(result.runDir, 'run.json')));
+    expect(manifest.stages.prd?.completeness?.added).toEqual({ features: 0, apiEndpoints: 0, uiRoutes: 1, requirements: 1 });
+  });
+
+  it('refuses to finish while an added page has no requirement naming it', async () => {
+    const { llm, promise } = await run([
+      ...mainSteps(),
+      call('add_ui_routes', { routes: [nested] }),
+      call('finish_completeness', {}),
+      call('add_requirements', { requirements: [nestedRequirement] }),
+      call('finish_completeness', {}),
+    ]);
+    const result = await promise;
+    const rejected = JSON.stringify(llm.requests[mainSteps().length + 2]!.messages.at(-1));
+    expect(rejected).toContain('The page /settings/profile was added but no requirement names it; add a requirement whose statement or a criterion contains /settings/profile');
+    expect(result.completeness.added.requirements).toBe(1);
+  });
+
+  it('never fails the stage: an unfinished round keeps what it stored and records why', async () => {
+    const finish = call('finish_completeness', {});
+    const { promise } = await run([...mainSteps(), call('add_ui_routes', { routes: [nested] }), finish, finish, finish]);
+    const result = await promise;
+    expect(result.prd.uiRoutes).toHaveLength(2);
+    expect(result.completeness.error).toMatch(/^AgentSubmitError: /);
+    const manifest = RunManifest.parse(await readJson(path.join(result.runDir, 'run.json')));
+    expect(manifest.stages.prd).toMatchObject({ status: 'done', completeness: { error: expect.stringMatching(/^AgentSubmitError/) } });
+    expect(describeCompleteness(result.completeness)).toEqual([
+      'completeness round: added 0 API endpoint(s), 1 page(s), 0 requirement(s), 0 feature(s); 0 exploring calls',
+      `Warning: the completeness round ended early (${result.completeness.error}); what it recorded is kept.`,
+    ]);
+  });
+
+  it('matches paths by template: any parameter style, trailing slash and punctuation ignored', () => {
+    expect(pathTemplate('/api/items/:id')).toBe(pathTemplate('/api/items/<itemId>'));
+    expect(pathTemplate('/api/items/{id}/')).toBe('/api/items/:');
+    const draft = new PrdDraft({ scope: { root: repoDir, forbiddenPaths: [] }, apiPrefix: '/api', frontendRoots: ['client/app'] });
+    const before = draftCounts(draft);
+    draft.apiEndpoints.push(endpoint({ method: 'GET', path: '/api/items/:id' }));
+    draft.uiRoutes.push(route({ path: '/settings/profile' }));
+    expect(uncitedAdditions(draft, before)).toHaveLength(2);
+    draft.requirements.push(requirement({ statement: 'GET /api/items/<id> returns the item.', acceptanceCriteria: [{ text: 'Opening /settings/profile, shows the email', evidence: [] }] }));
+    expect(uncitedAdditions(draft, before)).toEqual([]);
   });
 });
