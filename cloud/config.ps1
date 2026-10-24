@@ -15,7 +15,7 @@ $Job         = 'eval-9b'
 $Cpu         = '2'
 $Memory      = '4Gi'
 $JobTasks    = 18                                          # the job's task count: golden + 12 code + 5 environment versions
-$Parallelism = 6                                           # 6 x 2 vCPU = 12 vCPU, under the regional Cloud Run CPU quota of a shared project; raise after checking the quota page
+$Parallelism = 18                                          # all tasks at once: 18 x 2 vCPU = 36 vCPU, 72 GiB, within the region's quota (200 vCPU, 429 GB, checked 24 Oct)
 $TaskTimeout = '90m'                                       # env-01 is estimated at 60-65 min (SPEC 0.2)
 
 $Root        = Split-Path -Parent $PSScriptRoot           # the project folder (may contain spaces)
