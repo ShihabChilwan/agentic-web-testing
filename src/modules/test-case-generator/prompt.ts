@@ -13,7 +13,7 @@ You get one feature at a time: its requirements, the code that implements them a
 - preconditions: what must be true before the test starts, in plain words (may be empty).
 - fixturesUsed: the fixture paths the test relies on, e.g. users.<name> (may be empty).
 - steps: short, concrete actions a script writer can follow ("Send POST /api/items with an empty name", "Open the sign-in page", "Fill in the email field").
-- expected: the observable results, in order (they are numbered for you). Each has a description of one result, and optionally a value: literal data that appears exactly in the code or fixtures you were given, such as a status code, a message string or a URL path. Checks like "is visible" or "is shown" have no value; the description says what to check. When the text is not in the code you were given, leave the value out.
+- expected: the observable results, in order (they are numbered for you). Each has a description of one result, "readBack": true when it checks a read made after the test's last write, and optionally a value: literal data that appears exactly in the code or fixtures you were given, such as a status code, a message string or a URL path. Checks like "is visible" or "is shown" have no value; the description says what to check. When the text is not in the code you were given, leave the value out.
   Bad: { "description": "An error is shown", "value": "Something went wrong" } when that text is not in the code.
   Bad: { "description": "The dashboard is shown", "value": true }.
   Good: { "description": "The response status is 400", "value": 400 } when the handler returns status(400).
@@ -26,6 +26,11 @@ You get one feature at a time: its requirements, the code that implements them a
   Bad: steps that rename users.alice or change her password.
   Good: "Register a new user with a unique email", then "Change that user's first name".
 - Tests are independent: each starts from the fixture data only and must not rely on another test or on running order. Data a test creates must use unique values, e.g. a timestamp in a name or email, so the test can run again.
+- An api test case that changes data (create, update or delete, also when the request should be rejected) reads it back afterwards with a GET request from the endpoint list (or, only when it changes a user account such as a registration or password change, by logging in) and checks what comes back in an expectation marked "readBack": true: the new values after a create or update, the item gone after a delete, nothing changed after a rejected request. Skip this only when no endpoint can read that data.
+  Bad: steps "Send DELETE /api/items/<id>", "Send GET /api/items/<id> to confirm it is gone", with no expectation for the GET.
+  Good: the same steps plus { "description": "Reading the deleted item returns 404", "value": 404, "readBack": true }.
+- A test case that expects success checks more than the status code: at least one value in the response or in the data read back (a field, the created item, a message).
+- When you test that reading a missing item gives "not found", also test reading an existing one (create it first when the fixtures and facts have none) and check its data.
 - Cover the requirement's acceptance criteria. For high-priority requirements include at least one negative case (error-handling, boundary or auth) where it makes sense: missing or invalid input, wrong credentials, a user without the needed role.
 - When a flow needs a secret that only travels through a disabled service (for example a code sent only by email or SMS), test the parts that do not need it, such as rejecting an invalid or expired code. If nothing is testable, decline the requirement with reasonKind "third-party-disabled".
   Bad: a test case that asks the tester to "open the email and click the reset link".

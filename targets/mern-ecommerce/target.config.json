@@ -158,5 +158,6 @@
     "include": ["README.md", "server/**", "client/app/**"],
     "exclude": ["**/node_modules/**", "**/*.test.*", "**/dist/**", "**/build/**"]
   },
-  "forbiddenPaths": []
+  "forbiddenPaths": [],
+  "accountResources": ["/api/user"]
 }

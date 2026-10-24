@@ -183,6 +183,12 @@ export const TargetConfig = z.strictObject({
     exclude: z.array(z.string()),
   }),
   forbiddenPaths: z.array(z.string()),
+  /**
+   * API resources whose writes change a user account (besides the login request's own resource, e.g. a profile
+   * endpoint): after such a write, logging in counts as reading the change back (§5). Outside `auth` on purpose:
+   * `auth` is part of the scripts' helpersHash.
+   */
+  accountResources: z.array(z.string().startsWith('/')).default([]),
 });
 
 export type TargetConfig = z.infer<typeof TargetConfig>;
@@ -361,6 +367,8 @@ export const Expectation = z.object({
   id: ExpectationId,
   description: z.string().min(1),
   value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+  /** True when it checks what a read after the test's last write returns (SPEC §5); absent otherwise and in older files. */
+  readBack: z.boolean().optional(),
 });
 
 export const TestCase = z.object({

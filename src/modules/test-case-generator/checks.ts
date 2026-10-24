@@ -7,7 +7,7 @@ import {
   UncoveredReasonKind,
   UncoveredRequirement,
 } from '../../shared/schemas.js';
-import type { PrdRequirement, TestCase as TestCaseType } from '../../shared/schemas.js';
+import type { Prd, PrdRequirement, TestCase as TestCaseType } from '../../shared/schemas.js';
 
 /**
  * A test case as the model writes it. Code fills in everything derivable: the test case id (after every
@@ -89,6 +89,20 @@ export function fixtureExists(fixtures: unknown, dotPath: string): boolean {
   return true;
 }
 
+/** What the API check rules need (SPEC §5): the PRD's endpoints, the API prefix and the login request. */
+export interface ApiRules {
+  endpoints: Prd['apiEndpoints'];
+  /** e.g. "/api"; a resource is the prefix plus the next path segment. */
+  apiPrefix: string;
+  /** The target's login request: logging in is a setup step, not a write under test. */
+  loginPath?: string;
+  /**
+   * Resources whose writes change an account (the target config's accountResources); the login request's own
+   * resource always is one. Only after a write to one of these does a later login count as reading it back.
+   */
+  accountResources?: string[];
+}
+
 export interface CheckContext {
   /** The requirements of this session (one feature, or its gap-round subset). */
   requirements: PrdRequirement[];
@@ -96,6 +110,120 @@ export interface CheckContext {
   /** Where expected values may come from (see Grounding). */
   grounding: Grounding;
   quota: number;
+  /** When set, the API rules (read back after a write, more than a status, found and not found) apply. */
+  api?: ApiRules;
+}
+
+export interface StepRequest {
+  /** 0-based index into steps. */
+  step: number;
+  method: string;
+  /** Without query string. */
+  path: string;
+}
+
+const STEP_REQUEST = /\b(GET|POST|PUT|PATCH|DELETE)\s+(\/[^\s"'`,;)]*)/g;
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/** The HTTP requests a case's steps name ("Send POST /api/items …"), in order. */
+export function stepRequests(steps: readonly string[]): StepRequest[] {
+  return steps.flatMap((text, step) =>
+    [...text.matchAll(STEP_REQUEST)].map((m) => ({ step, method: m[1]!, path: m[2]!.split('?')[0]!.replace(/[.:]+$/, '') })),
+  );
+}
+
+/** A path template's segments: ":id", "{id}" and "<id>" are parameters. */
+const isParam = (segment: string) => /^(:\w+|\{\w+\}|<[^>]+>|\$\{[^}]+\})$/.test(segment);
+
+/** The PRD endpoint a step's request goes to: method and path match, parameters match any one segment; the most literal match wins. */
+export function matchEndpoint(method: string, path: string, endpoints: Prd['apiEndpoints']): Prd['apiEndpoints'][number] | undefined {
+  const parts = path.split('/').filter(Boolean);
+  const matches = endpoints.filter((e) => {
+    if (e.method !== method) return false;
+    const template = e.path.split('?')[0]!.split('/').filter(Boolean);
+    return template.length === parts.length && template.every((t, i) => isParam(t) || t === parts[i]);
+  });
+  const literal = (e: Prd['apiEndpoints'][number]) => e.path.split('/').filter((t) => t && !isParam(t)).length;
+  return matches.sort((a, b) => literal(b) - literal(a))[0];
+}
+
+/** The resource a path belongs to: the API prefix plus the next segment ("/api/items/42" → "/api/items"). */
+export function resourceOf(path: string, apiPrefix: string): string {
+  const prefix = apiPrefix.replace(/\/+$/, '');
+  const rest = path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
+  const first = rest.split('/').filter(Boolean)[0] ?? '';
+  return `${prefix}/${first}`;
+}
+
+const isStatusCode = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 100 && v <= 599;
+/**
+ * An expectation that only checks the response's status code (a status value, or no value and a description about
+ * the status). A read-back expectation checks the resulting data even when it is a status (an item gone is a 404).
+ */
+const isStatusExpectation = (e: { description: string; value?: unknown; readBack?: boolean }) =>
+  e.readBack !== true &&
+  (isStatusCode(e.value) || (e.value === undefined && /\bstatus\b/i.test(e.description) && !/\b(body|field|message|contains?|returns? (?:the|a|an))\b/i.test(e.description)));
+
+/**
+ * The API rules for one submission (SPEC §5): a case whose action writes data reads it back afterwards (unless the
+ * PRD has no read endpoint for that resource); a case expecting success checks more than the status; a case that
+ * reads a missing item (404) has a partner that reads an existing one, unless its requirement is declined in part.
+ */
+export function apiRuleProblems(sub: SubmitTestCases, rules: ApiRules): string[] {
+  const problems: string[] = [];
+  const declined = new Set(sub.declined.map((d) => d.requirementId));
+  const reads = (tc: TestCaseDraft) => stepRequests(tc.steps).filter((r) => r.method === 'GET');
+  const successReads = new Set<string>();
+  // A "found" partner: a case that reads the endpoint, expects success and no 404 (a delete-then-read case is not one).
+  for (const tc of sub.testCases) {
+    if (tc.layer !== 'api' || tc.expected.some((e) => e.value === 404)) continue;
+    if (!tc.expected.some((e) => typeof e.value === 'number' && e.value >= 200 && e.value < 300)) continue;
+    for (const r of reads(tc)) {
+      const endpoint = matchEndpoint('GET', r.path, rules.endpoints);
+      if (endpoint) successReads.add(endpoint.path);
+    }
+  }
+  sub.testCases.forEach((tc, i) => {
+    if (tc.layer !== 'api') return;
+    const label = `testCases[${i}]`;
+    const all = stepRequests(tc.steps);
+    const isLogin = (r: StepRequest) => rules.loginPath !== undefined && r.path === rules.loginPath;
+    // Logging in is setup, not a write under test; after a write it reads the account's state back.
+    const lastWrite = all.filter((r) => WRITE_METHODS.has(r.method) && !isLogin(r)).at(-1);
+    if (lastWrite) {
+      const resource = resourceOf(lastWrite.path, rules.apiPrefix);
+      const readable = rules.endpoints.some((e) => e.method === 'GET' && resourceOf(e.path, rules.apiPrefix) === resource);
+      const accounts = [...(rules.loginPath ? [rules.loginPath] : []), ...(rules.accountResources ?? [])].map((p) => resourceOf(p, rules.apiPrefix));
+      const accountWrite = accounts.includes(resource);
+      // Logging in reads back only what a write changed about an account (registration, password, email).
+      const readAfter = all.some((r) => r.step > lastWrite.step && (r.method === 'GET' || (accountWrite && isLogin(r))));
+      const write = `its last write (${lastWrite.method} ${lastWrite.path}, step ${lastWrite.step + 1})`;
+      const what = 'the new values after a create or update, the item gone after a delete, nothing changed after a rejected request';
+      if (readable && !readAfter) {
+        problems.push(
+          `${label}: ${write} is not followed by a read. Add a step that reads the data back with a GET request from the endpoint list${accountWrite && rules.loginPath ? ' (or, since it changes an account, the login request)' : ''}, and an expectation with "readBack": true for what it returns: ${what}`,
+        );
+      } else if (readAfter && !tc.expected.some((e) => e.readBack === true)) {
+        problems.push(`${label}: ${write} is read back, but no expectation checks the read; add one with "readBack": true for what it returns: ${what}`);
+      }
+    }
+    if (tc.expected.some((e) => typeof e.value === 'number' && e.value >= 200 && e.value < 300) && tc.expected.every(isStatusExpectation)) {
+      problems.push(
+        `${label}: it expects a success status but checks nothing else; add at least one expectation about the response body or the data read back (a field value, the created item, a message)`,
+      );
+    }
+    if (tc.expected.some((e) => e.value === 404) && !tc.requirementIds.some((id) => declined.has(id))) {
+      for (const r of reads(tc)) {
+        const endpoint = matchEndpoint('GET', r.path, rules.endpoints);
+        if (!endpoint || !endpoint.path.split('/').some(isParam) || successReads.has(endpoint.path)) continue;
+        problems.push(
+          `${label}: it reads GET ${endpoint.path} only for an item that does not exist (404). Add a test case that reads an existing one (create it first if the fixtures and facts have none) and checks the success status and its data; if that cannot work, say why in declined for the requirement`,
+        );
+        break;
+      }
+    }
+  });
+  return problems;
 }
 
 /** Code checks on one submission. Each problem says what to change. */
@@ -151,6 +279,7 @@ export function checkSubmission(sub: SubmitTestCases, ctx: CheckContext): string
   for (const [id, n] of perRequirement) {
     if (n > MAX_TEST_CASES_PER_REQUIREMENT) problems.push(`${id} has ${n} test cases; at most ${MAX_TEST_CASES_PER_REQUIREMENT}`);
   }
+  if (ctx.api) problems.push(...apiRuleProblems(sub, ctx.api));
   // A decline for a requirement that also has test cases is not a mistake: it records the part that
   // cannot be tested (e.g. an email-only happy path). Code keeps it as a partial decline (coverage.partial).
   const declined = new Set<string>();

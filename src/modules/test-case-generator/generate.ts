@@ -112,6 +112,12 @@ async function runSession(
               fixtures: deps.config.fixtures,
               grounding,
               quota: input.quota,
+              api: {
+                endpoints: deps.endpoints,
+                apiPrefix: deps.config.backend.apiPrefix,
+                ...(deps.config.auth ? { loginPath: deps.config.auth.login.path } : {}),
+                accountResources: deps.config.accountResources,
+              },
             }),
         },
         budget: SESSION_BUDGET,
