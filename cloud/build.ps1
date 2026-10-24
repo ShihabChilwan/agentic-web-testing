@@ -10,7 +10,7 @@ Write-Host "Will build $image (linux/amd64) from `"$BuildDir`"$(if ($Push) { ' a
 # Build for Cloud Run's platform; the build folder path (with spaces) is one argument.
 Invoke-Tool 'docker build' 'docker' @('build', '--platform', 'linux/amd64', '-t', $image, $BuildDir)
 # Image size as docker reports it (unpacked).
-& docker @('image', 'ls', $image, '--format', 'size: {{.Size}}')
+Get-ToolOutput 'docker image ls' 'docker' @('image', 'ls', $image, '--format', 'size: {{.Size}}')
 if ($Push) {
   # Upload to the repository created by setup.ps1.
   Invoke-Tool 'docker push' 'docker' @('push', $image)

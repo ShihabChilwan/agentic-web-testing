@@ -5,7 +5,7 @@ param([switch]$DryRun)
 . "$PSScriptRoot\config.ps1"
 
 $image = "${ImageName}:$(Get-ImageTag)"
-Write-Host "Job $Job ($Region): image $image, $Tasks tasks, parallelism $Parallelism, retries 0, task timeout $TaskTimeout,"
+Write-Host "Job $Job ($Region): image $image, $JobTasks tasks, parallelism $Parallelism, retries 0, task timeout $TaskTimeout,"
 Write-Host "  $Cpu vCPU / $Memory per task, service account $Sa, gs://$Bucket mounted at /mnt/results, label $Label"
 
 # Settings shared by create and update; each element is exactly one argument for gcloud.
@@ -13,7 +13,7 @@ $common = @(
   '--region', $Region,
   '--project', $Project,
   '--image', $image,
-  '--tasks', "$Tasks",
+  '--tasks', "$JobTasks",
   '--parallelism', "$Parallelism",
   '--max-retries', '0',
   '--task-timeout', $TaskTimeout,

@@ -11,7 +11,7 @@ New-Item -ItemType Directory -Force $ResultsDir | Out-Null
 Write-Host "Will run task $Index of $image as container $name (cpus $Cpus, memory $MemoryLimit, shm $ShmSize), results in `"$ResultsDir\$Repeat`""
 
 # Remove a container left over from an earlier attempt (no error when there is none).
-& docker @('rm', '-f', $name) *> $null
+Get-ToolOutput 'docker rm' 'docker' @('rm', '-f', $name) -AllowFailure | Out-Null
 # --memory-swap equal to --memory: no swap, as in Cloud Run. tmpfs pages are charged to the container's memory.
 # Each element is exactly one argument (the tmpfs options contain commas, the results path may contain spaces).
 $dockerArgs = @(
@@ -29,12 +29,12 @@ $dockerArgs = @(
 $code = $LASTEXITCODE
 
 # Exit code and whether the kernel killed the container for memory.
-& docker @('inspect', $name, '--format', 'exit code {{.State.ExitCode}}, OOMKilled {{.State.OOMKilled}}')
+Get-ToolOutput 'docker inspect' 'docker' @('inspect', $name, '--format', 'exit code {{.State.ExitCode}}, OOMKilled {{.State.OOMKilled}}') -AllowFailure
 # Files written outside the RAM folders: not counted locally, but counted in Cloud Run (whose whole disk is RAM).
-$changed = & docker @('diff', $name)
+$changed = Get-ToolOutput 'docker diff' 'docker' @('diff', $name) -AllowFailure
 Write-Host "Writes outside tmpfs: $(@($changed).Count) paths (first 20 below)"
 $changed | Select-Object -First 20
-& docker @('rm', $name) | Out-Null
+Get-ToolOutput 'docker rm' 'docker' @('rm', $name) -AllowFailure | Out-Null
 
 # One line from the task's status.json: outcome, test counts, duration and memory.
 $version = (Get-Content (Join-Path $BuildDir 'image\build.json') -Raw | ConvertFrom-Json).versions[$Index].version
