@@ -34,6 +34,8 @@ export interface RunAgentOptions<O> {
   submit: SubmitSpec<O>;
   /** `maxToolCalls` counts only tools that count toward the budget. `maxTurns` defaults to `maxToolCalls + 10`. */
   budget: { maxToolCalls: number; maxTurns?: number };
+  /** Submits allowed before the session fails (default SUBMIT_ATTEMPTS, 3). */
+  submitAttempts?: number;
 }
 
 export interface AgentDeps {

@@ -27,6 +27,8 @@ import { loadTargetConfig } from '../../shared/target-config.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { checkFixtureLogins } from '../execution-engine/guard.js';
 import { startTarget } from '../execution-engine/lifecycle.js';
+import { pageSnapshot, type PageSnapshot } from '../execution-engine/probe.js';
+import { templateMatches, textPaths } from '../../shared/route-paths.js';
 import { targetSettings } from '../execution-engine/suite.js';
 import { collectEvidence, linesAtCommit } from '../test-case-generator/context.js';
 import type { ReadLines } from '../test-case-generator/context.js';
@@ -42,8 +44,28 @@ import { TypeChecker } from './typecheck.js';
 
 /** Code evidence per test case (smaller than the test case stage: one requirement at a time). */
 export const SCRIPT_EVIDENCE_CHAR_CAP = 25_000;
-/** One submit per attempt, 3 attempts (the runtime's submit attempts are the fix loop's attempts). */
-const SESSION_BUDGET = { maxToolCalls: 1, maxTurns: 8 };
+/** One submit per attempt (the runtime's submit attempts are the fix loop's attempts): 3 for api, 5 for ui test cases. */
+export const FIX_ATTEMPTS = { api: 3, ui: 5 } as const;
+const sessionBudget = (attempts: number) => ({ maxToolCalls: 1, maxTurns: attempts + 5 });
+/** At most this many pages are opened for one ui test case's context. */
+const MAX_SNAPSHOT_PAGES = 3;
+
+/**
+ * The pages a ui test case's steps open, as concrete paths that fit one of the PRD's page routes (a path still holding a
+ * placeholder such as <id> cannot be opened), and the fixture user it logs in as (its first fixture that is an object).
+ */
+export function pagesToSnapshot(tc: TestCase, prd: Prd, fixtures: unknown): { paths: string[]; user?: string } {
+  if (tc.layer !== 'ui') return { paths: [] };
+  const routes = prd.uiRoutes.map((r) => r.path).filter((p) => !p.includes('*'));
+  const paths = [...new Set(textPaths(tc.steps))]
+    .filter((p) => !/[<>{}$]|\/:/.test(p) && routes.some((r) => templateMatches(r, p)))
+    .slice(0, MAX_SNAPSHOT_PAGES);
+  const user = tc.fixturesUsed.find((f) => {
+    const v = f.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), fixtures);
+    return v !== null && typeof v === 'object';
+  });
+  return { paths, ...(user ? { user } : {}) };
+}
 const HELPERS_TEMPLATE = fileURLToPath(new URL('./template/_helpers.ts', import.meta.url));
 
 const SubmitScript = z.object({ body: z.string().min(1).describe('The body of the test function only') });
@@ -59,6 +81,8 @@ export interface GenerateScriptsOptions {
   startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<RunningApp>;
   /** For tests: replaces running Playwright on one spec. */
   runDryRun?: (runDir: string, specFile: string, outputDir: string, signal?: AbortSignal) => Promise<DryRunResult>;
+  /** For tests: replaces opening a page of the running app for its accessibility tree (default: the Execution Engine's pageSnapshot). */
+  snapshotPage?: (config: TargetConfig, pagePath: string, userPath?: string) => Promise<PageSnapshot | null>;
   /** Generate every script again instead of keeping the validated ones of an earlier, unfinished run. */
   fresh?: boolean;
   /**
@@ -109,6 +133,9 @@ interface Deps {
   dryRunMs: { total: number };
   app: RunningApp;
   restores: { count: number; ms: number };
+  snapshotPage: NonNullable<GenerateScriptsOptions['snapshotPage']>;
+  /** Page snapshots by "<path>|<user>", taken once per run. */
+  snapshots: Map<string, Promise<PageSnapshot | null>>;
   signal?: AbortSignal;
 }
 
@@ -120,7 +147,13 @@ function dryRunFeedback(category: string, expectationId: string | null, result: 
       `${expectationId} has no locked value. Fix the locator or the waiting only if it does not target what the description says; do not weaken the check to make it pass.`,
     );
   }
-  if (result.dom) lines.push(`Page HTML at the failure (trimmed):\n${result.dom}`);
+  if (result.pageSnapshot) {
+    lines.push(
+      `The page when the test stopped, as an accessibility tree (use these roles, names and labels with getByRole, getByLabel, getByPlaceholder or getByText):\n\`\`\`yaml\n${result.pageSnapshot}\n\`\`\``,
+    );
+  }
+  // With the accessibility tree there, the HTML is only a fallback: keep it short.
+  if (result.dom) lines.push(`Page HTML at the failure (trimmed):\n${result.pageSnapshot ? result.dom.slice(0, 3_000) : result.dom}`);
   if (result.lastResponse) lines.push(`Last API response:\n${result.lastResponse}`);
   lines.push('Fix how the test reaches its checks; EXPECTED stays as it is.');
   return lines;
@@ -134,6 +167,17 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
   const valueIds = new Set(tc.expected.filter((e) => e.value !== undefined).map((e) => e.id));
   const requirements = deps.prd.requirements.filter((r) => tc.requirementIds.includes(r.id));
   const evidence = await collectEvidence(requirements, deps.read, SCRIPT_EVIDENCE_CHAR_CAP);
+  // ui test cases: the pages their steps open, as they look on the generation version, taken between dry runs.
+  const wanted = pagesToSnapshot(tc, deps.prd, deps.config.fixtures);
+  const pageSnapshots: Array<{ path: string; user?: string; snapshot: PageSnapshot }> = [];
+  for (const pagePath of wanted.paths) {
+    const key = `${pagePath}|${wanted.user ?? ''}`;
+    if (!deps.snapshots.has(key)) {
+      deps.snapshots.set(key, deps.mutex.run(() => deps.snapshotPage(deps.config, pagePath, wanted.user)).catch(() => null));
+    }
+    const snapshot = await deps.snapshots.get(key)!;
+    if (snapshot) pageSnapshots.push({ path: pagePath, ...(wanted.user ? { user: wanted.user } : {}), snapshot });
+  }
   const callers = await callerBlocks(tc, {
     endpoints: deps.prd.apiEndpoints,
     apiPrefix: deps.config.backend.apiPrefix,
@@ -207,10 +251,11 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
       {
         purpose: 'scripts',
         system: buildSystemPrompt(),
-        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints }),
+        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots }),
         tools: [],
         submit: { name: 'submit_script', description: 'Submit the body of the test function.', schema: SubmitScript, validate },
-        budget: SESSION_BUDGET,
+        budget: sessionBudget(FIX_ATTEMPTS[tc.layer]),
+        submitAttempts: FIX_ATTEMPTS[tc.layer],
       },
       { llm: deps.llm, contextTokens: deps.llmConfig.contextTokens, transcriptDir: deps.transcriptsDir },
     );
@@ -256,7 +301,7 @@ export function scriptsSummary(
     restoreMs: 0,
     validated: { passed: 0, assertionFailed: 0 },
     invalid: 0,
-    attemptsHistogram: { '1': 0, '2': 0, '3': 0 },
+    attemptsHistogram: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
     failuresByStage: zeroCounts(AttemptStage.options),
     invalidByCategory: zeroCounts(FailureCategory.options),
     invalidCases: {},
@@ -406,6 +451,8 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       dryRunMs: { total: 0 },
       app,
       restores: { count: 0, ms: 0 },
+      snapshotPage: options.snapshotPage ?? pageSnapshot,
+      snapshots: new Map(),
       ...(options.signal ? { signal: options.signal } : {}),
     };
     const todo = cases.filter((tc) => !kept.has(tc.id));

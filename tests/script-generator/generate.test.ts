@@ -177,20 +177,22 @@ expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
 
 function fakeModel() {
   const tasks: Record<string, string> = {};
+  const feedback: Record<string, ChatRequest> = {};
   const respond = (req: ChatRequest): ChatResponse => {
     const first = req.messages[0];
     const task = first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '';
     const id = /test for (TC-\d+)/.exec(task)?.[1] ?? '?';
     tasks[id] = task;
+    feedback[id] = structuredClone(req); // the runtime appends the reply to the same list afterwards
     const attempt = req.messages.filter((m) => m.role === 'assistant').length;
     const bodies = BODIES[id]!;
     return FakeLLMClient.toolCall('submit_script', { body: bodies[Math.min(attempt, bodies.length - 1)] });
   };
-  return { llm: new FakeLLMClient(Array.from({ length: 40 }, () => respond)), tasks };
+  return { llm: new FakeLLMClient(Array.from({ length: 40 }, () => respond)), tasks, feedback };
 }
 
 describe('generateScripts with real Playwright', () => {
-  it('runs the fix loop per case and records outcomes, categories and the summary', { timeout: 240_000 }, async () => {
+  it('runs the fix loop per case and records outcomes, categories and the summary', { timeout: 420_000 }, async () => {
     const runsDir = path.join(root, 'runs');
     const { runId, paths } = await createRun({
       target: 'fake', generationRef: 'golden', generationCommit: 'abc1234', llm: llmSettings(parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' })), runsDir,
@@ -200,7 +202,7 @@ describe('generateScripts with real Playwright', () => {
     prd.requirements = [{ ...prd.requirements[0], id: 'REQ-001' }];
     await writeFile(paths.prd, JSON.stringify(prd));
     await writeFile(paths.testCases, JSON.stringify({ schemaVersion: '1.0', generatedAt: '2026-10-24T10:00:00Z', testCases: CASES, coverage: { requirementsTotal: 1, requirementsCovered: 1, uncovered: [] } }));
-    const { llm, tasks } = fakeModel();
+    const { llm, tasks, feedback } = fakeModel();
     let started = 0;
     let stopped = 0;
 
@@ -227,7 +229,9 @@ describe('generateScripts with real Playwright', () => {
     expect(byId['TC-003']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
     expect(byId['TC-004']?.attemptLog.map((a) => a.category ?? 'ok')).toEqual(['locator', 'ok']);
     expect(byId['TC-004']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
-    expect(byId['TC-005']).toMatchObject({ status: 'invalid', failureCategory: 'value-less-expect', attempts: 3 });
+    // A ui test case gets 5 attempts (an api one 3), and each failed one sees the page as an accessibility tree.
+    expect(byId['TC-005']).toMatchObject({ status: 'invalid', failureCategory: 'value-less-expect', attempts: 5 });
+    expect(JSON.stringify(feedback['TC-005']?.messages.at(-1))).toContain('The page when the test stopped, as an accessibility tree');
     expect(byId['TC-006']?.attemptLog.map((a) => a.stage)).toEqual(['typecheck', 'lock-check', 'dry-run']);
     expect(byId['TC-006']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
     expect(byId['TC-007']).toMatchObject({ status: 'validated', validationOutcome: 'passed', attempts: 1 });
@@ -241,13 +245,14 @@ describe('generateScripts with real Playwright', () => {
       invalid: 1,
       invalidByCategory: { 'value-less-expect': 1 },
       invalidCases: { 'value-less-expect': ['TC-005'] },
-      failuresByStage: { typecheck: 1, 'lock-check': 2, 'dry-run': 5 },
-      attemptsHistogram: { '1': 3, '2': 3, '3': 2 },
+      failuresByStage: { typecheck: 1, 'lock-check': 2, 'dry-run': 7 },
+      attemptsHistogram: { '1': 3, '2': 3, '3': 1, '4': 0, '5': 1 },
       playwrightVersion: '1.64.0',
     });
     expect(result.summary.dryRunMs).toBeGreaterThan(0);
-    // One restore after every dry run: 12 dry runs (TC-001..008: 1+1+1+2+3+1+1+2; typecheck and lock-check failures run none).
-    expect(result.summary.restores).toBe(12);
+    // One restore after every dry run: 14 dry runs (TC-001..008: 1+1+1+2+5+1+1+2, TC-005 being a ui case with 5 attempts;
+    // typecheck and lock-check failures run none).
+    expect(result.summary.restores).toBe(14);
     expect(started).toBe(1);
     expect(stopped).toBe(1);
 

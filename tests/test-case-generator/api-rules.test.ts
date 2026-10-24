@@ -136,3 +136,15 @@ describe('readBack in testcases.json', () => {
     expect(TestCases.safeParse(file).success).toBe(false);
   });
 });
+
+describe('journey length', () => {
+  it('rejects an e2e journey longer than 8 steps', () => {
+    const requirements = [{ id: 'REQ-001', featureId: 'F-01', layer: 'e2e', priority: 'high', statement: 's', acceptanceCriteria: [] }];
+    const ctx = { requirements, fixtures: {}, grounding: { code: '', factStatuses: [], factStrings: [] }, quota: 10 } as never;
+    const journey = (n: number) => tc(Array.from({ length: n }, (_, i) => `Step ${i + 1}`), [{ description: 'The order page shows the order' }], { layer: 'ui', category: 'e2e-journey' });
+    expect(checkSubmission({ testCases: [journey(8)], declined: [] } as never, ctx)).toEqual([]);
+    expect(checkSubmission({ testCases: [journey(9)], declined: [] } as never, ctx)).toEqual([
+      'testCases[0]: an e2e journey has 9 steps (at most 8); split it into shorter journeys, or prepare data in fewer steps through the API, and check what each page shows after you move to it',
+    ]);
+  });
+});

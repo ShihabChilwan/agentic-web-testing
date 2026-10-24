@@ -54,8 +54,25 @@ export interface DryRunResult {
   durationMs: number;
   /** Trimmed page HTML at the failure (ui tests). */
   dom?: string;
+  /** The page at the failure as an accessibility tree, from Playwright's error-context.md (ui tests). */
+  pageSnapshot?: string;
   /** The last API response before the failure. */
   lastResponse?: string;
+}
+
+/**
+ * The page snapshot YAML of a Playwright error-context.md (written on every failure since 1.53), without element refs
+ * and cursor marks, at most `max` characters; null when the file has none (most API tests). Playwright 1.64.0 writes
+ * it in two forms, both recorded in tests/fixtures/playwright-errors/: under a "# Page snapshot" heading (with refs),
+ * or as a bare yaml block after the error details (no refs). The test source that follows is never part of it.
+ */
+export function pageSnapshotOf(markdown: string, max = 8_000): string | null {
+  const beforeSource = markdown.split(/^# Test source\s*$/m)[0] ?? markdown;
+  const block =
+    /^# Page snapshot\s*\n+```yaml\n([\s\S]*?)\n```/m.exec(beforeSource)?.[1] ?? /^```yaml\n([\s\S]*?)\n```/m.exec(beforeSource)?.[1];
+  if (!block) return null;
+  const clean = block.replace(/ \[ref=e\d+\]/g, '').replace(/ \[cursor=pointer\]/g, '').trimEnd();
+  return clean.length > max ? `${clean.slice(0, max)}\n[… snapshot cut at ${max} characters]` : clean;
 }
 
 /** Page HTML without scripts, styles and SVG drawings, whitespace collapsed, at most `max` characters. */
@@ -127,6 +144,9 @@ export async function runSpec(
   }
   const out: DryRunResult = { status: result.status, message: stripAnsi(result.error?.message ?? ''), durationMs: result.duration };
   if (result.status !== 'passed') {
+    const context = await findFile(outputDir, 'error-context.md');
+    const snapshot = context ? pageSnapshotOf(await readFile(context, 'utf8')) : null;
+    if (snapshot) out.pageSnapshot = snapshot;
     const dom = await findFile(outputDir, 'dom.html');
     if (dom) out.dom = trimDom(await readFile(dom, 'utf8'));
     const last = await findFile(outputDir, 'last-response.json');

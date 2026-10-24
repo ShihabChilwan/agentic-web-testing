@@ -49,6 +49,8 @@ export interface ScriptTaskInput {
   config: TargetConfig;
   facts: TargetFacts | null;
   endpoints: Prd['apiEndpoints'];
+  /** ui test cases: the pages the steps open, as an accessibility tree taken on the current version. */
+  pageSnapshots?: Array<{ path: string; user?: string; snapshot: { finalPath: string; aria: string } }>;
 }
 
 const renderBlock = (b: CodeExcerpts['blocks'][number]) => {
@@ -80,6 +82,16 @@ export function buildScriptTask(input: ScriptTaskInput): string {
     ].join('\n'),
     `## Code that implements this (the page components show the labels, placeholders and texts to use)\n${input.evidence.blocks.map(renderBlock).join('\n\n') || '(none could be read)'}`,
   ];
+  if (input.pageSnapshots && input.pageSnapshots.length > 0) {
+    const pages = input.pageSnapshots.map((p) => {
+      const who = p.user ? `logged in as ${p.user}` : 'not logged in';
+      const moved = p.snapshot.finalPath !== p.path ? `; the browser ended on ${p.snapshot.finalPath}` : '';
+      return `### ${p.path} (${who}${moved})\n\`\`\`yaml\n${p.snapshot.aria}\n\`\`\``;
+    });
+    parts.push(
+      `## The pages as they are now (accessibility tree, taken on the running application)\nUse these roles, names, labels and texts for locators (getByRole, getByLabel, getByPlaceholder, getByText); they are what the browser shows.\n${pages.join('\n\n')}`,
+    );
+  }
   if (input.callers && input.callers.length > 0) {
     parts.push(`## How the app's own frontend calls these endpoints (send requests in the same shape)\n${input.callers.map(renderBlock).join('\n\n')}`);
   }

@@ -99,7 +99,8 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
     return result;
   };
   let turns = 0;
-  let submitAttemptsLeft = SUBMIT_ATTEMPTS;
+  const submitAttempts = opts.submitAttempts ?? SUBMIT_ATTEMPTS;
+  let submitAttemptsLeft = submitAttempts;
   // explore: every tool; wrapUp: only uncounted tools and submit; final: one submit-only turn.
   let phase: 'explore' | 'wrapUp' | 'final' = 'explore';
   // Context estimate: tokens of the last request plus characters added since.
@@ -208,7 +209,7 @@ export async function runAgent<O>(opts: RunAgentOptions<O>, deps: AgentDeps): Pr
           await transcript.write('submit', { toolCallId: call.id, ok: false, kind: check.kind, errors: check.errors, submitAttemptsLeft });
           if (submitAttemptsLeft === 0) {
             throw new AgentSubmitError(
-              `All ${SUBMIT_ATTEMPTS} submit attempts were rejected`,
+              `All ${submitAttempts} submit attempts were rejected`,
               check.errors,
               details(),
             );

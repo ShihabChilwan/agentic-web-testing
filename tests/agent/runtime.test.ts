@@ -149,6 +149,16 @@ describe('runAgent: submit attempts', () => {
     expect(llm.remaining).toBe(1);
   });
 
+  it('allows a session its own number of submit attempts', async () => {
+    const bad = submit({});
+    const llm = new FakeLLMClient([bad, bad, bad, bad, bad, submit({ answer: 'never reached' })]);
+    const err = await runAgent({ ...options(), submitAttempts: 5 }, deps(llm)).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AgentSubmitError);
+    expect((err as AgentSubmitError).message).toBe('All 5 submit attempts were rejected');
+    expect(lastToolResults(llm.requests[4])[0]?.content).toMatch(/1 attempt\(s\) left/);
+    expect(llm.remaining).toBe(1);
+  });
+
   it('does not count submits as tool calls', async () => {
     const llm = new FakeLLMClient([submit({}), submit({ answer: 'ok' })]);
     const result = await runAgent(options({ budget: { maxToolCalls: 0 } }), deps(llm));

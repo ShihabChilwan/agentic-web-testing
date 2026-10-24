@@ -1,7 +1,8 @@
 import { chromium, type Request } from '@playwright/test';
 import type { TargetConfig } from '../../shared/schemas.js';
 import { checkFixtureLogins, type FixtureGuardResult } from './guard.js';
-import { runSeedCheck } from './seed.js';
+import { fillPlaceholders } from './placeholders.js';
+import { runSeedCheck, valueAtPath } from './seed.js';
 
 const PAGE_TIMEOUT_MS = 20_000;
 
@@ -78,4 +79,73 @@ export async function observeApp(config: TargetConfig): Promise<AppObservation> 
     logins: await checkFixtureLogins(config),
     page: await observePage(config.frontend.baseUrl),
   };
+}
+
+/** A page's accessibility tree, capped like the failure snapshots of the fix loop. */
+const SNAPSHOT_CHARS = 6_000;
+
+/** The token a fixture user gets from the target's login request, or null when the login fails. */
+async function fixtureToken(config: TargetConfig, user: unknown): Promise<string | null> {
+  const auth = config.auth;
+  if (!auth) return null;
+  try {
+    const res = await fetch(new URL(auth.login.path, config.backend.baseUrl), {
+      method: auth.login.method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(fillPlaceholders(auth.login.body, { user })),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const token = valueAtPath(await res.json().catch(() => null), auth.tokenAt);
+    return res.ok && typeof token === 'string' && token !== '' ? token : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface PageSnapshot {
+  /** The path the browser ended on (a redirect, e.g. to a login page, shows here). */
+  finalPath: string;
+  /** Playwright's ariaSnapshot of the body: roles, names, labels and texts, at most SNAPSHOT_CHARS characters. */
+  aria: string;
+}
+
+/**
+ * Opens a page of the running app in a fresh headless Chromium and returns its accessibility tree (SPEC §6.2).
+ * With a fixture user (a dot path such as "users.alice"), the page starts logged in the way the scripts' loggedInPage
+ * helper does it: the login request's token put into the configured browser storage before the first load. Read-only:
+ * it changes no data.
+ */
+export async function pageSnapshot(config: TargetConfig, pagePath: string, userPath?: string): Promise<PageSnapshot | null> {
+  const storage = config.auth?.storage;
+  const user = userPath ? valueAtPath(config.fixtures, userPath) : undefined;
+  const token = user && storage ? await fixtureToken(config, user) : null;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    if (token && storage) {
+      const origin = new URL(config.frontend.baseUrl).origin;
+      await page.addInitScript(
+        ({ kind, key, value, at }) => {
+          const g = globalThis as unknown as Record<string, { setItem(k: string, v: string): void }> & { location: { origin: string } };
+          try {
+            if (g.location.origin === at) g[kind]!.setItem(key, value);
+          } catch {
+            // Storage is not available on some documents (e.g. about:blank).
+          }
+        },
+        { kind: storage.kind, key: storage.key, value: token, at: origin },
+      );
+    }
+    const res = await page.goto(new URL(pagePath, config.frontend.baseUrl).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
+    if (!res) return null;
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+    const aria = await page.locator('body').ariaSnapshot({ timeout: 10_000 }).catch(() => null);
+    if (aria === null) return null;
+    return {
+      finalPath: new URL(page.url()).pathname,
+      aria: aria.length > SNAPSHOT_CHARS ? `${aria.slice(0, SNAPSHOT_CHARS)}\n[… snapshot cut at ${SNAPSHOT_CHARS} characters]` : aria,
+    };
+  } finally {
+    await browser.close();
+  }
 }

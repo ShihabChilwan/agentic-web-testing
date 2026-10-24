@@ -7,6 +7,7 @@ import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import { callerBlocks, endpointsUsed, helperRanges, searchText } from '../../src/modules/script-generator/callers.js';
 import type { DryRunResult } from '../../src/modules/script-generator/dry-run.js';
 import { generateScripts } from '../../src/modules/script-generator/index.js';
+import { pagesToSnapshot } from '../../src/modules/script-generator/generate.js';
 import { linesAtCommit } from '../../src/modules/test-case-generator/context.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
@@ -268,5 +269,59 @@ describe('generateScripts: progress, interruption and resume', () => {
     const again = model();
     await generateScripts(options(runsDir, runId, again.llm, pass));
     expect(again.asked).toEqual(['TC-002']);
+  });
+});
+
+describe('page snapshots for ui test cases', () => {
+  const ui = (id: string, steps: string[], fixturesUsed: string[] = []): TestCase => ({ ...tc(id, steps), layer: 'ui', fixturesUsed, expected: [{ id: 'E1', description: 'Heading shown' }] });
+  const prd = () => ({ ...structuredClone(example('prd.json')), uiRoutes: [
+    { path: '/login', summary: 'Login', authRequired: false, evidence: [{ file: 'server/cart.js', lines: [1, 1] }] },
+    { path: '/product/:slug', summary: 'Product', authRequired: false, evidence: [{ file: 'server/cart.js', lines: [1, 1] }] },
+    { path: '/*', summary: 'Not found', authRequired: false, evidence: [{ file: 'server/cart.js', lines: [1, 1] }] },
+  ] });
+
+  it('picks the concrete pages a ui case opens and the fixture user it logs in as', () => {
+    const fixtures = { users: { alice: { email: 'a@x', password: 'p' } } };
+    expect(pagesToSnapshot(ui('TC-001', ['Log in', 'Open /login', 'Open http://localhost:8080/product/blue-shirt', 'Open /product/<slug>', 'Open /nowhere'], ['users.alice']), prd() as never, fixtures)).toEqual({
+      paths: ['/login', '/product/blue-shirt'],
+      user: 'users.alice',
+    });
+    expect(pagesToSnapshot(tc('TC-002', ['Open /login']), prd() as never, fixtures)).toEqual({ paths: [] }); // api case
+    expect(pagesToSnapshot(ui('TC-003', ['Open /login'], ['users.nobody']), prd() as never, fixtures)).toEqual({ paths: ['/login'] });
+  });
+
+  it('puts each page into the task once per page and user, taken between dry runs', { timeout: 120_000 }, async () => {
+    const runsDir = await mkdtemp(path.join(root, 'runs-'));
+    const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' })), runsDir });
+    const p = prd();
+    p.target = 'fake';
+    p.requirements = [{ ...p.requirements[0], id: 'REQ-001' }];
+    await writeFile(paths.prd, JSON.stringify(p));
+    const cases = [ui('TC-001', ['Open /login']), ui('TC-002', ['Open /login', 'Look at the heading'])];
+    await writeFile(paths.testCases, JSON.stringify({ schemaVersion: '1.0', generatedAt: '2026-10-24T10:00:00Z', testCases: cases, coverage: { requirementsTotal: 1, requirementsCovered: 1, uncovered: [] } }));
+    const tasks: string[] = [];
+    const respond = async (req: ChatRequest): Promise<ChatResponse> => {
+      const first = req.messages[0];
+      tasks.push(first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '');
+      return FakeLLMClient.toolCall('submit_script', { body: `await page.goto('/login');\nawait expect(page.getByRole('heading'), 'E1').toBeVisible();` });
+    };
+    const snapshots: string[] = [];
+    await generateScripts({
+      runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root,
+      llmConfig: parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' }),
+      createLlm: async () => new FakeLLMClient(Array.from({ length: 10 }, () => respond)),
+      startApp: async () => ({ stop: async () => {}, restore: async () => ({ durationMs: 1 }) }),
+      runDryRun: async () => ({ status: 'passed', message: '', durationMs: 1 }),
+      snapshotPage: async (_config, pagePath, user) => {
+        snapshots.push(`${pagePath}|${user ?? ''}`);
+        return { finalPath: pagePath, aria: '- heading "Sign in" [level=1]\n- textbox "Email"' };
+      },
+    });
+    expect(snapshots).toEqual(['/login|']); // cached: both cases open /login without a user
+    expect(tasks).toHaveLength(2);
+    for (const task of tasks) {
+      expect(task).toContain('## The pages as they are now (accessibility tree, taken on the running application)');
+      expect(task).toContain('### /login (not logged in)\n```yaml\n- heading "Sign in" [level=1]\n- textbox "Email"\n```');
+    }
   });
 });

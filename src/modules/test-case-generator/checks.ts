@@ -45,6 +45,8 @@ export const SubmitTestCases = z.object({
 export type SubmitTestCases = z.infer<typeof SubmitTestCases>;
 
 const NEGATIVE_CATEGORIES = new Set(['error-handling', 'boundary', 'auth']);
+/** Long journeys rarely survive the script fix loop (SPEC §5, §12): one of 11 did in the first real run. */
+export const MAX_JOURNEY_STEPS = 8;
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -265,6 +267,11 @@ export function checkSubmission(sub: SubmitTestCases, ctx: CheckContext): string
     const layers = new Set(tc.requirementIds.map((id) => byId.get(id)?.layer).filter((l) => l !== undefined));
     if (layers.size > 1) {
       problems.push(`${label}: it combines requirements of different layers (${[...layers].join(', ')}); write a separate test case for each`);
+    }
+    if (tc.category === 'e2e-journey' && tc.steps.length > MAX_JOURNEY_STEPS) {
+      problems.push(
+        `${label}: an e2e journey has ${tc.steps.length} steps (at most ${MAX_JOURNEY_STEPS}); split it into shorter journeys, or prepare data in fewer steps through the API, and check what each page shows after you move to it`,
+      );
     }
     for (const f of tc.fixturesUsed) {
       if (!fixtureExists(ctx.fixtures, f)) problems.push(`${label}.fixturesUsed: ${f} is not in the fixtures; use only the fixture paths listed`);
