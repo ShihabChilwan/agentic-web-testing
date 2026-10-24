@@ -28,9 +28,18 @@ function Get-ImageTag {
   (Get-Content $file -Raw | ConvertFrom-Json).imageTag
 }
 
-# Runs a native command and stops the script when it fails.
-function Invoke-Native([string]$What, [scriptblock]$Command) {
-  & $Command
+# Every gcloud and docker call passes its arguments as an array of strings. Never write a value with , ; = or spaces
+# unquoted on a command line: PowerShell turns a,b into two arguments and ; ends the command.
+
+# Runs `$Tool` with exactly these arguments and stops the script when it fails. With -DryRun it only prints them,
+# one per line in brackets, so each argument's boundaries are visible.
+function Invoke-Tool([string]$What, [string]$Tool, [string[]]$ToolArgs, [switch]$DryRun) {
+  if ($DryRun) {
+    Write-Host "$What - $Tool would receive $($ToolArgs.Count) arguments:"
+    foreach ($a in $ToolArgs) { Write-Host "  [$a]" }
+    return
+  }
+  & $Tool @ToolArgs
   if ($LASTEXITCODE -ne 0) { throw "$What failed (exit $LASTEXITCODE)" }
 }
 

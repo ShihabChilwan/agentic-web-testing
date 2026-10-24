@@ -6,6 +6,6 @@ param([Parameter(Mandatory = $true)][string]$Repeat)
 
 New-Item -ItemType Directory -Force $ResultsDir | Out-Null
 Write-Host "Will copy gs://$Bucket/$Repeat to `"$ResultsDir\$Repeat`""
-# Recursive copy of the repeat's folder.
-Invoke-Native 'Download' { gcloud storage cp -r "gs://$Bucket/$Repeat" "$ResultsDir" --project $Project }
+# Recursive copy of the repeat's folder; the local path (with spaces) is one argument.
+Invoke-Tool 'Download' 'gcloud' @('storage', 'cp', '-r', "gs://$Bucket/$Repeat", $ResultsDir, '--project', $Project)
 Write-Host "Next, in the dev container: npm run eval -- import --from runs/cloud/$Repeat"

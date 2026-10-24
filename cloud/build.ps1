@@ -7,11 +7,11 @@ param([switch]$Push)
 $image = "${ImageName}:$(Get-ImageTag)"
 Write-Host "Will build $image (linux/amd64) from `"$BuildDir`"$(if ($Push) { ' and push it to Artifact Registry' } else { ' (local only)' })"
 
-# Build for Cloud Run's platform; the quotes keep the path with spaces in one piece.
-Invoke-Native 'docker build' { docker build --platform linux/amd64 -t $image "$BuildDir" }
+# Build for Cloud Run's platform; the build folder path (with spaces) is one argument.
+Invoke-Tool 'docker build' 'docker' @('build', '--platform', 'linux/amd64', '-t', $image, $BuildDir)
 # Image size as docker reports it (unpacked).
-docker image ls $image --format 'size: {{.Size}}'
+& docker @('image', 'ls', $image, '--format', 'size: {{.Size}}')
 if ($Push) {
   # Upload to the repository created by setup.ps1.
-  Invoke-Native 'docker push' { docker push $image }
+  Invoke-Tool 'docker push' 'docker' @('push', $image)
 }

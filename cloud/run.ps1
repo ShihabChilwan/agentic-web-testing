@@ -7,7 +7,7 @@ param([int]$Tasks = 1)
 Write-Host "Will start job $Job with $Tasks task(s) (task 0 = golden; ~`$0.16 per task-hour at $Cpu vCPU / $Memory)"
 if ((Read-Host 'Continue? (y/n)') -ne 'y') { exit 1 }
 # --async returns at once; the execution name is the repeat id (the results folder in the bucket).
-$execution = gcloud run jobs execute $Job --region $Region --project $Project --tasks $Tasks --async --format 'value(metadata.name)'
+$execution = & gcloud @('run', 'jobs', 'execute', $Job, '--region', $Region, '--project', $Project, '--tasks', "$Tasks", '--async', '--format', 'value(metadata.name)')
 if ($LASTEXITCODE -ne 0) { throw 'Execute failed' }
 Write-Host "Repeat id: $execution"
 Write-Host "Status:    gcloud run jobs executions describe $execution --region $Region --project $Project"

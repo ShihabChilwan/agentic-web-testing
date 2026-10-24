@@ -11,21 +11,30 @@ New-Item -ItemType Directory -Force $ResultsDir | Out-Null
 Write-Host "Will run task $Index of $image as container $name (cpus $Cpus, memory $MemoryLimit, shm $ShmSize), results in `"$ResultsDir\$Repeat`""
 
 # Remove a container left over from an earlier attempt (no error when there is none).
-docker rm -f $name *> $null
+& docker @('rm', '-f', $name) *> $null
 # --memory-swap equal to --memory: no swap, as in Cloud Run. tmpfs pages are charged to the container's memory.
-docker run --name $name --platform linux/amd64 --cpus $Cpus --memory $MemoryLimit --memory-swap $MemoryLimit --shm-size $ShmSize `
-  --tmpfs /tmp:rw,exec,mode=1777 --tmpfs /app/runs:rw,exec,mode=1777 --tmpfs /home/node:rw,mode=1777 `
-  -e CLOUD_RUN_TASK_INDEX=$Index -e CLOUD_RUN_EXECUTION=$Repeat `
-  --mount "type=bind,source=$ResultsDir,target=/mnt/results" $image
+# Each element is exactly one argument (the tmpfs options contain commas, the results path may contain spaces).
+$dockerArgs = @(
+  'run', '--name', $name, '--platform', 'linux/amd64',
+  '--cpus', $Cpus, '--memory', $MemoryLimit, '--memory-swap', $MemoryLimit, '--shm-size', $ShmSize,
+  '--tmpfs', '/tmp:rw,exec,mode=1777',
+  '--tmpfs', '/app/runs:rw,exec,mode=1777',
+  '--tmpfs', '/home/node:rw,mode=1777',
+  '-e', "CLOUD_RUN_TASK_INDEX=$Index",
+  '-e', "CLOUD_RUN_EXECUTION=$Repeat",
+  '--mount', "type=bind,source=$ResultsDir,target=/mnt/results",
+  $image
+)
+& docker @dockerArgs
 $code = $LASTEXITCODE
 
 # Exit code and whether the kernel killed the container for memory.
-docker inspect $name --format 'exit code {{.State.ExitCode}}, OOMKilled {{.State.OOMKilled}}'
+& docker @('inspect', $name, '--format', 'exit code {{.State.ExitCode}}, OOMKilled {{.State.OOMKilled}}')
 # Files written outside the RAM folders: not counted locally, but counted in Cloud Run (whose whole disk is RAM).
-$changed = docker diff $name
+$changed = & docker @('diff', $name)
 Write-Host "Writes outside tmpfs: $(@($changed).Count) paths (first 20 below)"
 $changed | Select-Object -First 20
-docker rm $name | Out-Null
+& docker @('rm', $name) | Out-Null
 
 # One line from the task's status.json: outcome, test counts, duration and memory.
 $version = (Get-Content (Join-Path $BuildDir 'image\build.json') -Raw | ConvertFrom-Json).versions[$Index].version
