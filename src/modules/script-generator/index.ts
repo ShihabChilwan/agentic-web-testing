@@ -3,3 +3,4 @@ export type { GenerateScriptsOptions, GenerateScriptsResult, RunningApp, ScriptO
 export { classifyDryRun } from './classify.js';
 export { lockCheck } from './lock-check.js';
 export { renderExpected, renderScript } from './render.js';
+export { describeSuspectedDefects, readSuspectedDefects, suspectedDefects } from './suspected.js';

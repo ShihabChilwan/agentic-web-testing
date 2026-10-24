@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildRunView, MAX_EXCERPT_CHARS, messageValue } from '../../src/modules/report/view-model.js';
+import { buildRunView, MAX_EXCERPT_CHARS } from '../../src/modules/report/view-model.js';
+import { messageValue } from '../../src/modules/script-generator/suspected.js';
 import { RunView } from '../../src/shared/schemas.js';
 import { COMMIT, makeReportRun, PNG } from './fixture.js';
 
@@ -28,11 +29,27 @@ describe('buildRunView', () => {
   });
 
   it('links requirements to test cases and script outcomes, with coverage numbers', () => {
-    expect(view.coverage).toMatchObject({ requirements: 1, covered: 1, testCases: 3, scripts: { passed: 2, assertionFailed: 0, invalid: 1, none: 0 } });
+    expect(view.coverage).toMatchObject({ requirements: 1, covered: 1, testCases: 4, scripts: { passed: 2, assertionFailed: 1, invalid: 1, none: 0 } });
     expect(view.requirements[0]?.testCases.map((t) => [t.id, t.outcome, t.failureCategory])).toEqual([
       ['TC-001', 'passed', null],
       ['TC-002', 'passed', null],
       ['TC-003', 'invalid', 'locator'],
+      ['TC-004', 'assertion_failed', null],
+    ]);
+  });
+
+  it('lists the test cases the generation version contradicts as suspected defects, with the requirement, expected and actual', () => {
+    expect(view.suspectedDefects).toEqual([
+      {
+        testCaseId: 'TC-004',
+        title: expect.stringContaining('Non-admin cannot approve'),
+        requirements: [{ id: 'REQ-002', statement: expect.any(String) }],
+        expectationId: 'E1',
+        expectation: 'Response status is 403',
+        expected: '403',
+        received: '200',
+        message: expect.stringMatching(/^Error: E1\n/),
+      },
     ]);
   });
 

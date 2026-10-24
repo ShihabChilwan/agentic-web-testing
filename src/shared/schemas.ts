@@ -1171,6 +1171,22 @@ export const ViewFailure = z.object({
   noToolsDiagnosisId: DiagnosisId.nullable(),
 });
 
+/** A test case whose locked expectation the generation version contradicts (dry-run outcome assertion_failed). */
+export const SuspectedDefect = z.object({
+  testCaseId: TestCaseId,
+  title: z.string(),
+  requirements: z.array(z.object({ id: RequirementId, statement: z.string().nullable() })),
+  expectationId: ExpectationId.nullable(),
+  /** The expectation's description. */
+  expectation: z.string().nullable(),
+  /** The locked value (JSON), or what Playwright printed as expected. */
+  expected: z.string().nullable(),
+  /** What the app gave, as Playwright printed it. */
+  received: z.string().nullable(),
+  /** The first lines of the dry run's error. */
+  message: z.string(),
+});
+
 export const ViewTestStatus = z.enum(['passed', 'failed', 'errored', 'skipped']);
 
 export const ViewTest = z.object({
@@ -1245,6 +1261,8 @@ export const RunView = z.object({
     }),
   }),
   requirements: z.array(ViewRequirement),
+  /** Test cases the generation version contradicts (§6.4): reported, not executed. */
+  suspectedDefects: z.array(SuspectedDefect),
   executions: z.array(ViewExecution),
   /** Keyed "<a>|<b>" in run.json order; only tests whose status differs. */
   comparisons: z.record(z.string(), z.array(ComparisonRow)),
@@ -1256,6 +1274,7 @@ export type ViewRequirement = z.infer<typeof ViewRequirement>;
 export type ViewExecution = z.infer<typeof ViewExecution>;
 export type ViewTest = z.infer<typeof ViewTest>;
 export type ViewTestStatus = z.infer<typeof ViewTestStatus>;
+export type SuspectedDefect = z.infer<typeof SuspectedDefect>;
 export type ViewFailure = z.infer<typeof ViewFailure>;
 export type ComparisonRow = z.infer<typeof ComparisonRow>;
 export type ComparisonKind = z.infer<typeof ComparisonKind>;

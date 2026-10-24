@@ -18,6 +18,7 @@ import type {
   ScriptAttempt,
   ScriptManifestEntry,
   StageScriptsSummary,
+  SuspectedDefect,
   TargetConfig,
   TargetFacts,
   TestCase,
@@ -36,6 +37,7 @@ import type { DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
 import { buildScriptTask, buildSystemPrompt } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
+import { suspectedDefects } from './suspected.js';
 import { TypeChecker } from './typecheck.js';
 
 /** Code evidence per test case (smaller than the test case stage: one requirement at a time). */
@@ -74,6 +76,8 @@ export interface GenerateScriptsResult {
   manifestFile: string;
   manifest: ScriptManifest;
   summary: StageScriptsSummary;
+  /** Test cases the generation version contradicts: reported, not executed (SPEC §6.4). */
+  suspectedDefects: SuspectedDefect[];
 }
 
 /** What the stage needs from the running app. */
@@ -452,7 +456,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       restoreMs: deps.restores.ms,
     });
     await setStage(paths.dir, 'scripts', { status: 'done', startedAt, finishedAt: new Date().toISOString(), scripts: summary });
-    return { runId, manifestFile: paths.scriptsManifest, manifest: result, summary };
+    return { runId, manifestFile: paths.scriptsManifest, manifest: result, summary, suspectedDefects: suspectedDefects(result, parsedCases.data, prd) };
   } catch (err) {
     // Keep what finished: a rerun resumes from this manifest.
     await writeManifest().catch(() => undefined);

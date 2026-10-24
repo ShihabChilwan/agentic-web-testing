@@ -47,6 +47,16 @@ describe('renderReport', () => {
       page.on('console', (m) => (m.type() === 'error' ? problems.push(m.text()) : undefined));
       page.on('request', (r) => (r.url().startsWith('data:') || r.url().startsWith('file:') ? undefined : problems.push(`request ${r.url()}`)));
       await page.goto(`file://${path.join(run.dir, 'report.html')}`);
+      // Overview: the suspected defect with expected and actual; its hostile title shown as text.
+      const defect = page.getByRole('row', { name: /TC-004/ });
+      expect(await defect.getByRole('cell').allTextContents()).toEqual([
+        `TC-004: Non-admin cannot approve ${EVIL}`,
+        expect.stringMatching(/^REQ-002: /),
+        'E1 Response status is 403',
+        '403',
+        '200',
+      ]);
+      expect(await page.getByRole('heading', { name: 'Suspected defects in golden (1)' }).count()).toBe(1);
       await page.getByRole('button', { name: 'Executions' }).click();
       await page.locator('select').selectOption('x-02');
       await page.getByRole('row', { name: /TC-001/ }).click();

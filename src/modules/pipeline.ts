@@ -4,12 +4,13 @@ import { readCallLog } from '../llm/call-log.js';
 import { RUNS_DIR, runPaths } from '../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution, setStage } from '../shared/run-manifest.js';
 import { Diagnoses, ExecutionResults } from '../shared/schemas.js';
-import type { RunExecution, RunManifest } from '../shared/schemas.js';
+import type { RunExecution, RunManifest, SuspectedDefect } from '../shared/schemas.js';
 import { executeRun } from './execution-engine/execute.js';
 import { analyzeExecution } from './failure-analyzer/analyze.js';
 import { generatePrd } from './prd-generator/generate.js';
 import { callsInWindow } from './report/view-model.js';
 import { generateScripts } from './script-generator/generate.js';
+import { describeSuspectedDefects, readSuspectedDefects } from './script-generator/suspected.js';
 import { generateTestCases } from './test-case-generator/generate.js';
 
 export const PIPELINE_STAGES = ['prd', 'cases', 'scripts', 'execute', 'analyze'] as const;
@@ -29,6 +30,8 @@ export interface RunAllResult {
   stages: StageReport[];
   /** Set when a stage failed: what went wrong and the command that continues. */
   failure: { stage: PipelineStage; error: string; next: string } | null;
+  /** Test cases the generation version contradicts (SPEC §6.4); empty before the scripts stage. */
+  suspectedDefects: SuspectedDefect[];
 }
 
 /** The stage functions `runAll` calls; tests replace them. */
@@ -183,10 +186,10 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
         reports.push({ stage: rest, action: 'not-run', durationMs: null, costUsd: null, detail: '' });
       }
       const next = runId ? `npm run agent -- all --run ${runId}` : `npm run agent -- all --target ${target}`;
-      return { runId, stages: reports, failure: { stage, error, next } };
+      return { runId, stages: reports, failure: { stage, error, next }, suspectedDefects: runId ? await readSuspectedDefects(runPaths(runId, runsDir).dir) : [] };
     }
   }
-  return { runId, stages: reports, failure: null };
+  return { runId, stages: reports, failure: null, suspectedDefects: runId ? await readSuspectedDefects(runPaths(runId, runsDir).dir) : [] };
 }
 
 function describeResults(execId: string, r: ExecutionResults): string {
@@ -212,6 +215,7 @@ export function describeRunAll(result: RunAllResult): string[] {
   );
   const costs = result.stages.map((s) => s.costUsd).filter((c): c is number => c !== null);
   if (costs.length > 0) lines.push(`total cost ${cost(costs.reduce((a, b) => a + b, 0))}`);
+  lines.push(...describeSuspectedDefects(result.suspectedDefects));
   if (result.runId) lines.push(`run: ${result.runId}`);
   if (result.failure) lines.push(`Stopped at ${result.failure.stage}: ${result.failure.error}`, `To continue: ${result.failure.next}`);
   return lines;

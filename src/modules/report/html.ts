@@ -96,6 +96,7 @@ function overview() {
       tile(s.passed, 'scripts passed on ' + V.run.generationRef),
       tile(s.assertionFailed, 'scripts disagree with ' + V.run.generationRef),
       tile(s.invalid + s.none, 'scripts invalid or missing')),
+    suspected(),
     section('Stages'),
     table(['Stage', 'Status', 'Time', 'Model calls', 'Cost'], V.stages.map(function (st) {
       return h('tr', null, h('td', null, st.name), h('td', null, badge(st.status)), h('td', null, secs(st.durationMs)), h('td', null, st.calls), h('td', null, money(st.costUsd)));
@@ -108,6 +109,23 @@ function overview() {
         h('td', { class: 'passed' }, m.passed), h('td', { class: 'failed' }, m.failed), h('td', { class: 'errored' }, m.errored),
         h('td', null, m.skipped), h('td', null, m.notIsolated), h('td', null, e.incidents.length),
         h('td', null, e.diagnoses ? e.diagnoses.length : ''), h('td', null, e.analysis.full ? money(e.analysis.full.costUsd) : ''));
+    })),
+  ];
+}
+
+function suspected() {
+  var list = V.suspectedDefects;
+  if (!list.length) return null;
+  return [
+    section('Suspected defects in ' + V.run.generationRef + ' (' + list.length + ')'),
+    h('p', { class: 'muted' }, 'The app contradicts these locked expectations: either the test case or the app is wrong. They are not executed; review each one.'),
+    table(['Test', 'Requirement', 'Expectation', 'Expected', 'Actual'], list.map(function (d) {
+      return h('tr', null,
+        h('td', null, d.testCaseId + ': ' + d.title),
+        h('td', null, d.requirements.map(function (r) { return h('div', null, r.id + (r.statement ? ': ' + r.statement : '')); })),
+        h('td', null, (d.expectationId || '?') + (d.expectation ? ' ' + d.expectation : '')),
+        h('td', null, d.expected === null ? '' : d.expected),
+        h('td', { class: 'failed' }, d.received === null ? '' : d.received));
     })),
   ];
 }

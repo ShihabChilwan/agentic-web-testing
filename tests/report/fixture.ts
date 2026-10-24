@@ -12,6 +12,8 @@ import { example } from '../shared/schemas/helpers.js';
 export const COMMIT = 'abc1234def5678abc1234def5678abc1234def56';
 // A 1×1 PNG.
 export const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+/** A dry-run error as recorded from Playwright 1.64.0 for a locked value that differed (TC-068 of a real run). */
+export const SUSPECTED_ERROR = 'Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 403\nReceived: 200\n\n  12 |   expect(res.status(), \'E1\').toBe(EXPECTED.E1.value);';
 export const EVIL = '</script><img src=x onerror="document.title=\'pwned\'">';
 
 const result = (id: string, status: string, extra: Record<string, unknown> = {}) => ({ testCaseId: id, status, isolated: true, durationMs: 100, artifacts: {}, ...extra });
@@ -34,6 +36,8 @@ export async function makeReportRun() {
     { ...base, id: 'TC-001', title: 'Wrong password is rejected' },
     { ...base, id: 'TC-002', title: 'Missing email is rejected' },
     { ...base, id: 'TC-003', title: 'Login page heading' },
+    // The generation version contradicts it: a suspected defect (§6.4). Hostile text checks escaping.
+    { ...base, id: 'TC-004', title: `Non-admin cannot approve ${EVIL}`, expected: [{ id: 'E1', description: 'Response status is 403', value: 403 }] },
   ];
   await writeFile(paths.testCases, JSON.stringify(tcs));
   const attempt = { attempt: 1, stage: 'dry-run', error: null, durationMs: 1 };
@@ -42,6 +46,7 @@ export async function makeReportRun() {
     { testCaseId: 'TC-001', file: 'scripts/TC-001.spec.ts', status: 'validated', validationOutcome: 'passed', attempts: 1, attemptLog: [attempt], failureCategory: null },
     { testCaseId: 'TC-002', file: 'scripts/TC-002.spec.ts', status: 'validated', validationOutcome: 'passed', attempts: 1, attemptLog: [attempt], failureCategory: null },
     { testCaseId: 'TC-003', file: 'scripts/TC-003.spec.ts', status: 'invalid', validationOutcome: null, attempts: 3, attemptLog: [{ ...attempt, error: 'x', category: 'locator' }], failureCategory: 'locator' },
+    { testCaseId: 'TC-004', file: 'scripts/TC-004.spec.ts', status: 'validated', validationOutcome: 'assertion_failed', attempts: 1, attemptLog: [{ ...attempt, error: SUSPECTED_ERROR }], failureCategory: null },
   ] }));
   for (const [stage, start, end] of [['prd', '10:00', '10:03'], ['cases', '10:03', '10:05'], ['scripts', '10:05', '10:50']] as const) {
     await setStage(dir, stage, { status: 'done', startedAt: `2026-10-24T${start}:00.000Z`, finishedAt: `2026-10-24T${end}:00.000Z` });

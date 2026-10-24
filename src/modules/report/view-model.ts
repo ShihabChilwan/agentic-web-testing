@@ -18,6 +18,7 @@ import type {
   ViewTest,
 } from '../../shared/schemas.js';
 import type { z } from 'zod';
+import { messageValue, suspectedDefects } from '../script-generator/suspected.js';
 import { allComparisons } from './compare.js';
 
 /** Excerpts are the end of each text artifact, at most this many characters. */
@@ -55,12 +56,6 @@ const durationOf = (start?: string | null, end?: string | null) => (start && end
 /** "golden", "golden + dev-001-….patch", "golden, seed skipped". */
 export function executionLabel(e: Pick<RunExecution, 'ref' | 'patch' | 'skipSeed'>): string {
   return `${e.ref}${e.patch ? ` + ${path.posix.basename(e.patch)}` : ''}${e.skipSeed ? ', seed skipped' : ''}`;
-}
-
-/** The value after "Expected…:" or "Received…:" in a Playwright message (first such line), or null. */
-export function messageValue(message: string, which: 'Expected' | 'Received'): string | null {
-  const match = new RegExp(`^\\s*${which}[^:\\n]*:[ \\t]*(.+)$`, 'm').exec(message);
-  return match?.[1]?.trim() ?? null;
 }
 
 async function failureOf(
@@ -231,6 +226,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
       },
     },
     requirements,
+    suspectedDefects: scripts && testCases ? suspectedDefects(scripts, testCases, prd) : [],
     executions,
     comparisons: allComparisons(executions),
   });

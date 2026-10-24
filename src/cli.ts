@@ -7,7 +7,7 @@ import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/i
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
 import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
-import { describeScriptsSummary, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
+import { describeScriptsSummary, describeSuspectedDefects, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
 import { runPaths } from './shared/paths.js';
@@ -135,6 +135,7 @@ agent
       });
       console.log(`manifest: ${result.manifestFile}`);
       for (const line of describeScriptsSummary(result.summary)) console.log(line);
+      for (const line of describeSuspectedDefects(result.suspectedDefects)) console.log(line);
     } catch (err) {
       console.error(`scripts failed: ${errorSummary(err)}`);
       if (controller.signal.aborted) {
