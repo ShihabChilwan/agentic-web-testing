@@ -12,14 +12,16 @@ import { callsInWindow } from './report/view-model.js';
 import { generateScripts } from './script-generator/generate.js';
 import { describeSuspectedDefects, readSuspectedDefects } from './script-generator/suspected.js';
 import { generateTestCases } from './test-case-generator/generate.js';
+import { generateGaps } from './test-case-generator/gaps.js';
+import { loadTargetConfig } from '../shared/target-config.js';
 
-export const PIPELINE_STAGES = ['prd', 'cases', 'scripts', 'execute', 'analyze'] as const;
+export const PIPELINE_STAGES = ['prd', 'cases', 'scripts', 'gaps', 'execute', 'analyze'] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 export interface StageReport {
   stage: PipelineStage;
-  /** ran: run now; reused: done earlier and still valid; failed: threw now; not-run: an earlier stage failed. */
-  action: 'ran' | 'reused' | 'failed' | 'not-run';
+  /** ran: run now; reused: done earlier and still valid; skipped: not configured; failed: threw now; not-run: an earlier stage failed. */
+  action: 'ran' | 'reused' | 'skipped' | 'failed' | 'not-run';
   durationMs: number | null;
   costUsd: number | null;
   detail: string;
@@ -39,6 +41,9 @@ export interface StageFunctions {
   generatePrd: typeof generatePrd;
   generateTestCases: typeof generateTestCases;
   generateScripts: typeof generateScripts;
+  generateGaps: typeof generateGaps;
+  /** Whether the target config enables the gaps stage ("coverage"). */
+  coverageConfigured: (target: string, options: { targetsDir?: string; projectRoot?: string }) => Promise<boolean>;
   executeRun: typeof executeRun;
   analyzeExecution: typeof analyzeExecution;
 }
@@ -89,11 +94,15 @@ export async function validGoldenExecution(runDir: string, manifest: RunManifest
   return null;
 }
 
+async function coverageConfigured(target: string, options: { targetsDir?: string; projectRoot?: string }): Promise<boolean> {
+  return (await loadTargetConfig(target, options)).config.coverage !== undefined;
+}
+
 /** Marks the stage that was running as interrupted (for stages that cannot be stopped from inside). */
 export async function markInterrupted(stage: PipelineStage, at: { runDir: string | null; execId: string | null }): Promise<void> {
   if (!at.runDir) return;
   const finishedAt = new Date().toISOString();
-  if (stage === 'prd' || stage === 'cases' || stage === 'scripts') await setStage(at.runDir, stage, { status: 'failed', finishedAt, error: 'Interrupted' });
+  if (stage === 'prd' || stage === 'cases' || stage === 'scripts' || stage === 'gaps') await setStage(at.runDir, stage, { status: 'failed', finishedAt, error: 'Interrupted' });
   if (stage === 'analyze' && at.execId) {
     const entry = (await readRunManifest(path.join(at.runDir, 'run.json'))).executions.find((e) => e.execId === at.execId);
     if (entry) await setExecution(at.runDir, { ...entry, analyzeStatus: 'failed', error: 'Interrupted' });
@@ -106,7 +115,7 @@ export async function markInterrupted(stage: PipelineStage, at: { runDir: string
  * run. Stops at the first stage that throws.
  */
 export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult> {
-  const fns: StageFunctions = { generatePrd, generateTestCases, generateScripts, executeRun, analyzeExecution, ...options.stages };
+  const fns: StageFunctions = { generatePrd, generateTestCases, generateScripts, generateGaps, coverageConfigured, executeRun, analyzeExecution, ...options.stages };
   const runsDir = options.runsDir ?? RUNS_DIR;
   const log = options.log ?? (() => {});
   const common = {
@@ -133,6 +142,16 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
     const lines = (await readCallLog(runPaths(manifest.runId, runsDir).llmCalls)).lines;
     return { durationMs: durationOf(state?.startedAt, state?.finishedAt), costUsd: callsInWindow(lines, stage, state?.startedAt, state?.finishedAt).costUsd };
   };
+  // The gaps stage plus the scripts it caused: from the gaps start to the later of the two ends.
+  const gapsCost = async (manifest: RunManifest) => {
+    const gaps = manifest.stages.gaps;
+    const scripts = manifest.stages.scripts;
+    const resumed = scripts?.startedAt && gaps?.finishedAt && scripts.startedAt >= gaps.finishedAt;
+    const end = resumed ? scripts.finishedAt : gaps?.finishedAt;
+    const lines = (await readCallLog(runPaths(manifest.runId, runsDir).llmCalls)).lines;
+    const costs = [callsInWindow(lines, 'gaps', gaps?.startedAt, end).costUsd, resumed ? callsInWindow(lines, 'scripts', gaps?.startedAt, end).costUsd : null].filter((c): c is number => c !== null);
+    return { durationMs: durationOf(gaps?.startedAt, end), costUsd: costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null };
+  };
   let execId: string | null = null;
 
   for (const stage of PIPELINE_STAGES) {
@@ -153,10 +172,30 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
         } else if (stage === 'cases') {
           await fns.generateTestCases({ runId: runId!, ...common });
         } else {
-          await fns.generateScripts({ runId: runId!, ...common, ...signal });
+          // After the gaps stage only the new cases need scripts: keep every earlier outcome, invalid ones too.
+          const afterGaps = manifest?.stages.gaps?.status === 'done' ? { redo: [] } : {};
+          await fns.generateScripts({ runId: runId!, ...common, ...signal, ...afterGaps });
         }
         const after = (await manifestOf())!;
         reports.push({ stage, action: 'ran', ...(await stageCost(stage, after)), detail: stageDetail(stage, after) });
+      } else if (stage === 'gaps') {
+        if (!(await fns.coverageConfigured(target, { ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}), ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}) }))) {
+          reports.push({ stage, action: 'skipped', durationMs: null, costUsd: null, detail: 'no "coverage" in the target config' });
+          continue;
+        }
+        if (manifest!.stages.gaps?.status === 'done') {
+          reports.push({ stage, action: 'reused', ...(await gapsCost(manifest!)), detail: gapsDetail(manifest!) });
+          continue;
+        }
+        options.onStage?.(stage, { runDir, execId });
+        const gaps = await fns.generateGaps({ runId: runId!, ...common, ...signal });
+        // Scripts for the new cases only; the earlier outcomes are kept.
+        if (gaps.added.length > 0) {
+          options.onStage?.('scripts', { runDir, execId });
+          await fns.generateScripts({ runId: runId!, ...common, ...signal, redo: [] });
+        }
+        const after = (await manifestOf())!;
+        reports.push({ stage, action: 'ran', ...(await gapsCost(after)), detail: gapsDetail(after) });
       } else if (stage === 'execute') {
         const valid = await validGoldenExecution(runDir!, manifest!);
         if (valid) {
@@ -199,6 +238,13 @@ function stageDetail(stage: 'prd' | 'cases' | 'scripts', manifest: RunManifest):
   const c = stage === 'prd' ? state.completeness : undefined;
   if (!c) return state.status;
   return `${state.status}; completeness round +${c.added.apiEndpoints} endpoints, +${c.added.uiRoutes} pages, +${c.added.requirements} requirements${c.error ? ' (ended early)' : ''}`;
+}
+
+function gapsDetail(manifest: RunManifest): string {
+  const g = manifest.stages.gaps?.gaps;
+  if (!g) return manifest.stages.gaps?.status ?? '';
+  const scripts = manifest.stages.scripts?.scripts;
+  return `endpoints reached ${g.endpoints.reached}/${g.endpoints.total}; +${g.casesAdded} test cases${g.casesAdded > 0 && scripts ? `; scripts now ${scripts.validated.passed} passed, ${scripts.validated.assertionFailed} assertion_failed, ${scripts.invalid} invalid` : ''}`;
 }
 
 function describeResults(execId: string, r: ExecutionResults): string {

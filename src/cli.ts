@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { describeCompleteness, describeSummary, generatePrd } from './modules/prd-generator/index.js';
-import { describeCasesSummary, generateTestCases } from './modules/test-case-generator/index.js';
+import { describeCasesSummary, describeGaps, generateGaps, generateTestCases } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
 import { describeExecution, executeRun } from './modules/execution-engine/index.js';
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
@@ -20,7 +20,7 @@ const program = new Command();
 
 program.name('agentic-web-testing').description('Agentic web application testing and fault diagnosis');
 
-const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, execute, analyze, all, report');
+const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report');
 
 agent
   .command('prd')
@@ -109,9 +109,9 @@ agent
   .description('Generate and dry-run a Playwright script per test case (starts the app at the generation ref)')
   .option('--run <runId>', 'run to use (default: the newest run with a testcases.json)')
   .option('--fresh', 'generate every script again, instead of keeping validated ones from an unfinished run')
-  .option('--redo <outcomes>', `generate again only these outcomes, keep the rest (comma-separated: ${SCRIPT_OUTCOMES.join(', ')})`)
+  .option('--redo <outcomes>', `generate again only these outcomes, keep the rest (comma-separated: ${SCRIPT_OUTCOMES.join(', ')}; "none" keeps every outcome)`)
   .action(async (opts: { run?: string; fresh?: boolean; redo?: string }) => {
-    const redo = opts.redo?.split(',').map((o) => o.trim()).filter(Boolean);
+    const redo = opts.redo?.split(',').map((o) => o.trim()).filter((o) => o && o !== 'none');
     const unknown = redo?.filter((o) => !(SCRIPT_OUTCOMES as readonly string[]).includes(o)) ?? [];
     if (unknown.length > 0) {
       console.error(`--redo: unknown outcome ${unknown.join(', ')}; use ${SCRIPT_OUTCOMES.join(', ')}`);
@@ -144,6 +144,31 @@ agent
         process.exit(130); // sessions still waiting on the model are abandoned
       }
       process.exitCode = 1;
+    }
+  });
+
+agent
+  .command('gaps')
+  .description('Measure which API endpoints the passing scripts reach (backend coverage on the generation ref), then add test cases for the unreached ones')
+  .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
+  .action(async (opts: { run?: string }) => {
+    // Ctrl+C or SIGTERM: stop Playwright and the app, mark the stage failed.
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping Playwright and the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const result = await generateGaps({ ...(opts.run ? { runId: opts.run } : {}), signal: controller.signal, log: (m) => console.log(m) });
+      for (const line of describeGaps(result)) console.log(line);
+    } catch (err) {
+      console.error(`gaps failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
     }
   });
 

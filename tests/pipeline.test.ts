@@ -41,7 +41,7 @@ async function writeExecution(dir: string, execId: string, startedAt: string, ex
   await setExecution(dir, { execId, ref: 'golden', commit: COMMIT, executeStatus: 'done', analyzeStatus: 'pending', ...extra });
 }
 
-function fakes(fail?: string): StageFunctions {
+function fakes(fail?: string, gaps: { configured: boolean; added: number } = { configured: false, added: 0 }): StageFunctions {
   const dirOf = (runId: string) => runPaths(runId, runsDir).dir;
   const step = (name: string) => {
     calls.push(name);
@@ -60,9 +60,17 @@ function fakes(fail?: string): StageFunctions {
       step('cases');
       await setStage(dirOf(o.runId), 'cases', { status: 'done', startedAt: tick(), finishedAt: tick() });
     }) as never,
-    generateScripts: (async (o: { runId: string }) => {
-      step('scripts');
+    generateScripts: (async (o: { runId: string; redo?: string[] }) => {
+      step(o.redo ? `scripts(redo ${o.redo.join(',') || 'none'})` : 'scripts');
       await setStage(dirOf(o.runId), 'scripts', { status: 'done', startedAt: tick(), finishedAt: tick() });
+    }) as never,
+    coverageConfigured: async () => gaps.configured,
+    generateGaps: (async (o: { runId: string }) => {
+      step('gaps');
+      const summary = { endpoints: { total: 10, reached: 7 }, unreached: [], asked: [], casesAdded: gaps.added, sessions: 1, calls: 1, rejected: { invalidInput: 0, checkFailed: 0 }, costUsd: null, warnings: [] };
+      await setStage(dirOf(o.runId), 'gaps', { status: 'done', startedAt: tick(), finishedAt: tick(), gaps: summary });
+      if (gaps.added > 0) await setStage(dirOf(o.runId), 'scripts', { status: 'pending' });
+      return { added: Array.from({ length: gaps.added }, (_, i) => `TC-10${i}`) };
     }) as never,
     executeRun: (async (o: { runId: string }) => {
       step('execute');
@@ -87,15 +95,15 @@ describe('runAll', () => {
   it('runs every stage for a new target, then reuses all of them on the next call', async () => {
     const first = await runAll({ target: 'shop', runsDir, stages: fakes() });
     expect(calls).toEqual(['prd', 'cases', 'scripts', 'execute', 'analyze']);
-    expect(actions(first)).toEqual(['prd:ran', 'cases:ran', 'scripts:ran', 'execute:ran', 'analyze:ran']);
+    expect(actions(first)).toEqual(['prd:ran', 'cases:ran', 'scripts:ran', 'gaps:skipped', 'execute:ran', 'analyze:ran']);
     expect(first.failure).toBeNull();
     calls = [];
     const again = await runAll({ target: 'shop', runsDir, stages: fakes() });
     expect(calls).toEqual([]);
     expect(again.runId).toBe(first.runId);
-    expect(actions(again)).toEqual(['prd:reused', 'cases:reused', 'scripts:reused', 'execute:reused', 'analyze:reused']);
+    expect(actions(again)).toEqual(['prd:reused', 'cases:reused', 'scripts:reused', 'gaps:skipped', 'execute:reused', 'analyze:reused']);
     expect(again.stages[0]).toMatchObject({ durationMs: 60_000 });
-    expect(again.stages[3]?.detail).toBe('x-01: 1 passed, 0 failed, 0 errored, 0 skipped');
+    expect(again.stages[4]?.detail).toBe('x-01: 1 passed, 0 failed, 0 errored, 0 skipped');
   });
 
   it('reruns a stale stage and everything after it, because the execution is then older than the scripts', async () => {
@@ -104,8 +112,8 @@ describe('runAll', () => {
     calls = [];
     const again = await runAll({ runId: first.runId!, runsDir, stages: fakes() });
     expect(calls).toEqual(['scripts', 'execute', 'analyze']);
-    expect(actions(again)).toEqual(['prd:reused', 'cases:reused', 'scripts:ran', 'execute:ran', 'analyze:ran']);
-    expect(again.stages[3]?.detail).toMatch(/^x-02:/);
+    expect(actions(again)).toEqual(['prd:reused', 'cases:reused', 'scripts:ran', 'gaps:skipped', 'execute:ran', 'analyze:ran']);
+    expect(again.stages[4]?.detail).toMatch(/^x-02:/);
   });
 
   it('never reuses a patched or seed-skipped execution as the golden one', async () => {
@@ -120,7 +128,7 @@ describe('runAll', () => {
 
   it('stops at the first failing stage and says how to continue', async () => {
     const result = await runAll({ target: 'shop', runsDir, stages: fakes('scripts') });
-    expect(actions(result)).toEqual(['prd:ran', 'cases:ran', 'scripts:failed', 'execute:not-run', 'analyze:not-run']);
+    expect(actions(result)).toEqual(['prd:ran', 'cases:ran', 'scripts:failed', 'gaps:not-run', 'execute:not-run', 'analyze:not-run']);
     expect(result.failure).toEqual({ stage: 'scripts', error: 'Error: scripts exploded', next: `npm run agent -- all --run ${result.runId}` });
     const lines = describeRunAll(result);
     expect(lines.at(-1)).toBe(`To continue: npm run agent -- all --run ${result.runId}`);
@@ -136,6 +144,26 @@ describe('runAll', () => {
     expect(calls).toEqual(['prd', 'cases', 'scripts', 'execute', 'analyze']);
     expect(fresh.runId).not.toBe(first.runId);
     expect((await readRunManifest(runPaths(fresh.runId!, runsDir).runJson)).target).toBe('shop');
+  });
+
+  it('with coverage configured, runs the gaps stage once and then scripts for the new cases only, before executing', async () => {
+    const first = await runAll({ target: 'shop', runsDir, stages: fakes(undefined, { configured: true, added: 3 }) });
+    expect(calls).toEqual(['prd', 'cases', 'scripts', 'gaps', 'scripts(redo none)', 'execute', 'analyze']);
+    expect(actions(first)).toEqual(['prd:ran', 'cases:ran', 'scripts:ran', 'gaps:ran', 'execute:ran', 'analyze:ran']);
+    expect(first.stages[3]?.detail).toBe('endpoints reached 7/10; +3 test cases');
+    calls = [];
+    const again = await runAll({ runId: first.runId!, runsDir, stages: fakes(undefined, { configured: true, added: 3 }) });
+    expect(calls).toEqual([]);
+    expect(actions(again)[3]).toBe('gaps:reused');
+  });
+
+  it('after an interrupted gaps-caused scripts run, resumes the scripts keeping every earlier outcome', async () => {
+    const first = await runAll({ target: 'shop', runsDir, stages: fakes(undefined, { configured: true, added: 0 }) });
+    expect(calls).toEqual(['prd', 'cases', 'scripts', 'gaps', 'execute', 'analyze']);
+    await setStage(runPaths(first.runId!, runsDir).dir, 'scripts', { status: 'pending' });
+    calls = [];
+    await runAll({ runId: first.runId!, runsDir, stages: fakes(undefined, { configured: true, added: 0 }) });
+    expect(calls).toEqual(['scripts(redo none)', 'execute', 'analyze']);
   });
 
   it('needs a target when there is no run to continue', async () => {

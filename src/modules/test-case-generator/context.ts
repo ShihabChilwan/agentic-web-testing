@@ -253,6 +253,8 @@ export interface FeatureTaskInput {
   pageRound?: string[];
   /** The rendered snapshots of these requirements' pages (see pages.ts), or null. */
   pageSnapshots?: string | null;
+  /** Set for the endpoint round (gaps stage): "METHOD /path" of endpoints no passing test reached, which these requirements describe. */
+  endpointRound?: string[];
 }
 
 /** The user message for one feature session. */
@@ -268,7 +270,9 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
     .join('\n');
   const disabled = Object.keys(config.backend.disabledServices);
   const parts = [
-    input.pageRound
+    input.endpointRound
+      ? `Measured with code coverage, no test reaches these endpoints yet: ${input.endpointRound.join(', ')}. Write api test cases for the requirements below that call them (send the request in a step, e.g. "Send ${input.endpointRound[0]}", with real values for path parameters, creating the data first when none exists) and check what they return, or decline a requirement whose endpoint cannot be tested.`
+      : input.pageRound
       ? `No test case opens these pages yet: ${input.pageRound.join(', ')}. Write ui test cases for the requirements below that open them (name the page by its path in a step, e.g. "Open ${input.pageRound[0]}") and check what the page shows, or decline a requirement whose page cannot be tested.`
       : input.gapRound
         ? `These requirements of feature ${feature.id} got no test case and no decline yet. Write test cases for them, or decline each one you cannot test.`

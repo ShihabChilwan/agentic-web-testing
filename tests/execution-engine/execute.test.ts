@@ -5,7 +5,9 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { measureCoverage } from '../../src/modules/execution-engine/coverage.js';
 import { executeRun, executeVersion, nextExecId } from '../../src/modules/execution-engine/execute.js';
+import { loadTargetConfig } from '../../src/shared/target-config.js';
 import type { StartOptions } from '../../src/modules/execution-engine/lifecycle.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
 import { createRun, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
@@ -307,4 +309,27 @@ describe('nextExecId', () => {
     expect(await nextExecId(dir, manifest)).toBe('x-08');
     expect(await nextExecId(path.join(root, 'nothing-here'), { executions: [] } as unknown as RunManifest)).toBe('x-01');
   });
+});
+
+describe('measureCoverage (real Playwright)', () => {
+  it('runs the passed scripts with backend coverage on, keeps the execution under coverage/ and reads the lines that ran', async () => {
+    const runDir = path.join(runsDir, runId);
+    const loaded = await loadTargetConfig('fake', { targetsDir: path.join(root, 'targets'), projectRoot: root });
+    const config = { ...loaded.config, coverage: { kind: 'node-v8' as const } };
+    const measured = await measureCoverage({ runDir, config, repoDir: loaded.repoDir, targetDir: loaded.targetDir, generationRef: 'golden' });
+
+    expect(measured.results.summary).toMatchObject({ total: 7, passed: 4 });
+    expect(measured.processes).toBeGreaterThan(0);
+    const lines = BACKEND.split('\n');
+    const lineOf = (text: string) => lines.findIndex((l) => l.includes(text)) + 1;
+    // The request handler ran; a top-level line that runs only at start-up does not count; the frontend is not measured.
+    expect(Object.keys(measured.files)).toEqual(['api/server.cjs']);
+    expect(measured.files['api/server.cjs']).toContain(lineOf("return json(200, { items: db.items"));
+    expect(measured.files['api/server.cjs']).not.toContain(lineOf("const DB = 'db.json'"));
+    // The execution moved to coverage/execution/; the raw coverage files are gone; executions/ is untouched.
+    expect((await readdir(path.join(runDir, 'coverage'))).sort()).toEqual(['execution', 'flush-on-signal.cjs']);
+    expect(ExecutionResults.parse(JSON.parse(await readFile(path.join(runDir, 'coverage', 'execution', 'results.json'), 'utf8'))).execId).toBe('coverage');
+    expect(await readdir(path.join(runDir, 'executions'))).not.toContain('coverage');
+    expect((await readRunManifest(path.join(runDir, 'run.json'))).executions.map((e) => e.execId)).not.toContain('coverage');
+  }, 180_000);
 });

@@ -189,6 +189,11 @@ export const TargetConfig = z.strictObject({
    * `auth` is part of the scripts' helpersHash.
    */
   accountResources: z.array(z.string().startsWith('/')).default([]),
+  /**
+   * Optional: how backend code coverage can be measured (§5.1). "node-v8": the backend runs on Node, which writes V8
+   * coverage when NODE_V8_COVERAGE is set. Without it the gaps stage is skipped.
+   */
+  coverage: z.strictObject({ kind: z.literal('node-v8') }).optional(),
 });
 
 export type TargetConfig = z.infer<typeof TargetConfig>;
@@ -426,6 +431,29 @@ export const PageSnapshots = z.object({
 
 export type PageSnapshotEntry = z.infer<typeof PageSnapshotEntry>;
 export type PageSnapshots = z.infer<typeof PageSnapshots>;
+
+/** runs/<runId>/coverage/coverage.json (§5.1): what the passing scripts ran of the backend on the generation version. */
+export const CoverageReport = z.object({
+  schemaVersion: SchemaVersion,
+  kind: z.literal('node-v8'),
+  generationCommit: CommitSha,
+  measuredAt: Timestamp,
+  /** Scripts run (those that passed their dry run) and how many passed during the measurement. */
+  scripts: z.object({ run: z.number().int().nonnegative(), passed: z.number().int().nonnegative() }),
+  /** Coverage files read (one per Node process that exited). */
+  processes: z.number().int().nonnegative(),
+  /** Per repo-relative file: lines with code that ran inside a function (code that runs only at module load is left out). */
+  files: z.record(z.string(), z.object({ lines: z.array(z.number().int().positive()) })),
+  /** Each PRD endpoint: reached when a line of its evidence ran. */
+  endpoints: z.array(
+    z.object({
+      method: HttpMethod,
+      path: z.string().startsWith('/'),
+      reached: z.boolean(),
+    }),
+  ),
+});
+export type CoverageReport = z.infer<typeof CoverageReport>;
 
 /** Which of the PRD's page routes a ui test case opens (named by path in its steps), and why the others are not. */
 export const PageCoverage = z.object({
@@ -859,6 +887,21 @@ export const StageScriptsSummary = z.object({
   warnings: z.array(z.string()),
 });
 
+/** The gaps stage (§5.1): coverage of the endpoints, and the round for those no test reached. */
+export const StageGapsSummary = z.object({
+  endpoints: z.object({ total: count, reached: count }),
+  /** "METHOD /path" of each endpoint no passing script reached. */
+  unreached: z.array(z.string()),
+  /** Unreached endpoints given to a session (a requirement describes them). */
+  asked: z.array(z.string()),
+  casesAdded: count,
+  sessions: count,
+  calls: count,
+  rejected: z.object({ invalidInput: count, checkFailed: count }),
+  costUsd: z.number().nonnegative().nullable(),
+  warnings: z.array(z.string()),
+});
+
 export const StageState = z.object({
   status: StageStatus,
   startedAt: Timestamp.optional(),
@@ -870,6 +913,7 @@ export const StageState = z.object({
   completeness: StageCompletenessSummary.optional(),
   generation: StageGenerationSummary.optional(),
   scripts: StageScriptsSummary.optional(),
+  gaps: StageGapsSummary.optional(),
 });
 
 const PerModule = <T extends z.ZodType>(value: T) =>
@@ -911,6 +955,7 @@ export const RunManifest = z.object({
     prd: StageState.optional(),
     cases: StageState.optional(),
     scripts: StageState.optional(),
+    gaps: StageState.optional(),
   }),
   executions: z.array(RunExecution),
 });
@@ -920,6 +965,7 @@ export type ExecutionStepStatus = z.infer<typeof ExecutionStepStatus>;
 export type StageState = z.infer<typeof StageState>;
 export type StageAgentSummary = z.infer<typeof StageAgentSummary>;
 export type StageGenerationSummary = z.infer<typeof StageGenerationSummary>;
+export type StageGapsSummary = z.infer<typeof StageGapsSummary>;
 export type StageCompletenessSummary = z.infer<typeof StageCompletenessSummary>;
 export type StageScriptsSummary = z.infer<typeof StageScriptsSummary>;
 export type RunExecution = z.infer<typeof RunExecution>;
@@ -1177,7 +1223,7 @@ export type OnePromptScript = z.infer<typeof OnePromptScript>;
 // ---------------------------------------------------------------------------
 
 export const ViewStage = z.object({
-  name: z.enum(['prd', 'cases', 'scripts']),
+  name: z.enum(['prd', 'cases', 'scripts', 'gaps']),
   status: StageStatus,
   startedAt: Timestamp.nullable(),
   finishedAt: Timestamp.nullable(),
@@ -1317,6 +1363,8 @@ export const RunView = z.object({
     afterAction: z.number().int().nonnegative(),
     /** Pages a ui test case opens; null when testcases.json has no page coverage (older files). */
     pages: z.object({ total: z.number().int().nonnegative(), opened: z.number().int().nonnegative() }).nullable(),
+    /** PRD endpoints a passing script reached on the generation version (coverage/coverage.json); null when not measured. */
+    endpoints: z.object({ total: z.number().int().nonnegative(), reached: z.number().int().nonnegative() }).nullable().default(null),
     testCases: z.number().int().nonnegative(),
     scripts: z.object({
       passed: z.number().int().nonnegative(),

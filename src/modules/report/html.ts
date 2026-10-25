@@ -94,6 +94,7 @@ function overview() {
       tile(c.partial, 'partly untestable'),
       c.pages ? tile(c.pages.opened + ' / ' + c.pages.total, 'pages opened by a test case') : null,
       tile(c.afterAction, 'ui expectations marked afterAction'),
+      c.endpoints ? tile(c.endpoints.reached + ' / ' + c.endpoints.total, 'API endpoints reached by a test') : null,
       tile(c.testCases, 'test cases'),
       tile(s.passed, 'scripts passed on ' + V.run.generationRef),
       tile(s.assertionFailed, 'scripts disagree with ' + V.run.generationRef),

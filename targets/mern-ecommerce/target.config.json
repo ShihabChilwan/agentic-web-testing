@@ -159,5 +159,6 @@
     "exclude": ["**/node_modules/**", "**/*.test.*", "**/dist/**", "**/build/**"]
   },
   "forbiddenPaths": [],
-  "accountResources": ["/api/user"]
+  "accountResources": ["/api/user"],
+  "coverage": { "kind": "node-v8" }
 }

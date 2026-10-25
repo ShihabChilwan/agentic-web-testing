@@ -3,7 +3,7 @@ import path from 'node:path';
 import { readCallLog } from '../../llm/call-log.js';
 import { runPaths } from '../../shared/paths.js';
 import { readRunManifest } from '../../shared/run-manifest.js';
-import { Diagnoses, ExecutionResults, Prd, RunView, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
+import { CoverageReport, Diagnoses, ExecutionResults, Prd, RunView, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
 import type {
   Diagnosis,
   LLMCallLogLine,
@@ -139,7 +139,7 @@ async function executionView(
 }
 
 function stagesView(manifest: RunManifest, calls: readonly LLMCallLogLine[]): ViewStage[] {
-  return (['prd', 'cases', 'scripts'] as const).flatMap((name) => {
+  return (['prd', 'cases', 'scripts', 'gaps'] as const).flatMap((name) => {
     const stage = manifest.stages[name];
     if (!stage) return [];
     return [
@@ -165,6 +165,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
   const prd = await readOptional(paths.prd, Prd);
   const testCases = await readOptional(paths.testCases, TestCases);
   const scripts = await readOptional(paths.scriptsManifest, ScriptManifest);
+  const measured = await readOptional(paths.coverage, CoverageReport);
   const calls = (await readCallLog(paths.llmCalls)).lines;
 
   const cases = new Map((testCases?.testCases ?? []).map((tc) => [tc.id, tc]));
@@ -219,6 +220,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
       partial: testCases?.coverage.partial.length ?? 0,
       afterAction: (testCases?.testCases ?? []).flatMap((c) => c.expected).filter((e) => e.afterAction === true).length,
       pages: testCases?.coverage.pages ? { total: testCases.coverage.pages.total, opened: testCases.coverage.pages.opened } : null,
+      endpoints: measured ? { total: measured.endpoints.length, reached: measured.endpoints.filter((e) => e.reached).length } : null,
       testCases: cases.size,
       scripts: {
         passed: outcomes.filter((o) => o === 'passed').length,

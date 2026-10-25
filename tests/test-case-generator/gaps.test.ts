@@ -1,0 +1,209 @@
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { FakeLLMClient } from '../../src/llm/fake.js';
+import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
+import { describesEndpoint, endpointRoundProblems } from '../../src/modules/test-case-generator/generate.js';
+import { describeGaps, endpointReach, generateGaps } from '../../src/modules/test-case-generator/gaps.js';
+import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
+import { parseLLMConfig } from '../../src/shared/config.js';
+import { createRun, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
+import { CoverageReport, TestCases } from '../../src/shared/schemas.js';
+import type { Prd, PrdRequirement } from '../../src/shared/schemas.js';
+import { example } from '../shared/schemas/helpers.js';
+
+let root: string;
+let commit: string;
+
+const ITEMS_JS = [
+  "const router = require('express').Router();",
+  "router.get('/', async (req, res) => {",
+  "  res.status(200).json({ items: [{ name: 'Hat' }] });",
+  '});',
+  '',
+  "router.get('/:id', async (req, res) => {",
+  "  if (!req.params.id) return res.status(404).json({ error: 'No item found.' });",
+  "  res.status(200).json({ item: { name: 'Hat' } });",
+  '});',
+].join('\n');
+
+const llmConfig = parseLLMConfig({ LLM_BASE_URL: 'http://model.test/v1' });
+const config = (coverage = true) => {
+  const c = structuredClone(example('target.config.json'));
+  c.name = 'fake';
+  c.repoPath = 'targets/fake/repo';
+  delete c.facts;
+  if (coverage) c.coverage = { kind: 'node-v8' };
+  return c;
+};
+
+const ev = (lines: [number, number]) => [{ file: 'server/items.js', lines }];
+const requirements: PrdRequirement[] = [
+  { id: 'REQ-001', featureId: 'F-01', layer: 'api', priority: 'high', statement: 'GET /api/items lists the items.', acceptanceCriteria: [{ text: 'Status 200 with items', evidence: ev([2, 4]) }] },
+  // Names no path: it describes GET /api/items/:id through its evidence.
+  { id: 'REQ-002', featureId: 'F-01', layer: 'api', priority: 'medium', statement: 'One item can be read by its id.', acceptanceCriteria: [{ text: 'Status 200 with the item', evidence: ev([6, 9]) }] },
+];
+const endpoints: Prd['apiEndpoints'] = [
+  { method: 'GET', path: '/api/items', authRequired: false, summary: 'Lists items.', responses: [{ status: 200, description: 'items' }], evidence: ev([2, 4]) },
+  { method: 'GET', path: '/api/items/:id', authRequired: false, summary: 'Reads one item.', responses: [{ status: 200, description: 'item' }], evidence: ev([6, 9]) },
+];
+const prd = (): Prd => ({
+  schemaVersion: '1.0', target: 'fake', sourceRef: 'golden', generatedAt: '2026-10-25T10:00:00Z',
+  features: [{ id: 'F-01', name: 'Items', description: 'Items can be listed and read.' }],
+  apiEndpoints: endpoints, uiRoutes: [], requirements, assumptions: [], openQuestions: [],
+});
+
+const draft = (over: Record<string, unknown> = {}) => ({
+  requirementIds: ['REQ-001'], title: 'Items are listed', layer: 'api', category: 'functional', priority: 'high',
+  preconditions: [], fixturesUsed: [], steps: ['Send GET /api/items'],
+  expected: [{ description: 'Status 200', value: 200 }, { description: 'First item name', value: 'Hat' }],
+  ...over,
+});
+const existing = TestCases.parse({
+  schemaVersion: '1.0', generatedAt: '2026-10-25T10:00:00Z',
+  testCases: [{ id: 'TC-001', ...draft(), expected: draft().expected.map((e, i) => ({ id: `E${i + 1}`, ...e })) }],
+  coverage: { requirementsTotal: 2, requirementsCovered: 1, uncovered: [{ requirementId: 'REQ-002', reasonKind: 'other', reason: 'No test case after the gap round.' }], partial: [] },
+});
+
+beforeAll(async () => {
+  root = await mkdtemp(path.join(tmpdir(), 'gaps-'));
+  const repoDir = path.join(root, 'targets', 'fake', 'repo');
+  await mkdir(path.join(repoDir, 'server'), { recursive: true });
+  await writeFile(path.join(repoDir, 'server', 'items.js'), ITEMS_JS);
+  await writeFile(path.join(root, 'targets', 'fake', 'target.config.json'), JSON.stringify(config()));
+  const git = (...args: string[]) => execFileSync('git', ['-C', repoDir, '-c', 'user.name=t', '-c', 'user.email=t@x.test', ...args], { encoding: 'utf8' });
+  git('init', '--quiet');
+  git('add', '.');
+  git('commit', '--quiet', '-m', 'golden');
+  commit = git('rev-parse', 'HEAD').trim();
+});
+
+afterAll(async () => {
+  await rm(root, { recursive: true, force: true });
+});
+
+/** A run whose scripts stage is done, with one test case for REQ-001. */
+async function makeRun(scripts: 'done' | 'failed' = 'done') {
+  const runsDir = await mkdtemp(path.join(root, 'runs-'));
+  const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });
+  await writeFile(paths.prd, JSON.stringify(prd()));
+  await writeFile(paths.testCases, JSON.stringify(existing));
+  await setStage(paths.dir, 'scripts', { status: scripts, startedAt: '2026-10-25T10:00:00.000Z', finishedAt: '2026-10-25T10:30:00.000Z' });
+  return { runId, runsDir, paths };
+}
+
+/** The measurement: only the list handler ran (lines 2-3). */
+const measured: Array<MeasureCoverageOptions> = [];
+const measure = async (options: MeasureCoverageOptions) => {
+  measured.push(options);
+  return {
+    commit,
+    processes: 3,
+    files: { 'server/items.js': [2, 3] },
+    results: { summary: { total: 1, passed: 1, failed: 0, errored: 0, skipped: 0, notIsolated: 0 } } as never,
+  };
+};
+
+const submit = (testCases: unknown[], declined: unknown[] = []) => FakeLLMClient.toolCall('submit_test_cases', { testCases, declined });
+
+function fakeModel(responses: ChatResponse[]) {
+  const tasks: string[] = [];
+  const respond = (req: ChatRequest): ChatResponse => {
+    const first = req.messages[0];
+    if (req.messages.length === 1 && first?.role === 'user' && first.content[0]?.type === 'text') tasks.push(first.content[0].text);
+    const next = responses.shift();
+    if (!next) throw new Error('no scripted response');
+    return next;
+  };
+  return { llm: new FakeLLMClient(Array.from({ length: 10 }, () => respond)), tasks };
+}
+
+describe('which endpoints a test reached', () => {
+  it('an endpoint is reached when a line of its evidence ran', () => {
+    expect(endpointReach(endpoints, { 'server/items.js': [3] }).map((e) => e.reached)).toEqual([true, false]);
+    expect(endpointReach(endpoints, {}).map((e) => e.reached)).toEqual([false, false]);
+  });
+
+  it('a requirement describes an endpoint by naming it or by overlapping evidence', () => {
+    expect(describesEndpoint(requirements[0]!, endpoints[0]!, endpoints)).toBe(true);
+    expect(describesEndpoint(requirements[0]!, endpoints[1]!, endpoints)).toBe(false);
+    expect(describesEndpoint(requirements[1]!, endpoints[1]!, endpoints)).toBe(true);
+  });
+
+  it('the endpoint round needs a case calling each endpoint, or a decline of a requirement describing it', () => {
+    const asked = [endpoints[1]!];
+    const sub = (testCases: unknown[], declined: unknown[] = []) => ({ testCases, declined }) as never;
+    expect(endpointRoundProblems(sub([draft()]), asked, requirements, endpoints)).toEqual([
+      'No api test case calls GET /api/items/:id; add one with a step that sends it (e.g. "Send GET /api/items/:id" with real values for its parameters) and checks what it returns, or decline the requirement that describes it with the reason',
+    ]);
+    expect(endpointRoundProblems(sub([draft({ steps: ['Send GET /api/items/42'] })]), asked, requirements, endpoints)).toEqual([]);
+    expect(endpointRoundProblems(sub([], [{ requirementId: 'REQ-002', reasonKind: 'other', reason: 'x' }]), asked, requirements, endpoints)).toEqual([]);
+  });
+});
+
+describe('generateGaps', () => {
+  const options = (runsDir: string, llm: FakeLLMClient, runId: string) => ({
+    runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, llmConfig, createLlm: async () => llm, measure,
+  });
+
+  it('measures, asks for the unreached endpoint, appends the new case with the next id and sets the scripts stage to resume', async () => {
+    const { runId, runsDir, paths } = await makeRun();
+    const readOne = draft({ requirementIds: ['REQ-002'], title: 'One item is read', priority: 'medium', steps: ['Send GET /api/items/42'] });
+    const { llm, tasks } = fakeModel([submit([draft()]), submit([readOne])]);
+    const result = await generateGaps(options(runsDir, llm, runId));
+
+    expect(measured.at(-1)).toMatchObject({ generationRef: 'golden', runDir: paths.dir });
+    expect(tasks[0]).toContain('Measured with code coverage, no test reaches these endpoints yet: GET /api/items/:id.');
+    expect(tasks[0]).toContain('- REQ-002');
+    expect(tasks[0]).not.toContain('- REQ-001 ');
+    const coverage = CoverageReport.parse(JSON.parse(await readFile(paths.coverage, 'utf8')));
+    expect(coverage).toMatchObject({ kind: 'node-v8', generationCommit: commit, scripts: { run: 1, passed: 1 }, processes: 3, files: { 'server/items.js': { lines: [2, 3] } } });
+    expect(coverage.endpoints.map((e) => e.reached)).toEqual([true, false]);
+
+    const file = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8')));
+    expect(file.testCases.map((c) => [c.id, c.requirementIds[0]])).toEqual([['TC-001', 'REQ-001'], ['TC-002', 'REQ-002']]);
+    expect(file.testCases[0]).toEqual(existing.testCases[0]); // existing cases keep their id and content, so their scripts stay valid
+    expect(file.coverage).toMatchObject({ requirementsCovered: 2, uncovered: [], partial: [] });
+    expect(result.added).toEqual(['TC-002']);
+
+    const manifest = await readRunManifest(paths.runJson);
+    expect(manifest.stages.scripts?.status).toBe('pending');
+    expect(manifest.stages.gaps).toMatchObject({
+      status: 'done',
+      gaps: { endpoints: { total: 2, reached: 1 }, unreached: ['GET /api/items/:id'], asked: ['GET /api/items/:id'], casesAdded: 1, sessions: 1, rejected: { checkFailed: 1 } },
+    });
+    expect(describeGaps(result)).toEqual([
+      'API endpoints reached by a passing script: 1 of 2 (scripts run 1, passed 1)',
+      'not reached: GET /api/items/:id',
+      'endpoint round: 1 endpoints asked in 1 sessions; 1 test cases added (TC-002..TC-002)',
+      '2 model calls, cost unknown; rejected submits: 0 invalid input, 1 failed checks',
+      `Next: npm run agent -- scripts --run ${runId} --redo none (writes scripts for the new cases only)`,
+    ]);
+  });
+
+  it('adds nothing and leaves testcases.json and the scripts stage alone when every endpoint was reached', async () => {
+    const { runId, runsDir, paths } = await makeRun();
+    const { llm } = fakeModel([]);
+    const before = await readFile(paths.testCases, 'utf8');
+    const all = async (o: MeasureCoverageOptions) => ({ ...(await measure(o)), files: { 'server/items.js': [3, 8] } });
+    const result = await generateGaps({ ...options(runsDir, llm, runId), measure: all });
+    expect(result.summary).toMatchObject({ endpoints: { total: 2, reached: 2 }, asked: [], casesAdded: 0, sessions: 0 });
+    expect(await readFile(paths.testCases, 'utf8')).toBe(before);
+    expect((await readRunManifest(paths.runJson)).stages.scripts?.status).toBe('done');
+  });
+
+  it('needs a finished scripts stage, and a coverage setting in the target config', async () => {
+    const unfinished = await makeRun('failed');
+    await expect(generateGaps(options(unfinished.runsDir, fakeModel([]).llm, unfinished.runId))).rejects.toThrow(/scripts stage of .* is failed, not done/);
+    const { runId, runsDir, paths } = await makeRun();
+    await writeFile(path.join(root, 'targets', 'fake', 'target.config.json'), JSON.stringify(config(false)));
+    try {
+      await expect(generateGaps(options(runsDir, fakeModel([]).llm, runId))).rejects.toThrow(/no "coverage" setting/);
+      expect((await readRunManifest(paths.runJson)).stages.gaps).toBeUndefined();
+    } finally {
+      await writeFile(path.join(root, 'targets', 'fake', 'target.config.json'), JSON.stringify(config()));
+    }
+  });
+});

@@ -18,6 +18,12 @@ describe('target.config.json', () => {
     );
   });
 
+  it('accepts the optional coverage setting, node-v8 only', () => {
+    expect(TargetConfig.parse(config).coverage).toBeUndefined();
+    expect(TargetConfig.parse({ ...config, coverage: { kind: 'node-v8' } }).coverage).toEqual({ kind: 'node-v8' });
+    expect(errorPaths(TargetConfig, { ...config, coverage: { kind: 'istanbul' } })).toContain('coverage.kind');
+  });
+
   it('validates the optional seedCheck', () => {
     expect(TargetConfig.parse(config).seedCheck?.expect.nonEmptyArrayAt).toBe('products');
     const { seedCheck: _s, ...noCheck } = config;

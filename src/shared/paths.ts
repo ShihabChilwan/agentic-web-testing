@@ -38,6 +38,8 @@ export function runPaths(runId: string, runsDir: string = RUNS_DIR) {
     llmCalls: path.join(dir, 'llm-calls.jsonl'),
     transcriptsDir: path.join(dir, 'transcripts'),
     prd: path.join(dir, 'prd.json'),
+    coverageDir: path.join(dir, 'coverage'),
+    coverage: path.join(dir, 'coverage', 'coverage.json'),
     testCases: path.join(dir, 'testcases.json'),
     scriptsDir: path.join(dir, 'scripts'),
     scriptsManifest: path.join(dir, 'scripts', 'manifest.json'),

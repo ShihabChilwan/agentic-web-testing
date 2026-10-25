@@ -30,7 +30,7 @@ import type {
   UncoveredRequirement,
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
-import { checkSubmission, missingNegativeCases, openablePages, pagesOpened, stepPaths, SubmitTestCases, templateMatches, toTestCase } from './checks.js';
+import { checkSubmission, matchEndpoint, missingNegativeCases, openablePages, pagesOpened, stepPaths, stepRequests, SubmitTestCases, templateMatches, toTestCase } from './checks.js';
 import type { TestCaseDraft } from './checks.js';
 import { buildFeatureTask, buildGrounding, collectEvidence, linesAtCommit } from './context.js';
 import { readFacts } from '../execution-engine/facts.js';
@@ -72,7 +72,7 @@ export function featureQuotas(requirementCounts: number[], total: number = MAX_T
   return requirementCounts.map((n) => Math.max(n, Math.floor((total * n) / all)));
 }
 
-interface SessionOutcome {
+export interface SessionOutcome {
   cases: TestCaseDraft[];
   declined: UncoveredRequirement[];
   turns: number;
@@ -83,7 +83,7 @@ interface SessionOutcome {
   lastProblems?: string[];
 }
 
-interface SessionInput {
+export interface SessionInput {
   feature: Prd['features'][number];
   requirements: PrdRequirement[];
   quota: number;
@@ -91,37 +91,42 @@ interface SessionInput {
   previousProblems?: string[];
   /** Page round: pages no test case opens yet; the session must open each one or decline a requirement naming it. */
   pageRound?: string[];
+  /** Endpoint round (gaps stage): endpoints no passing script reached; each is called by an api case or a requirement describing it is declined. */
+  endpointRound?: Array<Prd['apiEndpoints'][number]>;
 }
 
-async function runSession(
-  input: SessionInput,
-  deps: {
-    llm: LLMClient;
-    llmConfig: LLMConfig;
-    config: TargetConfig;
-    read: ReadLines;
-    transcriptsDir: string;
-    facts: TargetFacts | null;
-    endpoints: Prd['apiEndpoints'];
-    pages: Prd['uiRoutes'];
-    pageSnapshots: PageSnapshotEntry[];
-  },
-): Promise<SessionOutcome> {
+export interface SessionDeps {
+  /** The call log purpose (default "cases"). */
+  purpose?: string;
+  llm: LLMClient;
+  llmConfig: LLMConfig;
+  config: TargetConfig;
+  read: ReadLines;
+  transcriptsDir: string;
+  facts: TargetFacts | null;
+  endpoints: Prd['apiEndpoints'];
+  pages: Prd['uiRoutes'];
+  pageSnapshots: PageSnapshotEntry[];
+}
+
+export async function runSession(input: SessionInput, deps: SessionDeps): Promise<SessionOutcome> {
   const evidence = await collectEvidence(input.requirements, deps.read);
   const grounding = buildGrounding(evidence, deps.config, deps.facts);
+  const { endpointRound, ...taskInput } = input;
   try {
     const result = await runAgent(
       {
-        purpose: 'cases',
+        purpose: deps.purpose ?? 'cases',
         system: buildSystemPrompt(),
         task: buildFeatureTask({
-          ...input,
+          ...taskInput,
           evidence,
           config: deps.config,
           facts: deps.facts,
           endpoints: deps.endpoints,
           pages: deps.pages,
           pageSnapshots: renderPageSnapshots(deps.pageSnapshots, input.requirements),
+          ...(endpointRound ? { endpointRound: endpointRound.map((e) => `${e.method} ${e.path}`) } : {}),
         }),
         tools: [],
         submit: {
@@ -143,6 +148,7 @@ async function runSession(
               pages: deps.pages.map((p) => p.path),
             }),
             ...(input.pageRound ? pageRoundProblems(sub, input.pageRound, input.requirements) : []),
+            ...(endpointRound ? endpointRoundProblems(sub, endpointRound, input.requirements, deps.endpoints) : []),
             ...snapshotProblems(sub, deps.pageSnapshots),
           ],
         },
@@ -179,6 +185,37 @@ export function pageRoundProblems(sub: SubmitTestCases, pages: readonly string[]
   return pages
     .filter((page) => !opened.has(page) && !requirements.some((r) => declined.has(r.id) && namesPage(r, page)))
     .map((page) => `No ui test case opens ${page}; add one that names it in a step (e.g. "Open ${page}"), or decline the requirement that describes it with the reason`);
+}
+
+/**
+ * Whether a requirement describes an endpoint: its statement or a criterion names the endpoint's method and path, or
+ * a criterion's evidence overlaps the endpoint's evidence.
+ */
+export function describesEndpoint(r: PrdRequirement, endpoint: Prd['apiEndpoints'][number], endpoints: Prd['apiEndpoints']): boolean {
+  const named = stepRequests([r.statement, ...r.acceptanceCriteria.map((c) => c.text)]).some((q) => matchEndpoint(q.method, q.path, endpoints) === endpoint);
+  if (named) return true;
+  return r.acceptanceCriteria.some((c) =>
+    c.evidence.some((ev) => endpoint.evidence.some((ee) => ee.file === ev.file && ev.lines[0] <= ee.lines[1] && ee.lines[0] <= ev.lines[1])),
+  );
+}
+
+/** Endpoint round: every endpoint asked for is called by a submitted api case, or a requirement describing it is declined. */
+export function endpointRoundProblems(
+  sub: SubmitTestCases,
+  asked: ReadonlyArray<Prd['apiEndpoints'][number]>,
+  requirements: readonly PrdRequirement[],
+  endpoints: Prd['apiEndpoints'],
+): string[] {
+  const called = new Set(
+    sub.testCases.filter((c) => c.layer === 'api').flatMap((c) => stepRequests(c.steps).map((q) => matchEndpoint(q.method, q.path, endpoints))),
+  );
+  const declined = new Set(sub.declined.map((d) => d.requirementId));
+  return asked
+    .filter((e) => !called.has(e) && !requirements.some((r) => declined.has(r.id) && describesEndpoint(r, e, endpoints)))
+    .map(
+      (e) =>
+        `No api test case calls ${e.method} ${e.path}; add one with a step that sends it (e.g. "Send ${e.method} ${e.path}" with real values for its parameters) and checks what it returns, or decline the requirement that describes it with the reason`,
+    );
 }
 
 const zeroCounts = <K extends string>(keys: readonly K[]) => Object.fromEntries(keys.map((k) => [k, 0])) as Record<K, number>;
@@ -367,8 +404,10 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     for (const u of uncovered) summary.uncoveredByReasonKind[u.reasonKind]++;
 
     await setStage(paths.dir, 'cases', { status: 'done', startedAt, finishedAt: new Date().toISOString(), generation: summary });
-    // A new testcases.json makes any earlier scripts out of date.
-    if ((await readRunManifest(paths.runJson)).stages.scripts) await setStage(paths.dir, 'scripts', { status: 'stale' });
+    // A new testcases.json makes any earlier scripts, and the gaps round built on them, out of date.
+    const stages = (await readRunManifest(paths.runJson)).stages;
+    if (stages.scripts) await setStage(paths.dir, 'scripts', { status: 'stale' });
+    if (stages.gaps) await setStage(paths.dir, 'gaps', { status: 'stale' });
     return { runId, file: paths.testCases, testCases: result, summary };
   } catch (err) {
     await setStage(paths.dir, 'cases', { status: 'failed', startedAt, finishedAt: new Date().toISOString(), error: errorSummary(err) });
