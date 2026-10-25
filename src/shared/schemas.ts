@@ -547,6 +547,12 @@ export const ScriptManifestEntry = z.preprocess(withFailureCategory, z
     attemptLog: z.array(ScriptAttempt).min(1),
     /** For an invalid script: the category of its last failed attempt, so it can be reviewed by hand. */
     failureCategory: FailureCategory.nullable().default(null),
+    /** An assertion_failed script whose repair attempts reached nothing else: the attempt whose script is kept (not the last). */
+    keptAttempt: z.number().int().min(1).optional(),
+    /** Repair attempts sent after a locked value failed in a way that looks like a script error (SPEC §6.2). */
+    repairs: z.number().int().min(1).optional(),
+    /** A passed script whose earlier dry run timed out or hit a browser or network error: it was not stable on the generation version (SPEC §6.2). */
+    unstable: z.literal(true).optional(),
   })
   .refine((s) => (s.status === 'validated') === (s.validationOutcome !== null), {
     message: 'validationOutcome must be set for validated scripts and null for invalid ones',
@@ -880,6 +886,10 @@ export const StageScriptsSummary = z.object({
   costUsd: z.number().nonnegative().nullable(),
   /** Total time spent in dry runs (they run one at a time). */
   dryRunMs: DurationMs,
+  /** Scripts that got repair attempts after a locked value failed like a script error, and how many of those then passed. */
+  repaired: z.object({ cases: count, passed: count }).default({ cases: 0, passed: 0 }),
+  /** Passed scripts that passed only after an earlier dry run timed out or hit a browser or network error (SPEC §6.2). */
+  unstable: count.default(0),
   /** Data restores (reset + seed + backend restart) after dry runs, and their total time. */
   restores: count.default(0),
   restoreMs: DurationMs.default(0),

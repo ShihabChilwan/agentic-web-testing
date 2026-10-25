@@ -23,6 +23,18 @@ export type DryRunVerdict =
   /** Anything else: a failed attempt; the next one may change the body, never EXPECTED. */
   | { kind: 'failed'; category: FailureCategory; expectationId: string | null };
 
+/**
+ * Whether a failed dry-run attempt looks like the test or the app being slow or unreliable rather than the script being
+ * wrong: a timeout, or a runtime error from the browser or the network (a navigation aborted, the page or the connection
+ * closed). A script that passes after such an attempt was not stable on the generation version (SPEC §6.2). A script
+ * error (a TypeError, a wrong locator, a type error) says nothing about stability: it was repaired.
+ */
+export function suggestsInstability(attempt: { stage: string; category?: string | undefined; error: string | null }): boolean {
+  if (attempt.stage !== 'dry-run') return false;
+  if (attempt.category === 'timeout') return true;
+  return attempt.category === 'runtime-error' && /net::ERR_|Target (?:page|closed)|Navigation|ECONNREFUSED|ECONNRESET|socket hang up|interrupted by another/i.test(attempt.error ?? '');
+}
+
 // eslint-disable-next-line no-control-regex
 const ANSI = /\x1b\[[0-9;]*m/g;
 

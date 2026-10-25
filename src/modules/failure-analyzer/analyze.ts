@@ -9,11 +9,12 @@ import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig, type LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
-import { Diagnoses, ExecutionResults, Prd, SCHEMA_VERSION, TestCases } from '../../shared/schemas.js';
+import { Diagnoses, ExecutionResults, Prd, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
 import type { Diagnosis, DiagnosesSummary, RunExecution, TestResult } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { buildSourceTree } from '../execution-engine/source-tree.js';
 import { checkDiagnoses, SubmitDiagnoses, type DiagnosisDraft } from './checks.js';
+import { suggestsInstability } from '../script-generator/classify.js';
 import { buildGroupTask, buildNoToolsSystemPrompt, buildNoToolsTask, buildSystemPrompt } from './prompt.js';
 import { createAnalyzerTools, type AnalysisContext } from './tools.js';
 import { triage, type FailureGroup } from './triage.js';
@@ -61,6 +62,7 @@ interface SessionDeps {
   scope: RepoScope;
   failures: ReadonlyMap<string, TestResult>;
   noTools: boolean;
+  unstable: ReadonlyMap<string, string>;
 }
 
 /** One agent session for one group (SPEC §8.1 steps 2–4); a failed session gives an inconclusive diagnosis. */
@@ -88,7 +90,7 @@ async function diagnoseGroup(group: FailureGroup, deps: SessionDeps): Promise<Gr
         system: deps.noTools ? buildNoToolsSystemPrompt() : buildSystemPrompt(),
         task: deps.noTools
           ? buildNoToolsTask({ group, failures: deps.failures, testCases: ctx.testCases })
-          : buildGroupTask({ group, failures: deps.failures, testCases: ctx.testCases, environment: ctx.environment, otherFailures }),
+          : buildGroupTask({ group, failures: deps.failures, testCases: ctx.testCases, environment: ctx.environment, otherFailures, unstable: deps.unstable }),
         tools: deps.noTools ? [] : [...createAnalyzerTools(ctx), ...createRepoTools(deps.scope)],
         submit: {
           name: 'submit_diagnoses',
@@ -130,6 +132,22 @@ async function diagnoseGroup(group: FailureGroup, deps: SessionDeps): Promise<Gr
       failure,
     };
   }
+}
+
+/**
+ * Tests whose script was unstable when it was validated on the generation version (scripts/manifest.json): it passed only
+ * after earlier dry runs of it failed, with what failed. Empty without a readable manifest.
+ */
+export async function unstableTests(manifestFile: string): Promise<Map<string, string>> {
+  const manifest = ScriptManifest.safeParse(await readFile(manifestFile, 'utf8').then((t) => JSON.parse(t) as unknown, () => null));
+  const out = new Map<string, string>();
+  if (!manifest.success) return out;
+  for (const e of manifest.data.scripts) {
+    if (!e.unstable) continue;
+    const failed = e.attemptLog.filter(suggestsInstability);
+    out.set(e.testCaseId, `on the correct version its script ${failed.map((a) => (a.category === 'timeout' ? 'timed out' : 'hit a browser or network error')).join(' and ')} before it passed`);
+  }
+  return out;
 }
 
 /** The execution to analyse: the given id, or the run's last one that is done. */
@@ -199,7 +217,8 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
           testCases: new Map(testCases.map((tc) => [tc.id, tc])),
           prd,
         };
-        const deps: SessionDeps = { llm, llmConfig, transcriptsDir: paths.transcriptsDir, ctx, scope: { root: tree.dir, forbiddenPaths: config.forbiddenPaths }, failures, noTools };
+        const unstable = await unstableTests(paths.scriptsManifest);
+        const deps: SessionDeps = { llm, llmConfig, transcriptsDir: paths.transcriptsDir, ctx, scope: { root: tree.dir, forbiddenPaths: config.forbiddenPaths }, failures, noTools, unstable };
         outcomes = await Promise.all(tri.groups.map((group) => diagnoseGroup(group, deps)));
       } finally {
         await tree.remove();

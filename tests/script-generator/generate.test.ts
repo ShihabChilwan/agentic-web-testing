@@ -114,6 +114,8 @@ const CASES = [
   tc('TC-005', 'ui', [{ id: 'E1', description: 'A welcome banner is visible' }]),
   tc('TC-006', 'api', [{ id: 'E1', description: 'Status 200', value: 200 }]),
   tc('TC-008', 'api', [{ id: 'E1', description: 'Password change accepted', value: 200 }]),
+  tc('TC-009', 'api', [{ id: 'E1', description: 'Status 200', value: 200 }]),
+  tc('TC-010', 'api', [{ id: 'E1', description: 'The first item is a hat', value: 'Hat' }]),
   tc('TC-007', 'ui', [{ id: 'E1', description: 'Signed in at first', value: 'Signed in' }, { id: 'E2', description: 'Still signed out after logging out and reloading', value: 'Signed out' }]),
 ];
 
@@ -164,6 +166,21 @@ expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
 await api.post('/api/register', { data: { email, password: 'first-1' } });
 const res = await api.post('/api/password', { data: { email, password: 'second-2' } });
 expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
+  ],
+  // compares the item's name with a status code (a script error: sent back once), then reads the status
+  'TC-009': [
+    `const res = await api.get('/api/items');
+const body = await bodyOf(res);
+expect(body.items[0].name, 'E1').toBe(EXPECTED.E1.value);`,
+    `const res = await api.get('/api/items');
+expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
+  ],
+  // the same mistake, but the repair attempts do not even compile: the first script, which reached E1, is kept
+  'TC-010': [
+    `const res = await api.get('/api/items');
+expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`,
+    `const n: number = await api.get('/api/items');`,
+    `const n: number = await api.get('/api/items');`,
   ],
   // does not compile, then a literal credential, then fixed
   'TC-006': [
@@ -236,25 +253,34 @@ describe('generateScripts with real Playwright', () => {
     expect(JSON.stringify(feedback['TC-005']?.messages.at(-1))).toContain('The page when the test stopped, as an accessibility tree');
     expect(byId['TC-006']?.attemptLog.map((a) => a.stage)).toEqual(['typecheck', 'lock-check', 'dry-run']);
     expect(byId['TC-006']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
+    // A locked value read from the wrong thing is sent back (SPEC §6.2): the repair passes, or the held script stays.
+    expect(byId['TC-009']).toMatchObject({ status: 'validated', validationOutcome: 'passed', attempts: 2, repairs: 1 });
+    expect(byId['TC-009']?.unstable).toBeUndefined();
+    expect(JSON.stringify(feedback['TC-009']?.messages)).toContain('is locked to the number 200, but the test compared it with the string \\"Hat\\"');
+    expect(byId['TC-010']).toMatchObject({ status: 'validated', validationOutcome: 'assertion_failed', attempts: 3, repairs: 1, keptAttempt: 1 });
+    expect(byId['TC-010']?.attemptLog.map((a) => a.stage)).toEqual(['dry-run', 'typecheck', 'typecheck']);
+    expect(await readFile(path.join(paths.scriptsDir, 'TC-010.spec.ts'), 'utf8')).toContain("expect(res.status(), 'E1').toBe(EXPECTED.E1.value);");
     expect(byId['TC-007']).toMatchObject({ status: 'validated', validationOutcome: 'passed', attempts: 1 });
     expect(byId['TC-008']?.attemptLog.map((a) => a.category ?? 'ok')).toEqual(['fixture-mutation', 'ok']);
     expect(byId['TC-008']?.attemptLog[0]?.error).toMatch(/^This test changed fixture user users.alice: logging in as it failed afterwards/);
     expect(byId['TC-008']).toMatchObject({ status: 'validated', validationOutcome: 'passed' });
 
     expect(result.summary).toMatchObject({
-      cases: 8,
-      validated: { passed: 6, assertionFailed: 1 },
+      cases: 10,
+      validated: { passed: 7, assertionFailed: 2 },
       invalid: 1,
       invalidByCategory: { 'value-less-expect': 1 },
       invalidCases: { 'value-less-expect': ['TC-005'] },
-      failuresByStage: { typecheck: 1, 'lock-check': 2, 'dry-run': 7 },
-      attemptsHistogram: { '1': 3, '2': 3, '3': 1, '4': 0, '5': 1 },
+      failuresByStage: { typecheck: 3, 'lock-check': 2, 'dry-run': 7 },
+      attemptsHistogram: { '1': 3, '2': 4, '3': 2, '4': 0, '5': 1 },
+      repaired: { cases: 2, passed: 1 },
+      unstable: 0,
       playwrightVersion: '1.64.0',
     });
     expect(result.summary.dryRunMs).toBeGreaterThan(0);
     // One restore after every dry run: 14 dry runs (TC-001..008: 1+1+1+2+5+1+1+2, TC-005 being a ui case with 5 attempts;
     // typecheck and lock-check failures run none).
-    expect(result.summary.restores).toBe(14);
+    expect(result.summary.restores).toBe(17);
     expect(started).toBe(1);
     expect(stopped).toBe(1);
 

@@ -221,7 +221,7 @@ describe('generateScripts: progress, interruption and resume', () => {
     const outcomes = async (_r: string, file: string): Promise<DryRunResult> => {
       if (file.endsWith('TC-001.spec.ts')) return { status: 'passed', message: '', durationMs: 1 };
       if (file.endsWith('TC-002.spec.ts')) {
-        return { status: 'failed', message: 'Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 400', durationMs: 1 };
+        return { status: 'failed', message: 'Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 200\nReceived: 201', durationMs: 1 };
       }
       return { status: 'failed', message: 'TypeError: x is undefined', durationMs: 1 };
     };

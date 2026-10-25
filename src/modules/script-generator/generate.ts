@@ -37,6 +37,8 @@ import { classifyDryRun } from './classify.js';
 import { Mutex, playwrightVersion, runSpec, writePlaywrightConfig } from './dry-run.js';
 import type { DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
+import { suggestsInstability } from './classify.js';
+import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
 import { buildScriptTask, buildSystemPrompt } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
 import { suspectedDefects } from './suspected.js';
@@ -176,6 +178,8 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
   const relFile = path.relative(deps.runDir, file).split(path.sep).join('/');
   const attempts: ScriptAttempt[] = [];
   let outcome: 'passed' | 'assertion_failed' | null = null;
+  // The latest script that reached a locked value that differed, kept when later repair attempts reach no other result.
+  const state: { held: { script: string; attempt: number } | null; repairs: number } = { held: null, repairs: 0 };
   const valueIds = new Set(tc.expected.filter((e) => e.value !== undefined).map((e) => e.id));
   const requirements = deps.prd.requirements.filter((r) => tc.requirementIds.includes(r.id));
   const evidence = await collectEvidence(requirements, deps.read, SCRIPT_EVIDENCE_CHAR_CAP);
@@ -249,10 +253,19 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
       return [];
     }
     if (verdict.kind === 'assertion_failed') {
-      // A locked value was compared and differed: a real disagreement. Keep the script, stop here.
+      // A locked value was compared and differed. Before it counts as the app's disagreement, check whether the test
+      // read the wrong thing (SPEC §6.2); if so the script gets up to MAX_REPAIRS more attempts, and this result stands
+      // when they reach no other one.
+      const hint =
+        state.repairs < MAX_REPAIRS && attempts.length + 1 < FIX_ATTEMPTS[tc.layer]
+          ? scriptErrorHint({ tc, body, expectationId: verdict.expectationId, result })
+          : null;
       record('dry-run', result.message.slice(0, 2_000));
       outcome = 'assertion_failed';
-      return [];
+      state.held = { script, attempt };
+      if (!hint) return [];
+      state.repairs++;
+      return [hint, ...dryRunFeedback('assertion_failed', verdict.expectationId, result, true).slice(1)];
     }
     record('dry-run', result.message.slice(0, 2_000), verdict.category);
     return dryRunFeedback(verdict.category, verdict.expectationId, result, verdict.expectationId ? valueIds.has(verdict.expectationId) : false);
@@ -276,7 +289,23 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
   }
 
   if (outcome !== null) {
-    return { testCaseId: tc.id, file: relFile, status: 'validated', validationOutcome: outcome, attempts: attempts.length, attemptLog: attempts, failureCategory: null };
+    // Repair attempts after the held result that reached nothing else: the held script goes back on disk.
+    const keep = outcome === 'assertion_failed' && state.held !== null && attempts.at(-1)?.attempt !== state.held.attempt ? state.held : null;
+    if (keep) await writeFile(file, keep.script, 'utf8');
+    // A script that passed only after an earlier dry run of it timed out or hit a browser or network error was not stable.
+    const unstable = outcome === 'passed' && attempts.some(suggestsInstability);
+    return {
+      testCaseId: tc.id,
+      file: relFile,
+      status: 'validated',
+      validationOutcome: outcome,
+      attempts: attempts.length,
+      attemptLog: attempts,
+      failureCategory: null,
+      ...(keep ? { keptAttempt: keep.attempt } : {}),
+      ...(state.repairs > 0 ? { repairs: state.repairs } : {}),
+      ...(unstable ? { unstable: true } : {}),
+    };
   }
   const last = attempts.at(-1);
   return {
@@ -317,9 +346,16 @@ export function scriptsSummary(
     failuresByStage: zeroCounts(AttemptStage.options),
     invalidByCategory: zeroCounts(FailureCategory.options),
     invalidCases: {},
+    repaired: { cases: 0, passed: 0 },
+    unstable: 0,
     ...extra,
   };
   for (const e of entries) {
+    if (e.repairs !== undefined) {
+      summary.repaired.cases++;
+      if (e.validationOutcome === 'passed') summary.repaired.passed++;
+    }
+    if (e.unstable) summary.unstable++;
     if (e.status === 'validated') {
       if (e.validationOutcome === 'passed') summary.validated.passed++;
       else summary.validated.assertionFailed++;
@@ -534,6 +570,7 @@ export function describeScriptsSummary(s: StageScriptsSummary): string[] {
     `${s.cases} scripts: ${s.validated.passed} passed, ${s.validated.assertionFailed} assertion_failed, ${s.invalid} invalid${invalid ? ` (${invalid})` : ''}${s.resumed > 0 ? `; ${s.resumed} kept from the earlier run` : ''}`,
     `attempts: ${Object.entries(s.attemptsHistogram).map(([k, n]) => `${k}×${n}`).join(', ')}; failed attempts by stage: ${Object.entries(s.failuresByStage).map(([k, n]) => `${k} ${n}`).join(', ')}`,
     `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
+    `repairs: ${s.repaired.cases} scripts got repair attempts after a locked value failed like a script error, ${s.repaired.passed} then passed; unstable on the generation version (passed only after a timeout or a browser or network error): ${s.unstable}`,
     ...Object.entries(s.invalidCases).map(([k, ids]) => `invalid (${k}): ${ids.join(', ')}`),
     ...s.warnings.map((w) => `Warning: ${w}`),
   ];

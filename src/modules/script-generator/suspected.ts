@@ -21,7 +21,9 @@ export function suspectedDefects(manifest: ScriptManifest, testCases: TestCases,
     if (entry.validationOutcome !== 'assertion_failed') continue;
     const tc = cases.get(entry.testCaseId);
     if (!tc) continue;
-    const message = entry.attemptLog.at(-1)?.error ?? '';
+    // The attempt whose script is kept (repair attempts after it reached nothing else), else the last one.
+    const kept = entry.keptAttempt === undefined ? undefined : entry.attemptLog.find((a) => a.attempt === entry.keptAttempt);
+    const message = (kept ?? entry.attemptLog.at(-1))?.error ?? '';
     const expectationId = /^Error: (E\d+)\s*$/m.exec(message.split('\n')[0] ?? '')?.[1] ?? null;
     const expectation = tc.expected.find((e) => e.id === expectationId);
     out.push({

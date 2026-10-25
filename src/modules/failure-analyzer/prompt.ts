@@ -17,6 +17,7 @@ export function buildSystemPrompt(): string {
 - Then gather evidence from more than one source before concluding: the artifacts of the failing test (read_artifact: network, console, dom, lastResponse, serverLog), the server logs (read_server_log), the environment (get_environment) and the application source (list_files, read_file, search_code).
 - Trace the behaviour to the code that produces it: find the route, handler or component involved and read it. Do not guess file paths: confirm a file and its lines with read_file before naming them.
 - Compare what the test expects with what the requirement says (get_requirement), to tell a wrong application from a wrong test.
+- A test marked "unstable" passed on the correct version only after an earlier dry run of it timed out or hit a browser or network error there. When such a test fails, a defect of the test (timing, a locator, a race) is likelier than a defect of the application: look for what in the failure points to the application (a wrong response, a server error, missing data) before blaming it, and say in the evidence what you found.
 - Check get_environment when several tests fail in the same way or a service may have been down.
 
 ## Classifications
@@ -60,6 +61,8 @@ export interface GroupTaskInput {
   environment: EnvironmentSummary;
   /** Failing tests of the execution in other groups (they are diagnosed separately). */
   otherFailures: number;
+  /** Tests that were unstable when their script was validated on the correct version, with what happened (SPEC §6.2). */
+  unstable?: ReadonlyMap<string, string>;
 }
 
 function environmentNotes(env: EnvironmentSummary): string[] {
@@ -78,7 +81,8 @@ export function buildGroupTask(input: GroupTaskInput): string {
   const first = input.failures.get(group.testCaseIds[0]!)!;
   const tests = group.testCaseIds.map((id) => {
     const r = input.failures.get(id)!;
-    return `- ${id}: ${input.testCases.get(id)?.title ?? '(no title)'} [${r.status}${r.error?.expectationId ? ` at ${r.error.expectationId}` : ''}${r.isolated ? '' : ', ran without a data restore'}]`;
+    const unstable = input.unstable?.get(id);
+    return `- ${id}: ${input.testCases.get(id)?.title ?? '(no title)'} [${r.status}${r.error?.expectationId ? ` at ${r.error.expectationId}` : ''}${r.isolated ? '' : ', ran without a data restore'}]${unstable ? ` (unstable: ${unstable})` : ''}`;
   });
   return [
     `Diagnose these ${group.testCaseIds.length} failing test(s). They share the same error:`,

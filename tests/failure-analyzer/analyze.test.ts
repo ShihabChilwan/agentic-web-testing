@@ -1,8 +1,10 @@
-import { readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
-import { analyzeExecution } from '../../src/modules/failure-analyzer/analyze.js';
+import { analyzeExecution, unstableTests } from '../../src/modules/failure-analyzer/analyze.js';
+import { buildSystemPrompt } from '../../src/modules/failure-analyzer/prompt.js';
 import { readRunManifest } from '../../src/shared/run-manifest.js';
 import { Diagnoses } from '../../src/shared/schemas.js';
 import { llmConfig, makeFixture, PATCH_NAME } from './fixture.js';
@@ -106,6 +108,29 @@ describe('analyzeExecution', () => {
     expect(task).toContain('Expected: 400');
     expect(task).not.toMatch(/Environment|health/i);
     expect((await readRunManifest(f.paths.runJson)).executions[0]?.analyzeStatus).toBe('pending');
+  });
+
+  it('tells the session when a failing test was unstable on the correct version, and only then', async () => {
+    const attempt = (n: number, category?: string, error: string | null = null) => ({ attempt: n, stage: 'dry-run', error, ...(category ? { category } : {}), durationMs: 1 });
+    const entry = (id: string, attemptLog: unknown[], extra: Record<string, unknown> = {}) => ({
+      testCaseId: id, file: `scripts/${id}.spec.ts`, status: 'validated', validationOutcome: 'passed', attempts: attemptLog.length, attemptLog, failureCategory: null, ...extra,
+    });
+    await mkdir(path.dirname(f.paths.scriptsManifest), { recursive: true });
+    await writeFile(f.paths.scriptsManifest, JSON.stringify({
+      schemaVersion: '1.0', generationRef: 'golden',
+      scripts: [entry('TC-001', [attempt(1)]), entry('TC-003', [attempt(1, 'timeout', 'Test timeout of 30000ms exceeded.'), attempt(2)], { unstable: true })],
+    }));
+    const { llm, requests } = fakeByGroup({
+      'TC-001': [submit([appDefect])],
+      'TC-003': [submit([{ ...appDefect, testCaseIds: ['TC-003'], classification: 'test_defect', location: null }])],
+    });
+    await run(llm);
+    const withTools = requests.filter((r) => r.tools?.some((t) => t.name === 'read_file'));
+    const task = (id: string) => taskOf(withTools.find((r) => taskOf(r).includes(`- ${id}`))!);
+    expect(task('TC-003')).toContain('(unstable: on the correct version its script timed out before it passed)');
+    expect(task('TC-001')).not.toContain('unstable');
+    expect(buildSystemPrompt()).toContain('A test marked "unstable"');
+    expect(await unstableTests(path.join(f.root, 'nothing.json'))).toEqual(new Map());
   });
 
   it('an execution without failures needs no model call', async () => {
