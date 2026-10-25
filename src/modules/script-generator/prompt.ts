@@ -100,7 +100,7 @@ export function buildScriptTask(input: ScriptTaskInput): string {
   if (input.callers && input.callers.length > 0) {
     parts.push(`## How the app's own frontend calls these endpoints (send requests in the same shape)\n${input.callers.map(renderBlock).join('\n\n')}`);
   }
-  if (input.endpoints.length > 0) parts.push(`## API endpoints (for setup steps)\n${renderEndpointIndex(input.endpoints)}`);
+  if (input.endpoints.length > 0) parts.push(`## API endpoints (for setup steps)\n"sends" is the request shape the handler reads: build request bodies exactly in that shape (a body field holding an object is a nested object, e.g. data: { category: { … } }, not its fields at the top level).\n${renderEndpointIndex(input.endpoints)}`);
   if (input.facts && input.facts.facts.length > 0) {
     parts.push(`## Facts observed on the running application (data that exists at the start of the test)\n${renderFacts(input.facts)}`);
   }

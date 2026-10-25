@@ -223,12 +223,26 @@ export function renderFacts(facts: TargetFacts, capChars: number = FACTS_CHAR_CA
   return lines.join('\n');
 }
 
-/** Every API endpoint of the PRD, one line each, as setup steps may use them. */
+/** Characters of one endpoint's request shape in the index. */
+const REQUEST_SHAPE_CHARS = 220;
+
+/** The PRD's request shape of an endpoint (body, query, params) as one compact line, or null when it records none. */
+export function requestShape(e: Prd['apiEndpoints'][number]): string | null {
+  const request = e.request;
+  if (!request) return null;
+  const parts = (['body', 'query', 'params'] as const).flatMap((k) => (request[k] === undefined || request[k] === null ? [] : [`${k} ${JSON.stringify(request[k])}`]));
+  if (parts.length === 0) return null;
+  const text = parts.join('; ');
+  return text.length > REQUEST_SHAPE_CHARS ? `${text.slice(0, REQUEST_SHAPE_CHARS - 1)}…` : text;
+}
+
+/** Every API endpoint of the PRD, one line each, with the request shape the handler reads, as setup steps may use them. */
 export function renderEndpointIndex(endpoints: Prd['apiEndpoints']): string {
   return endpoints
     .map((e) => {
       const summary = e.summary.length > 80 ? `${e.summary.slice(0, 79)}…` : e.summary;
-      return `- ${e.method} ${e.path} (${e.authRequired ? 'login required' : 'public'}): ${summary}`;
+      const shape = requestShape(e);
+      return `- ${e.method} ${e.path} (${e.authRequired ? 'login required' : 'public'}): ${summary}${shape ? `\n  sends: ${shape}` : ''}`;
     })
     .join('\n');
 }
@@ -302,7 +316,7 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
   if (input.pageSnapshots) parts.push(input.pageSnapshots);
   if (input.endpoints && input.endpoints.length > 0) {
     parts.push(
-      `## Endpoints you may use in steps to set up data\nAny of these may be called to create or prepare data (a setup step). Expected values still have to come from the code, fixtures or observed facts.\n${renderEndpointIndex(input.endpoints)}`,
+      `## Endpoints you may use in steps to set up data\nAny of these may be called to create or prepare data (a setup step). "sends" is the request shape the handler reads (a body field holding an object is written as a nested object, e.g. { "category": { … } }). Expected values still have to come from the code, fixtures or observed facts.\n${renderEndpointIndex(input.endpoints)}`,
     );
   }
   if (input.facts && input.facts.facts.length > 0) {

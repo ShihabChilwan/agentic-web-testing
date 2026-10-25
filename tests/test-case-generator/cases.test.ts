@@ -73,7 +73,7 @@ const prd = (): Prd => ({
   ],
   apiEndpoints: [
     { method: 'POST', path: '/api/auth/login', authRequired: false, summary: 'Logs in with email and password and returns a token.', responses: [{ status: 200, description: 'token' }], evidence: [{ file: 'server/auth.js', lines: [10, 15] }] },
-    { method: 'POST', path: '/api/items', authRequired: true, summary: 'Admins create an item.', responses: [{ status: 200, description: 'created' }], evidence: [{ file: 'server/auth.js', lines: [1, 2] }] },
+    { method: 'POST', path: '/api/items', authRequired: true, summary: 'Admins create an item.', request: { body: { item: { name: 'string' } } }, responses: [{ status: 200, description: 'created' }], evidence: [{ file: 'server/auth.js', lines: [1, 2] }] },
   ],
   uiRoutes: [], requirements, assumptions: [], openQuestions: [],
 });
@@ -292,6 +292,7 @@ describe('generateTestCases', () => {
     expect(tasks['F-01']).toContain('- itemsAsMember: GET /api/items (logged in as users.alice) → status 403');
     expect(tasks['F-01']).toContain('## Endpoints you may use in steps to set up data');
     expect(tasks['F-01']).toContain('- POST /api/items (login required): Admins create an item.');
+    expect(tasks['F-01']).toContain('  sends: body {"item":{"name":"string"}}');
   });
 
   it('warns when facts.json is missing or was observed at another commit', async () => {
