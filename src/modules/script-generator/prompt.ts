@@ -15,6 +15,7 @@ You write only the body of the test function. The file around it is written for 
 - page: a browser page for the frontend ("ui" test cases); page.goto('/path') is relative to the frontend URL.
 - fixtures: the fixture data, e.g. fixtures.users.<name>.email. Never write fixture values (emails, passwords) as literals.
 - uniq(prefix): a unique string for data the test creates, e.g. const name = uniq('item').
+- await bodyOf(res): a response's body, parsed JSON when it is JSON, otherwise the text. Use it for every response body: const body = await bodyOf(res); expect(body.name, 'E2').toBe(EXPECTED.E2.value).
 - await loginViaApi(user): logs in over the API; returns { headers }. Pass them on every call that needs a login: const { headers } = await loginViaApi(fixtures.users.<name>); await api.get('/api/me', { headers }). Never build an Authorization header yourself.
 - await loginViaUi(page, user): logs in through the app's login form.
 - await loggedInPage(page, user): the page starts logged in, without going through the form. Use it when logging in is not what the test checks.
@@ -34,6 +35,9 @@ You write only the body of the test function. The file around it is written for 
 - An expectation without a value is checked as its description says (toBeVisible, a status range, a property that exists).
 - Values the test creates itself (a name built with uniq) are asserted against the test's own variable; they need no EXPECTED value.
 - Locators: role (with name), label or placeholder first, then text; CSS selectors only when nothing else works. Read the page components you are given: labels that are not linked to their input cannot be found by label; use the placeholder or role.
+- Read response bodies with bodyOf, never res.json(): an error response may answer with plain text such as "Unauthorized", and res.json() then throws before any check runs.
+  Bad: const body = await res.json();
+  Good: const body = await bodyOf(res);
 - Never use waitForTimeout. Wait for a locator, a URL (page.waitForURL) or a response (page.waitForResponse).
 - Never change a fixture user's profile, password, role or data. To test changing a user, first register a new user with uniq values and change that one.
 - Data a test needs that does not exist yet is created in the test (through the API, logged in as a suitable fixture user), with uniq values. Send requests in the shape the app's own frontend sends them: the code that calls each endpoint is included where it could be found. Tests are independent of each other and of running order.

@@ -46,6 +46,20 @@ export function uniq(prefix = 'test'): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * A response body: parsed JSON when it is JSON, otherwise the text. Never throws on a body that is not JSON,
+ * such as a plain "Unauthorized" answer to a request without a valid login.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function bodyOf(res: { text(): Promise<string> }): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
 function fill(value: unknown, user: User): unknown {
   if (typeof value === 'string') {
     return value.replace(/\{\{\s*user\.([\w.]+)\s*\}\}/g, (_m, key: string) => String(user[key] ?? ''));

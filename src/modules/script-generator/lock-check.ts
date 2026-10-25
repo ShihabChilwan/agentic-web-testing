@@ -54,7 +54,7 @@ export function findExpects(source: string): ExpectUse[] {
  * - an expectation with a value is asserted through `EXPECTED.<id>.value` as the argument of a value
  *   matcher, and never inside expect's subject (a value inside a locator would turn "wrong text" into
  *   "element not found", hiding a real disagreement);
- * - no fixed sleeps, no imports, no literal fixture credentials.
+ * - no fixed sleeps, no imports, no literal fixture credentials, no `.json()` (bodyOf reads any body).
  */
 export function lockCheck(tc: TestCase, file: string, body: string, fixtures: unknown): string[] {
   const problems: string[] = [];
@@ -66,6 +66,7 @@ export function lockCheck(tc: TestCase, file: string, body: string, fixtures: un
   if (/\bEXPECTED\s*(\.\s*E\d+\s*(\.\s*\w+)?)?\s*=[^=]/.test(body)) problems.push('The body must not assign to EXPECTED.');
   if (/^\s*import\s/m.test(body) || /\brequire\(/.test(body)) problems.push('The body must not import anything; everything you need is already imported.');
   if (/\bwaitForTimeout\s*\(/.test(body)) problems.push('Do not use waitForTimeout; wait for a locator, a URL or a response instead.');
+  if (/\.json\s*\(\s*\)/.test(body)) problems.push('Read response bodies with await bodyOf(res), not res.json(): an error response may not be JSON (e.g. a plain "Unauthorized"), and res.json() then throws before any check runs.');
 
   const uses = findExpects(body);
   for (const e of tc.expected) {

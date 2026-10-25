@@ -121,10 +121,12 @@ const BODIES: Record<string, string[]> = {
   // passes at once
   'TC-001': [`const res = await api.get('/api/items');
 expect(res.status(), 'E1').toBe(EXPECTED.E1.value);
-const body = await res.json();
+const body = await bodyOf(res);
 expect(body.items[0].name, 'E2').toBe(EXPECTED.E2.value);`],
-  // the app answers 200, the locked value says 404: a real disagreement, kept
-  'TC-002': [`const res = await api.get('/api/items');
+  // the app answers 401 with a plain-text body (bodyOf reads it without throwing), the locked value says 404:
+  // a real disagreement, kept
+  'TC-002': [`const res = await api.get('/api/me');
+expect(await bodyOf(res)).toBe('Unauthorized');
 expect(res.status(), 'E1').toBe(EXPECTED.E1.value);`],
   // value used inside the locator (lock check), then fixed
   'TC-003': [

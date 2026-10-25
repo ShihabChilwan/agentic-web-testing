@@ -93,6 +93,13 @@ describe('lockCheck', () => {
       'Do not write fixture data as a literal ("alice@example.test"); use fixtures.<path>, e.g. fixtures.users.<name>.email.',
     ]);
   });
+
+  it('rejects res.json(), which throws on an error body that is not JSON', () => {
+    const rule = 'Read response bodies with await bodyOf(res), not res.json(): an error response may not be JSON (e.g. a plain "Unauthorized"), and res.json() then throws before any check runs.';
+    expect(check(`${good}\nconst body = await res.json();`)).toEqual([rule]);
+    expect(check(`${good}\nconst body = await (await api.get('/api/me')).json( );`)).toEqual([rule]);
+    expect(check(`${good}\nconst body = await bodyOf(res);\nawait page.route('**/x', (r) => r.fulfill({ json: body }));`)).toEqual([]);
+  });
 });
 
 describe('TypeChecker', () => {
