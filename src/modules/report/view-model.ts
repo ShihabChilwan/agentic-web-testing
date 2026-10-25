@@ -217,6 +217,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
       requirements: prd?.requirements.length ?? 0,
       covered: (prd?.requirements ?? []).filter((r) => covered.has(r.id)).length,
       partial: testCases?.coverage.partial.length ?? 0,
+      afterAction: (testCases?.testCases ?? []).flatMap((c) => c.expected).filter((e) => e.afterAction === true).length,
       pages: testCases?.coverage.pages ? { total: testCases.coverage.pages.total, opened: testCases.coverage.pages.opened } : null,
       testCases: cases.size,
       scripts: {

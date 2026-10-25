@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { pageSnapshot } from '../../src/modules/execution-engine/probe.js';
+import { pageSnapshot, pageSnapshots } from '../../src/modules/execution-engine/probe.js';
 import { TargetConfig } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
 
@@ -56,6 +56,12 @@ describe('pageSnapshot', () => {
     expect(config.auth?.storage).toEqual({ kind: 'localStorage', key: 'token' });
     const snap = await pageSnapshot(config, '/dashboard', 'users.alice');
     expect(snap?.aria).toContain('Signed in as tok-123');
+  }, 60_000);
+
+  it('takes several pages in one browser, each in a fresh context (a login does not leak into the next page)', async () => {
+    const snaps = await pageSnapshots(config, [{ path: '/a', user: 'users.alice' }, { path: '/b' }]);
+    expect(snaps.map((x) => /Signed in as tok-123/.test(x?.aria ?? ''))).toEqual([true, false]);
+    expect(snaps[1]?.aria).toContain('Not signed in');
   }, 60_000);
 
   it('returns null when the page cannot be opened', async () => {

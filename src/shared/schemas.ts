@@ -369,6 +369,8 @@ export const Expectation = z.object({
   value: z.union([z.string(), z.number(), z.boolean()]).optional(),
   /** True when it checks what a read after the test's last write returns (SPEC §5); absent otherwise and in older files. */
   readBack: z.boolean().optional(),
+  /** ui test cases: true when the text appears only after a step acts on the page, so it is not in the page's snapshot (SPEC §5). */
+  afterAction: z.boolean().optional(),
 });
 
 export const TestCase = z.object({
@@ -399,6 +401,31 @@ export const PartlyCoveredRequirement = z.object({
   requirementId: RequirementId,
   reason: z.string().min(1),
 });
+
+/** runs/<runId>/pages/snapshots.json: the pages of ui/e2e requirements as the generation version shows them (SPEC §5). */
+export const PageSnapshotEntry = z.object({
+  /** The concrete path opened. */
+  path: z.string().startsWith('/'),
+  /** The PRD page route it fits. */
+  route: z.string().startsWith('/'),
+  /** Fixture user dot path (e.g. "users.admin"), or null for a visitor who is not logged in. */
+  user: z.string().min(1).nullable(),
+  role: z.string().min(1).nullable(),
+  finalPath: z.string(),
+  /** Playwright ariaSnapshot of the body, link URLs included (models are shown it without them). */
+  aria: z.string(),
+});
+
+export const PageSnapshots = z.object({
+  schemaVersion: SchemaVersion,
+  generationCommit: CommitSha,
+  takenAt: Timestamp,
+  /** Pages that could not be opened are left out. */
+  pages: z.array(PageSnapshotEntry),
+});
+
+export type PageSnapshotEntry = z.infer<typeof PageSnapshotEntry>;
+export type PageSnapshots = z.infer<typeof PageSnapshots>;
 
 /** Which of the PRD's page routes a ui test case opens (named by path in its steps), and why the others are not. */
 export const PageCoverage = z.object({
@@ -1286,6 +1313,8 @@ export const RunView = z.object({
     requirements: z.number().int().nonnegative(),
     covered: z.number().int().nonnegative(),
     partial: z.number().int().nonnegative(),
+    /** ui expectations marked afterAction (text that appears only after a step acts on the page). */
+    afterAction: z.number().int().nonnegative(),
     /** Pages a ui test case opens; null when testcases.json has no page coverage (older files). */
     pages: z.object({ total: z.number().int().nonnegative(), opened: z.number().int().nonnegative() }).nullable(),
     testCases: z.number().int().nonnegative(),

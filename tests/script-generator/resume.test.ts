@@ -325,3 +325,38 @@ describe('page snapshots for ui test cases', () => {
     }
   });
 });
+
+describe('scripts reuse the cases stage\'s snapshots', () => {
+  it('takes no snapshot for a page in pages/snapshots.json of the same commit, and shows it without link URLs', { timeout: 120_000 }, async () => {
+    const runsDir = await mkdtemp(path.join(root, 'runs-'));
+    const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' })), runsDir });
+    const p = { ...structuredClone(example('prd.json')), target: 'fake', uiRoutes: [{ path: '/login', summary: 'Login', authRequired: false, evidence: [{ file: 'server/cart.js', lines: [1, 1] }] }] };
+    p.requirements = [{ ...p.requirements[0], id: 'REQ-001' }];
+    await writeFile(paths.prd, JSON.stringify(p));
+    const ui: TestCase = { ...tc('TC-001', ['Open /login']), layer: 'ui', expected: [{ id: 'E1', description: 'Heading shown' }] };
+    await writeFile(paths.testCases, JSON.stringify({ schemaVersion: '1.0', generatedAt: '2026-10-24T10:00:00Z', testCases: [ui], coverage: { requirementsTotal: 1, requirementsCovered: 1, uncovered: [] } }));
+    await mkdir(path.join(paths.dir, 'pages'), { recursive: true });
+    await writeFile(path.join(paths.dir, 'pages', 'snapshots.json'), JSON.stringify({ schemaVersion: '1.0', generationCommit: commit, takenAt: '2026-10-24T10:00:00Z', pages: [{ path: '/login', route: '/login', user: null, role: null, finalPath: '/login', aria: '- heading "From the cases stage"\n- link "Home":\n  - /url: /id-123' }] }));
+    const tasks: string[] = [];
+    const respond = async (req: ChatRequest): Promise<ChatResponse> => {
+      const first = req.messages[0];
+      tasks.push(first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '');
+      return FakeLLMClient.toolCall('submit_script', { body: `await page.goto('/login');\nawait expect(page.getByRole('heading'), 'E1').toBeVisible();` });
+    };
+    let taken = 0;
+    await generateScripts({
+      runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root,
+      llmConfig: parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' }),
+      createLlm: async () => new FakeLLMClient(Array.from({ length: 5 }, () => respond)),
+      startApp: async () => ({ stop: async () => {}, restore: async () => ({ durationMs: 1 }) }),
+      runDryRun: async () => ({ status: 'passed', message: '', durationMs: 1 }),
+      snapshotPage: async () => {
+        taken++;
+        return null;
+      },
+    });
+    expect(taken).toBe(0);
+    expect(tasks[0]).toContain('- heading "From the cases stage"\n- link "Home":\n```');
+    expect(tasks[0]).not.toContain('/url:');
+  });
+});

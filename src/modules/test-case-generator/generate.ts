@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { runAgent } from '../../agent/runtime.js';
 import { AgentBudgetError, AgentSubmitError } from '../../agent/types.js';
 import type { SubmitStats } from '../../agent/types.js';
@@ -19,6 +20,7 @@ import {
 } from '../../shared/schemas.js';
 import type {
   PageCoverage,
+  PageSnapshotEntry,
   PrdRequirement,
   StageGenerationSummary,
   TargetConfig,
@@ -35,6 +37,9 @@ import { readFacts } from '../execution-engine/facts.js';
 import { Transcript } from '../../agent/transcript.js';
 import type { ReadLines } from './context.js';
 import { buildSystemPrompt } from './prompt.js';
+import { collectPageSnapshots, renderPageSnapshots, snapshotProblems, snapshotRequests, type TakeSnapshots } from './pages.js';
+import { pageSnapshots as takePageSnapshots } from '../execution-engine/probe.js';
+import { startTarget } from '../execution-engine/lifecycle.js';
 
 /** One feature session needs a single submit; the extra turns cover nudges and rejected submits. */
 const SESSION_BUDGET = { maxToolCalls: 1, maxTurns: 6 };
@@ -47,6 +52,10 @@ export interface GenerateTestCasesOptions {
   projectRoot?: string;
   llmConfig?: LLMConfig;
   createLlm?: (config: LLMConfig, callLogFile: string) => Promise<LLMClient>;
+  /** For tests: replaces starting the app at the generation ref for the page snapshots (default: the Execution Engine lifecycle). */
+  startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<{ stop(): Promise<void> }>;
+  /** For tests: replaces taking page snapshots on the running app (default: the Execution Engine's pageSnapshots). */
+  takeSnapshots?: TakeSnapshots;
   log?: (message: string) => void;
 }
 
@@ -95,6 +104,7 @@ async function runSession(
     facts: TargetFacts | null;
     endpoints: Prd['apiEndpoints'];
     pages: Prd['uiRoutes'];
+    pageSnapshots: PageSnapshotEntry[];
   },
 ): Promise<SessionOutcome> {
   const evidence = await collectEvidence(input.requirements, deps.read);
@@ -104,7 +114,15 @@ async function runSession(
       {
         purpose: 'cases',
         system: buildSystemPrompt(),
-        task: buildFeatureTask({ ...input, evidence, config: deps.config, facts: deps.facts, endpoints: deps.endpoints, pages: deps.pages }),
+        task: buildFeatureTask({
+          ...input,
+          evidence,
+          config: deps.config,
+          facts: deps.facts,
+          endpoints: deps.endpoints,
+          pages: deps.pages,
+          pageSnapshots: renderPageSnapshots(deps.pageSnapshots, input.requirements),
+        }),
         tools: [],
         submit: {
           name: 'submit_test_cases',
@@ -125,6 +143,7 @@ async function runSession(
               pages: deps.pages.map((p) => p.path),
             }),
             ...(input.pageRound ? pageRoundProblems(sub, input.pageRound, input.requirements) : []),
+            ...snapshotProblems(sub, deps.pageSnapshots),
           ],
         },
         budget: SESSION_BUDGET,
@@ -191,7 +210,7 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     throw new Error(`prd.json has ${prd.requirements.length} requirements; at most ${MAX_TEST_CASES} can each get a test case`);
   }
 
-  const { config, repoDir } = await loadTargetConfig(manifest.target, {
+  const { config, repoDir, targetDir } = await loadTargetConfig(manifest.target, {
     ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
     ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
   });
@@ -212,7 +231,28 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     const llm = options.createLlm
       ? await options.createLlm(llmConfig, paths.llmCalls)
       : await createLLMClient(llmConfig, { callLogFile: paths.llmCalls, pricingFile: PRICING_FILE });
-    const deps = { llm, llmConfig, config, read, transcriptsDir: paths.transcriptsDir, facts, endpoints: prd.apiEndpoints, pages: prd.uiRoutes };
+    // F: the pages of ui/e2e requirements as golden shows them, taken once per run (the app only starts when pages are missing).
+    const requests = snapshotRequests(prd, config);
+    const { snapshots, taken } = await collectPageSnapshots({
+      runDir: paths.dir,
+      generationCommit: manifest.generationCommit,
+      requests,
+      config,
+      take: async (missing) => {
+        log(`Taking ${missing.length} page snapshots at ${manifest.generationRef}`);
+        const logsDir = path.join(paths.dir, 'cases-server');
+        const app = options.startApp
+          ? await options.startApp(config, manifest.generationRef, logsDir)
+          : await startTarget(config, { ref: manifest.generationRef, generationRef: manifest.generationRef, repoDir, targetDir, logsDir, log });
+        try {
+          return await (options.takeSnapshots ?? takePageSnapshots)(config, missing.map((r) => ({ path: r.path, ...(r.user ? { user: r.user } : {}) })));
+        } finally {
+          await app.stop();
+        }
+      },
+    });
+    if (requests.length > 0) log(`Page snapshots: ${snapshots.pages.length} of ${requests.length} pages (${taken > 0 ? `${taken} taken now` : 'all reused'})`);
+    const deps = { llm, llmConfig, config, read, transcriptsDir: paths.transcriptsDir, facts, endpoints: prd.apiEndpoints, pages: prd.uiRoutes, pageSnapshots: snapshots.pages };
 
     const features = prd.features
       .map((feature) => ({ feature, requirements: prd.requirements.filter((r) => r.featureId === feature.id) }))
@@ -367,6 +407,7 @@ export function describeCasesSummary(result: GenerateTestCasesResult): string[] 
           `pages opened by a ui test case: ${t.coverage.pages.opened} of ${t.coverage.pages.total}${t.coverage.pages.unopened.length > 0 ? `; not opened: ${t.coverage.pages.unopened.map((u) => u.path).join(', ')}` : ''}`,
         ]
       : []),
+    `ui expectations marked afterAction (text that appears only after a step acts on the page): ${t.testCases.flatMap((c) => c.expected).filter((e) => e.afterAction === true).length}`,
     `${s.sessions} sessions, ${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}`,
     `rejected submits: ${s.rejected.invalidInput} invalid input, ${s.rejected.checkFailed} failed checks`,
     ...s.warnings.map((w) => `Warning: ${w}`),

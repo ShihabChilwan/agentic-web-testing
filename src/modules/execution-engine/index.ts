@@ -4,4 +4,4 @@ export { observeFacts, readFacts, recordFacts } from './facts.js';
 export { checkFixtureLogins, type FixtureGuardResult } from './guard.js';
 export { describeExecution, executeRun, executeVersion, nextExecId, selectScripts, type ExecuteRunResult } from './execute.js';
 export { buildSourceTree, resolveCommit, type SourceTree } from './source-tree.js';
-export { observeApp, observePage, pageSnapshot, type AppObservation, type PageObservation, type PageSnapshot } from './probe.js';
+export { observeApp, observePage, pageSnapshot, pageSnapshots, snapshotForModel, type AppObservation, type PageObservation, type PageSnapshot } from './probe.js';

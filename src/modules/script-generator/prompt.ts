@@ -1,4 +1,5 @@
 import type { Prd, PrdRequirement, TargetConfig, TargetFacts, TestCase } from '../../shared/schemas.js';
+import { snapshotForModel } from '../execution-engine/probe.js';
 import { renderEndpointIndex, renderFacts } from '../test-case-generator/context.js';
 import type { CodeExcerpts } from '../test-case-generator/context.js';
 import { header } from './render.js';
@@ -86,7 +87,7 @@ export function buildScriptTask(input: ScriptTaskInput): string {
     const pages = input.pageSnapshots.map((p) => {
       const who = p.user ? `logged in as ${p.user}` : 'not logged in';
       const moved = p.snapshot.finalPath !== p.path ? `; the browser ended on ${p.snapshot.finalPath}` : '';
-      return `### ${p.path} (${who}${moved})\n\`\`\`yaml\n${p.snapshot.aria}\n\`\`\``;
+      return `### ${p.path} (${who}${moved})\n\`\`\`yaml\n${snapshotForModel(p.snapshot.aria)}\n\`\`\``;
     });
     parts.push(
       `## The pages as they are now (accessibility tree, taken on the running application)\nUse these roles, names, labels and texts for locators (getByRole, getByLabel, getByPlaceholder, getByText); they are what the browser shows.\n${pages.join('\n\n')}`,

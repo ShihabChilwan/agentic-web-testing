@@ -251,6 +251,8 @@ export interface FeatureTaskInput {
   pages?: Prd['uiRoutes'];
   /** Set for the page round: pages no test case opens yet, which these requirements name. */
   pageRound?: string[];
+  /** The rendered snapshots of these requirements' pages (see pages.ts), or null. */
+  pageSnapshots?: string | null;
 }
 
 /** The user message for one feature session. */
@@ -293,6 +295,7 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
       `## Pages of the frontend\nA ui test case names the page it opens by its path from this list, in a step such as "Open /path" (with the real value for a parameter such as :id).\n${pages.map((p) => `- ${p.path}${p.authRequired ? ' (login required)' : ''}: ${p.summary.length > 80 ? `${p.summary.slice(0, 79)}…` : p.summary}`).join('\n')}`,
     );
   }
+  if (input.pageSnapshots) parts.push(input.pageSnapshots);
   if (input.endpoints && input.endpoints.length > 0) {
     parts.push(
       `## Endpoints you may use in steps to set up data\nAny of these may be called to create or prepare data (a setup step). Expected values still have to come from the code, fixtures or observed facts.\n${renderEndpointIndex(input.endpoints)}`,

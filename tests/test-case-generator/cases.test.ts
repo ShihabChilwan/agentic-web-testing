@@ -11,7 +11,7 @@ import { collectEvidence, groundingText } from '../../src/modules/test-case-gene
 import { buildSystemPrompt, featureQuotas, generateTestCases } from '../../src/modules/test-case-generator/index.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { createRun, latestRunWith, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
-import { TargetConfig, TestCases } from '../../src/shared/schemas.js';
+import { PageSnapshots, TargetConfig, TestCases } from '../../src/shared/schemas.js';
 import type { Prd } from '../../src/shared/schemas.js';
 import type { PrdRequirement } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
@@ -164,8 +164,23 @@ function fakeBySession(script: Record<string, ChatResponse[]>) {
   return { llm: new FakeLLMClient(Array.from({ length: 30 }, () => respond)), tasks };
 }
 
+/** Page snapshots the fake app returns, by path (unknown paths: the page cannot be opened). */
+let fakePages: Record<string, string> = {};
+let appStarts = 0;
 const run = (runsDir: string, llm: FakeLLMClient, runId?: string) =>
-  generateTestCases({ ...(runId ? { runId } : {}), runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, llmConfig, createLlm: async () => llm });
+  generateTestCases({
+    ...(runId ? { runId } : {}),
+    runsDir,
+    targetsDir: path.join(root, 'targets'),
+    projectRoot: root,
+    llmConfig,
+    createLlm: async () => llm,
+    startApp: async () => {
+      appStarts++;
+      return { stop: async () => {} };
+    },
+    takeSnapshots: async (_config, requests) => requests.map((r) => (fakePages[r.path] ? { finalPath: r.path, aria: fakePages[r.path]! } : null)),
+  });
 
 describe('generateTestCases', () => {
   it('runs one session per feature, assigns ids in code, computes coverage and writes the files', async () => {
@@ -594,5 +609,45 @@ describe('pages', () => {
       ['/settings', 'The ui or e2e requirements that describe it got no test case that opens it.'],
       ['/about', 'No ui or e2e requirement describes this page.'],
     ]);
+  });
+});
+
+describe('cases see the page', () => {
+  const withLogin = (): Prd => {
+    const p = prd();
+    p.uiRoutes = [{ path: '/login', summary: 'Sign-in page', authRequired: false, evidence: [{ file: 'client/app/Login.js', lines: [1, 3] }] }];
+    p.requirements = p.requirements.map((r) => (r.id === 'REQ-002' ? { ...r, statement: 'The /login page shows a heading.' } : r));
+    return p;
+  };
+  const reset = submit([], [{ requirementId: 'REQ-003', reasonKind: 'third-party-disabled', reason: 'Email only.' }]);
+  const heading = (value: string, extra: Record<string, unknown> = {}) =>
+    uiCase({ steps: ['Open /login', 'Look at the heading'], expected: [{ description: 'Heading', value, ...extra }] });
+
+  it('takes the snapshots once per run, shows them in the task and rejects text the page does not show', async () => {
+    fakePages = { '/login': '- heading "Please sign in" [level=1]\n- link "Home":\n  - /url: /x-6ade07a6ffd7' };
+    appStarts = 0;
+    const { runsDir, runId, paths } = await makeRun(withLogin());
+    const first = fakeBySession({ 'F-01': [submit([heading('Welcome back'), tc()]), submit([heading('Please sign in'), tc()])], 'F-02': [reset] });
+    const result = await run(runsDir, first.llm);
+    expect(appStarts).toBe(1);
+    expect(first.tasks['F-01']).toContain('### /login (not logged in)\n```yaml\n- heading "Please sign in" [level=1]\n- link "Home":\n```');
+    const rejection = JSON.stringify(first.llm.requests.find((r) => JSON.stringify(r.messages.at(-1)).includes('is not on /login'))!.messages.at(-1));
+    expect(rejection).toContain('\\"Welcome back\\" is not on /login as a visitor sees it');
+    expect(result.testCases.testCases.find((c) => c.layer === 'ui')!.expected[0]!.value).toBe('Please sign in');
+    const file = PageSnapshots.parse(JSON.parse(await readFile(path.join(paths.dir, 'pages', 'snapshots.json'), 'utf8')));
+    expect(file.pages.map((p) => [p.path, p.user])).toEqual([['/login', null]]);
+    // A rerun of the stage reuses the file: the app is not started again.
+    const again = fakeBySession({ 'F-01': [submit([heading('Please sign in'), tc()])], 'F-02': [reset] });
+    await run(runsDir, again.llm, runId);
+    expect(appStarts).toBe(1);
+  });
+
+  it('counts afterAction expectations in the summary', async () => {
+    fakePages = { '/login': '- heading "Please sign in" [level=1]' };
+    const { runsDir } = await makeRun(withLogin());
+    const after = uiCase({ steps: ['Open /login', 'Submit the empty form'], expected: [{ description: 'Error', value: 'Please sign in' }, { description: 'Error text', value: 'Please sign in', afterAction: true }] });
+    const { llm } = fakeBySession({ 'F-01': [submit([after, tc()])], 'F-02': [reset] });
+    const result = await run(runsDir, llm);
+    expect(describeCasesSummary(result)).toContain('ui expectations marked afterAction (text that appears only after a step acts on the page): 1');
   });
 });

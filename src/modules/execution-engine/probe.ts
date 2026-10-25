@@ -109,43 +109,76 @@ export interface PageSnapshot {
   aria: string;
 }
 
+/** What a model is shown of a snapshot: without link URLs, where ids and generated slugs live (unstable between resets). */
+export function snapshotForModel(aria: string): string {
+  return aria
+    .split('\n')
+    .filter((line) => !/^\s*- \/url:/.test(line))
+    .join('\n');
+}
+
 /**
- * Opens a page of the running app in a fresh headless Chromium and returns its accessibility tree (SPEC §6.2).
- * With a fixture user (a dot path such as "users.alice"), the page starts logged in the way the scripts' loggedInPage
- * helper does it: the login request's token put into the configured browser storage before the first load. Read-only:
- * it changes no data.
+ * Opens pages of the running app in one headless Chromium and returns each page's accessibility tree (SPEC §5, §6.2),
+ * null for a page that could not be opened. Each page gets a fresh browser context; with a fixture user (a dot path
+ * such as "users.alice") it starts logged in the way the scripts' loggedInPage helper does it: the login request's
+ * token put into the configured browser storage before the first load. Read-only: it changes no data.
  */
-export async function pageSnapshot(config: TargetConfig, pagePath: string, userPath?: string): Promise<PageSnapshot | null> {
+export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArray<{ path: string; user?: string }>): Promise<Array<PageSnapshot | null>> {
+  if (requests.length === 0) return [];
   const storage = config.auth?.storage;
-  const user = userPath ? valueAtPath(config.fixtures, userPath) : undefined;
-  const token = user && storage ? await fixtureToken(config, user) : null;
+  const tokens = new Map<string, string | null>();
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage();
-    if (token && storage) {
-      const origin = new URL(config.frontend.baseUrl).origin;
-      await page.addInitScript(
-        ({ kind, key, value, at }) => {
-          const g = globalThis as unknown as Record<string, { setItem(k: string, v: string): void }> & { location: { origin: string } };
-          try {
-            if (g.location.origin === at) g[kind]!.setItem(key, value);
-          } catch {
-            // Storage is not available on some documents (e.g. about:blank).
-          }
-        },
-        { kind: storage.kind, key: storage.key, value: token, at: origin },
-      );
+    const out: Array<PageSnapshot | null> = [];
+    for (const req of requests) {
+      let token: string | null = null;
+      if (req.user && storage) {
+        if (!tokens.has(req.user)) tokens.set(req.user, await fixtureToken(config, valueAtPath(config.fixtures, req.user)));
+        token = tokens.get(req.user) ?? null;
+      }
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        if (token && storage) {
+          const origin = new URL(config.frontend.baseUrl).origin;
+          await page.addInitScript(
+            ({ kind, key, value, at }) => {
+              const g = globalThis as unknown as Record<string, { setItem(k: string, v: string): void }> & { location: { origin: string } };
+              try {
+                if (g.location.origin === at) g[kind]!.setItem(key, value);
+              } catch {
+                // Storage is not available on some documents (e.g. about:blank).
+              }
+            },
+            { kind: storage.kind, key: storage.key, value: token, at: origin },
+          );
+        }
+        const res = await page.goto(new URL(req.path, config.frontend.baseUrl).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
+        if (!res) {
+          out.push(null);
+          continue;
+        }
+        await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+        const aria = await page.locator('body').ariaSnapshot({ timeout: 10_000 }).catch(() => null);
+        out.push(
+          aria === null
+            ? null
+            : {
+                finalPath: new URL(page.url()).pathname,
+                aria: aria.length > SNAPSHOT_CHARS ? `${aria.slice(0, SNAPSHOT_CHARS)}\n[… snapshot cut at ${SNAPSHOT_CHARS} characters]` : aria,
+              },
+        );
+      } finally {
+        await context.close();
+      }
     }
-    const res = await page.goto(new URL(pagePath, config.frontend.baseUrl).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
-    if (!res) return null;
-    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-    const aria = await page.locator('body').ariaSnapshot({ timeout: 10_000 }).catch(() => null);
-    if (aria === null) return null;
-    return {
-      finalPath: new URL(page.url()).pathname,
-      aria: aria.length > SNAPSHOT_CHARS ? `${aria.slice(0, SNAPSHOT_CHARS)}\n[… snapshot cut at ${SNAPSHOT_CHARS} characters]` : aria,
-    };
+    return out;
   } finally {
     await browser.close();
   }
+}
+
+/** One page's accessibility tree (see pageSnapshots). */
+export async function pageSnapshot(config: TargetConfig, pagePath: string, userPath?: string): Promise<PageSnapshot | null> {
+  return (await pageSnapshots(config, [{ path: pagePath, ...(userPath ? { user: userPath } : {}) }]))[0] ?? null;
 }

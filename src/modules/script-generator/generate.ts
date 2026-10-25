@@ -13,7 +13,7 @@ import { loadLLMConfig } from '../../shared/config.js';
 import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
-import { AttemptStage, FailureCategory, Prd, ScriptManifest, TestCases } from '../../shared/schemas.js';
+import { AttemptStage, FailureCategory, PageSnapshots, Prd, ScriptManifest, TestCases } from '../../shared/schemas.js';
 import type {
   ScriptAttempt,
   ScriptManifestEntry,
@@ -47,6 +47,18 @@ export const SCRIPT_EVIDENCE_CHAR_CAP = 25_000;
 /** One submit per attempt (the runtime's submit attempts are the fix loop's attempts): 3 for api, 5 for ui test cases. */
 export const FIX_ATTEMPTS = { api: 3, ui: 5 } as const;
 const sessionBudget = (attempts: number) => ({ maxToolCalls: 1, maxTurns: attempts + 5 });
+/** The page snapshots the cases stage took at this commit (runs/<id>/pages/snapshots.json), keyed like Deps.snapshots. */
+async function reusedSnapshots(runDir: string, commit: string): Promise<Map<string, Promise<PageSnapshot | null>>> {
+  const parsed = await readFile(path.join(runDir, 'pages', 'snapshots.json'), 'utf8').then(
+    (t) => PageSnapshots.safeParse(JSON.parse(t)),
+    () => null,
+  );
+  const map = new Map<string, Promise<PageSnapshot | null>>();
+  if (!parsed?.success || parsed.data.generationCommit !== commit) return map;
+  for (const p of parsed.data.pages) map.set(`${p.path}|${p.user ?? ''}`, Promise.resolve({ finalPath: p.finalPath, aria: p.aria }));
+  return map;
+}
+
 /** At most this many pages are opened for one ui test case's context. */
 const MAX_SNAPSHOT_PAGES = 3;
 
@@ -452,7 +464,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       app,
       restores: { count: 0, ms: 0 },
       snapshotPage: options.snapshotPage ?? pageSnapshot,
-      snapshots: new Map(),
+      snapshots: await reusedSnapshots(paths.dir, manifest.generationCommit),
       ...(options.signal ? { signal: options.signal } : {}),
     };
     const todo = cases.filter((tc) => !kept.has(tc.id));
