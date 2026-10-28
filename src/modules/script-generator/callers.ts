@@ -120,6 +120,28 @@ export function enclosingForm(lines: readonly string[], line: number): { start: 
 }
 
 /**
+ * How the markup request at `line` sends its body, when the page itself decides it: `form` (urlencoded, what a plain
+ * form and htmx send by default), `multipart` (`enctype` or `hx-encoding` multipart), null when there is no body to
+ * encode (GET) or the page does not send a form (htmx with a JSON extension, `jsonEncoded`).
+ */
+export function requestEncoding(
+  endpoint: Endpoint,
+  lines: readonly string[],
+  line: number,
+  form: { start: number } | null,
+  jsonEncoded: boolean,
+): 'form' | 'multipart' | null {
+  if (endpoint.method === 'GET' || endpoint.method === 'DELETE') return null; // htmx puts their values in the URL
+  const hit = lines[line - 1] ?? '';
+  const isHtmx = /\b(?:data-)?hx-(?:get|post|put|patch|delete)\s*=/i.test(hit);
+  // The opening tag of the form (it may run over several lines) and the hit's own line.
+  const tag = form ? lines.slice(form.start - 1, Math.min(lines.length, form.start + 5)).join('\n').split('>')[0]! : '';
+  const own = `${hit}\n${tag}`;
+  if (isHtmx && (jsonEncoded || lines.slice(0, line).some((l) => /\bhx-ext\s*=\s*["'][^"']*json-enc/i.test(l)))) return null;
+  return /\b(?:enctype\s*=\s*["']?multipart\/form-data|(?:data-)?hx-encoding\s*=\s*["']?multipart\/form-data)/i.test(own) ? 'multipart' : 'form';
+}
+
+/**
  * Frontend code that calls the endpoints a test case uses, read at the generation commit: it shows the
  * request shape the app really sends (fields, nesting), which the route handler alone often does not.
  * Searched with `git grep` in the page source folders; hidden paths are skipped.
@@ -139,6 +161,16 @@ export async function callerBlocks(
 ): Promise<EvidenceBlock[]> {
   const blocks: EvidenceBlock[] = [];
   let used = 0;
+  // An htmx JSON extension anywhere in the page source (it is usually set on a layout above the request): then an
+  // htmx request's encoding is not known to be a form, and nothing is claimed.
+  let jsonEncoded: boolean | undefined;
+  const anyJsonEncoding = async () => {
+    jsonEncoded ??= await execFileAsync('git', ['-C', options.scope.root, 'grep', '-l', '-i', '-F', '-e', 'json-enc', options.commit, '--', ...options.frontendRoots]).then(
+      () => true,
+      () => false,
+    );
+    return jsonEncoded;
+  };
   for (const endpoint of endpointsUsed(tc, options.endpoints)) {
     if (options.skip && endpoint.method === options.skip.method && endpoint.path === options.skip.path) continue;
     const needle = searchText(endpoint, options.apiPrefix);
@@ -173,8 +205,9 @@ export async function callerBlocks(
       const start = form?.start ?? Math.max(1, hit.line - LINES_AROUND);
       const end = form?.end ?? Math.min(lines.length, hit.line + LINES_AROUND);
       const calls = `${endpoint.method} ${endpoint.path}`;
+      const encoding = hit.rank > 0 && MARKUP_REQUEST.test(hit.text) ? requestEncoding(endpoint, lines, hit.line, form, await anyJsonEncoding()) : null;
       const candidates: EvidenceBlock[] = [
-        { file: hit.file, start, end, lines: lines.slice(start - 1, end), calls },
+        { file: hit.file, start, end, lines: lines.slice(start - 1, end), calls, ...(encoding ? { encoding } : {}) },
         ...helperRanges(lines, start, end).map((r) => ({
           file: hit.file, start: r.start, end: r.end, lines: lines.slice(r.start - 1, r.end), calls: `${calls}, helper ${r.name}`,
         })),

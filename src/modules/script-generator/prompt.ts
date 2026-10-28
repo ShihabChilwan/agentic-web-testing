@@ -42,6 +42,9 @@ You write only the body of the test function. The file around it is written for 
 - After a page action that may change the page (a click that submits a form or follows a link), wait for its result before the next page.goto: await page.waitForURL(...) when it navigates, or an expect on what it shows. A page.goto while the app is still navigating fails with net::ERR_ABORTED.
   Bad: await page.getByRole('button', { name: 'Save' }).click(); await page.goto('/list');
   Good: await page.getByRole('button', { name: 'Save' }).click(); await page.waitForURL('**/list'); (or an expect on the saved item) then page.goto if still needed
+- Send a request body the way the app's own page sends it. When the callers section says a page sends a request form-encoded, pass the fields with Playwright's form option (multipart: for multipart form data), not data:, because an app that reads only form data rejects JSON. Otherwise use data:.
+  Bad: await api.post('/api/items', { data: { name }, headers });  (when the page sends it form-encoded)
+  Good: await api.post('/api/items', { form: { name }, headers });
 - Never use waitForTimeout. Wait for a locator, a URL (page.waitForURL) or a response (page.waitForResponse).
 - Never change a fixture user's profile, password, role or data. To test changing a user, first register a new user with uniq values and change that one.
 - Data a test needs that does not exist yet is created in the test (through the API, logged in as a suitable fixture user), with uniq values. Send requests in the shape the app's own frontend sends them: the code that calls each endpoint is included where it could be found. Tests are independent of each other and of running order.
@@ -65,7 +68,8 @@ export interface ScriptTaskInput {
 }
 
 const renderBlock = (b: CodeExcerpts['blocks'][number]) => {
-  const what = b.importedBy ? `(whole file, imported by ${b.importedBy})` : b.calls ? `lines ${b.start}-${b.end} (calls ${b.calls})` : `lines ${b.start}-${b.end}`;
+  const sent = b.encoding === 'multipart' ? '; the page sends it as multipart form data' : b.encoding === 'form' ? '; the page sends it form-encoded, not as JSON' : '';
+  const what = b.importedBy ? `(whole file, imported by ${b.importedBy})` : b.calls ? `lines ${b.start}-${b.end} (calls ${b.calls}${sent})` : `lines ${b.start}-${b.end}`;
   return `### ${b.file} ${what}\n${b.lines.map((l, i) => `${b.start + i}: ${l}`).join('\n')}`;
 };
 

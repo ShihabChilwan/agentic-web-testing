@@ -1,6 +1,8 @@
 // Test helpers for the generated scripts. Copied into each run's scripts/ folder next to _target.json,
 // which holds the target's base URLs, fixtures and login settings for that run.
+import { execFile } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { promisify } from 'node:util';
 import { expect, test as base } from '@playwright/test';
 import type { APIRequestContext, APIResponse, Locator as PwLocator, Page } from '@playwright/test';
 
@@ -17,9 +19,11 @@ interface TargetFile {
   apiUrl: string;
   uiUrl: string;
   fixtures: Record<string, unknown>;
+  /** The target's own folder, where a login command runs. */
+  targetDir?: string;
   auth?: {
-    login: { method: string; path: string; body: unknown };
-    tokenAt: string;
+    login: { method: string; path: string; body: unknown; encoding?: 'json' | 'form' } | { command: string };
+    tokenAt?: string;
     header: string;
     prefix: string;
     storage?: { kind: 'localStorage' | 'sessionStorage' | 'cookie'; key: string };
@@ -80,13 +84,29 @@ function auth(): NonNullable<TargetFile['auth']> {
 
 async function loginToken(user: User): Promise<string> {
   const a = auth();
+  if ('command' in a.login) {
+    // The escape hatch: a command that prints the token. User values reach it as AWT_USER_<FIELD> only.
+    const env: Record<string, string> = { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', AWT_API_URL: target.apiUrl, AWT_UI_URL: target.uiUrl };
+    for (const [key, value] of Object.entries(user)) {
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') env[`AWT_USER_${key.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`] = String(value);
+    }
+    try {
+      const { stdout } = await promisify(execFile)('/bin/sh', ['-c', a.login.command], { cwd: target.targetDir, env, timeout: 30_000, maxBuffer: 1024 * 1024 });
+      if (stdout.trim() === '') throw new Error('the command printed no token');
+      return stdout.trim();
+    } catch (err) {
+      throw new Error(`loginViaApi failed: the login command did not give a token (${err instanceof Error ? err.message.split('\n')[0] : String(err)})`, { cause: err });
+    }
+  }
+  const form = a.login.encoding === 'form';
+  const body = fill(a.login.body, user);
   const res = await fetch(new URL(a.login.path, target.apiUrl), {
     method: a.login.method,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(fill(a.login.body, user)),
+    headers: { 'content-type': form ? 'application/x-www-form-urlencoded' : 'application/json' },
+    body: form ? new URLSearchParams(Object.entries((body ?? {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)] as [string, string])).toString() : JSON.stringify(body),
   });
-  const body: unknown = await res.json().catch(() => null);
-  const token = atPath(body, a.tokenAt);
+  const parsed: unknown = await res.json().catch(() => null);
+  const token = atPath(parsed, a.tokenAt ?? '');
   if (!res.ok || typeof token !== 'string') throw new Error(`loginViaApi failed with status ${res.status}`);
   return token;
 }

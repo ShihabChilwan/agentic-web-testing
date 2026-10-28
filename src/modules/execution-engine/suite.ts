@@ -2,10 +2,11 @@ import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { TargetConfig } from '../../shared/schemas.js';
 import { uiBaseUrl } from '../../shared/target-ui.js';
+import { targetFolder } from './login.js';
 
-/** What the helpers read from `_target.json`: base URLs, fixtures and login settings (SPEC §6.1). */
+/** What the helpers read from `_target.json`: base URLs, fixtures, login settings and the target's folder, where a login command runs (SPEC §6.1). */
 export function targetSettings(config: TargetConfig) {
-  return { apiUrl: config.backend.baseUrl, uiUrl: uiBaseUrl(config), fixtures: config.fixtures, auth: config.auth };
+  return { apiUrl: config.backend.baseUrl, uiUrl: uiBaseUrl(config), fixtures: config.fixtures, auth: config.auth, targetDir: targetFolder(config) };
 }
 
 /**

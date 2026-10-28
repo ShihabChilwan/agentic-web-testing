@@ -206,7 +206,7 @@ async function generateOne(tc: TestCase, deps: Deps, reviewNote?: string): Promi
     scope: { root: deps.repoDir, forbiddenPaths: deps.config.forbiddenPaths },
     commit: deps.generationCommit,
     read: deps.read,
-    ...(deps.config.auth ? { skip: { method: deps.config.auth.login.method, path: deps.config.auth.login.path } } : {}),
+    ...(deps.config.auth && !('command' in deps.config.auth.login) ? { skip: { method: deps.config.auth.login.method, path: deps.config.auth.login.path } } : {}),
   });
 
   const validate = async ({ body }: { body: string }): Promise<string[]> => {

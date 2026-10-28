@@ -3,9 +3,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { callerBlocks, enclosingForm, endpointsUsed, rankHit } from '../../src/modules/script-generator/callers.js';
+import { callerBlocks, enclosingForm, endpointsUsed, rankHit, requestEncoding } from '../../src/modules/script-generator/callers.js';
 import { linesAtCommit, renderEndpointIndex, requestShape } from '../../src/modules/test-case-generator/context.js';
-import { buildScriptTask } from '../../src/modules/script-generator/prompt.js';
+import { buildScriptTask, buildSystemPrompt } from '../../src/modules/script-generator/prompt.js';
 import type { TestCase } from '../../src/shared/schemas.js';
 import { TargetConfig } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
@@ -185,4 +185,53 @@ describe('requests in markup: htmx attributes and forms', () => {
     const del = await callerBlocks(tc(['Send DELETE /api/links/<id>']), options);
     expect(del.map((b) => [b.start, b.calls])).toEqual([[1, 'DELETE /api/links/:id']]);
   });
+
+  describe('how the page sends the body', () => {
+    const lines = LINKS_VIEW.split('\n');
+    const post = ep('POST', '/api/links');
+
+    it('says form for htmx and plain forms, and says nothing for GET and DELETE (their values go in the URL)', () => {
+      expect(requestEncoding(post, lines, 4, { start: 2 }, false)).toBe('form'); // hx-post: urlencoded by default
+      expect(requestEncoding(ep('POST', '/api/links/report'), lines, 14, { start: 12 }, false)).toBe('form'); // a plain form
+      expect(requestEncoding(ep('DELETE', '/api/links/:id'), lines, 11, null, false)).toBeNull();
+      expect(requestEncoding(ep('GET', '/api/links/search'), lines, 17, { start: 17 }, false)).toBeNull();
+    });
+
+    it('says multipart for enctype or hx-encoding multipart', () => {
+      const a = ['<form method="post" enctype="multipart/form-data"', '  action="/api/links/upload">', '</form>'];
+      expect(requestEncoding(ep('POST', '/api/links/upload'), a, 2, { start: 1 }, false)).toBe('multipart');
+      const b = ['<form hx-post="/api/links" hx-encoding="multipart/form-data">', '</form>'];
+      expect(requestEncoding(post, b, 1, { start: 1 }, false)).toBe('multipart');
+    });
+
+    it('claims nothing for htmx when a JSON extension is set on the element, above it, or anywhere in the page source', () => {
+      const onForm = ['<form hx-ext="json-enc" hx-post="/api/links">', '</form>'];
+      expect(requestEncoding(post, onForm, 1, { start: 1 }, false)).toBeNull();
+      const above = ['<body hx-ext="json-enc">', '<form hx-post="/api/links">', '</form>', '</body>'];
+      expect(requestEncoding(post, above, 2, { start: 2 }, false)).toBeNull();
+      expect(requestEncoding(post, lines, 4, { start: 2 }, true)).toBeNull(); // set in a layout file
+      // A plain form is not touched by the htmx extension.
+      expect(requestEncoding(ep('POST', '/api/links/report'), lines, 14, { start: 12 }, true)).toBe('form');
+    });
+
+    it('puts the encoding on the block of a form request, and on none of the helper blocks', async () => {
+      const scope = { root: repo, forbiddenPaths: [] };
+      const blocks = await callerBlocks(tc(['Send POST /api/links with a target']), { endpoints: [post], apiPrefix: '/api', frontendRoots: ['client/app'], scope, commit, read: linesAtCommit(scope, commit) });
+      expect(blocks.map((b) => b.encoding)).toEqual(['form']);
+    });
+  });
 });
+
+describe('the form-encoding hint in the script task', () => {
+  it('tells which callers send a form, in the block heading, and the system prompt says to use the form option for them', () => {
+    const config = TargetConfig.parse(example('target.config.json'));
+    const block = { file: 'v.hbs', start: 1, end: 2, lines: ['<form hx-post="/api/x">', '</form>'], calls: 'POST /api/x' };
+    const task = (b: typeof block & { encoding?: 'form' | 'multipart' }) =>
+      buildScriptTask({ testCase: tc(['Send POST /api/x']), requirements: [], evidence: { blocks: [], omitted: [] }, callers: [b], config, facts: null, endpoints });
+    expect(task({ ...block, encoding: 'form' })).toContain('(calls POST /api/x; the page sends it form-encoded, not as JSON)');
+    expect(task({ ...block, encoding: 'multipart' })).toContain('(calls POST /api/x; the page sends it as multipart form data)');
+    expect(task(block)).toContain('(calls POST /api/x)');
+    expect(buildSystemPrompt()).toContain('Playwright\'s form option');
+  });
+});
+

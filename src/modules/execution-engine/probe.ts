@@ -2,7 +2,7 @@ import { chromium, type Request } from '@playwright/test';
 import type { TargetConfig } from '../../shared/schemas.js';
 import { uiBaseUrl } from '../../shared/target-ui.js';
 import { checkFixtureLogins, type FixtureGuardResult } from './guard.js';
-import { fillPlaceholders } from './placeholders.js';
+import { loginFixture } from './login.js';
 import { runSeedCheck, valueAtPath } from './seed.js';
 
 const PAGE_TIMEOUT_MS = 20_000;
@@ -87,17 +87,9 @@ const SNAPSHOT_CHARS = 6_000;
 
 /** The token a fixture user gets from the target's login request, or null when the login fails. */
 async function fixtureToken(config: TargetConfig, user: unknown): Promise<string | null> {
-  const auth = config.auth;
-  if (!auth) return null;
+  if (!config.auth) return null;
   try {
-    const res = await fetch(new URL(auth.login.path, config.backend.baseUrl), {
-      method: auth.login.method,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(fillPlaceholders(auth.login.body, { user })),
-      signal: AbortSignal.timeout(10_000),
-    });
-    const token = valueAtPath(await res.json().catch(() => null), auth.tokenAt);
-    return res.ok && typeof token === 'string' && token !== '' ? token : null;
+    return (await loginFixture(config, user)).token;
   } catch {
     return null;
   }

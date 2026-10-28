@@ -40,6 +40,8 @@ export interface EvidenceBlock {
   importedBy?: string;
   /** Set for frontend code that calls an endpoint (e.g. "POST /api/items"), to show the request shape. */
   calls?: string;
+  /** Set for markup that sends the request as a form: the encoding the app's own page uses (SPEC §6.2). */
+  encoding?: 'form' | 'multipart';
 }
 
 export interface CodeExcerpts {

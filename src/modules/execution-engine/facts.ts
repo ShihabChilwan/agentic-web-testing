@@ -5,6 +5,7 @@ import { SCHEMA_VERSION, TargetFacts } from '../../shared/schemas.js';
 import type { FactRequest, TargetConfig } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { startTarget } from './lifecycle.js';
+import { loginFixture } from './login.js';
 import { fillPlaceholders } from './placeholders.js';
 import { valueAtPath } from './seed.js';
 
@@ -117,17 +118,18 @@ export async function observeFacts(config: TargetConfig, requests: FactRequest[]
     if (token === undefined) {
       const user = valueAtPath(config.fixtures, as);
       if (!user || typeof user !== 'object') throw new Error(`Fixture user ${as} does not exist`);
-      let res: { status: number; body: unknown };
+      let res: Awaited<ReturnType<typeof loginFixture>>;
       try {
-        res = await send(baseUrl, auth.login.method, auth.login.path, {}, fillPlaceholders(auth.login.body, { user }));
+        res = await loginFixture(config, user);
       } catch (err) {
         throw new Error(`Login as ${as}: no response (${err instanceof Error ? err.message : String(err)})`, { cause: err });
       }
-      const found = valueAtPath(res.body, auth.tokenAt);
-      if (res.status >= 400 || typeof found !== 'string' || found === '') {
-        throw new Error(`Login as ${as} failed: status ${res.status}, no token at "${auth.tokenAt}"`);
+      if (!res.ok || res.token === null) {
+        throw new Error(
+          'command' in auth.login ? `Login as ${as} failed: the login command gave no token` : `Login as ${as} failed: status ${res.status}, no token at "${auth.tokenAt}"`,
+        );
       }
-      token = found;
+      token = res.token;
       tokens.set(as, token);
       secrets.push(token, `${auth.prefix}${token}`);
     }

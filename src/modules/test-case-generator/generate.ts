@@ -142,7 +142,7 @@ export async function runSession(input: SessionInput, deps: SessionDeps): Promis
               api: {
                 endpoints: deps.endpoints,
                 apiPrefix: deps.config.backend.apiPrefix,
-                ...(deps.config.auth ? { loginPath: deps.config.auth.login.path } : {}),
+                ...(deps.config.auth && !('command' in deps.config.auth.login) ? { loginPath: deps.config.auth.login.path } : {}),
                 accountResources: deps.config.accountResources,
               },
               pages: deps.pages.map((p) => p.path),

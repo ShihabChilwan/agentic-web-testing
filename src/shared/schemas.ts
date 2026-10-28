@@ -109,16 +109,29 @@ export const Locator = z
   .refine((l) => !l.name || l.role, 'name goes with role');
 export type Locator = z.infer<typeof Locator>;
 
-/** How to log in as a fixture user over HTTP: the token goes into a header on later requests. */
+/** A login request: the body is sent as JSON, or form-encoded (`application/x-www-form-urlencoded`) for apps that read only form data. */
+const HttpLogin = z.strictObject({
+  method: HttpMethod,
+  path: z.string().startsWith('/'),
+  /** `{{user.<field>}}` placeholders resolve against the fixture user. */
+  body: z.unknown(),
+  /** Absent means JSON. */
+  encoding: z.enum(['json', 'form']).optional(),
+});
+
+/**
+ * Escape hatch for logins that are not one HTTP request (OAuth, a script, a database lookup): a shell command that
+ * prints the token on stdout and exits 0. It runs in the target's folder (`targets/<name>/`), with PATH and HOME
+ * and the fixture user's text fields as `AWT_USER_<FIELD>` (e.g. `AWT_USER_EMAIL`), plus `AWT_API_URL` and
+ * `AWT_UI_URL`. User values reach it only through those variables, never through the command text.
+ */
+const CommandLogin = z.strictObject({ command: z.string().min(1) });
+
+/** How to log in as a fixture user: the token goes into a header on later requests. */
 export const TargetAuth = z.strictObject({
-  login: z.strictObject({
-    method: HttpMethod,
-    path: z.string().startsWith('/'),
-    /** `{{user.<field>}}` placeholders resolve against the fixture user. */
-    body: z.unknown(),
-  }),
-  /** Dot path of the token in the login response body. */
-  tokenAt: z.string().min(1),
+  login: z.union([HttpLogin, CommandLogin]),
+  /** Dot path of the token in the login response body (not used with a login `command`: its output is the token). */
+  tokenAt: z.string().min(1).optional(),
   header: z.string().min(1),
   /** Put before the token in the header (e.g. "Bearer "); "" when the token already includes it. */
   prefix: z.string().default(''),
@@ -138,7 +151,7 @@ export const TargetAuth = z.strictObject({
       waitFor: z.strictObject({ urlNot: z.string().min(1) }).optional(),
     })
     .optional(),
-});
+}).refine((a) => 'command' in a.login || a.tokenAt !== undefined, { message: 'tokenAt is required when the login is a request', path: ['tokenAt'] });
 
 /** One request whose answer on golden is recorded in facts.json (SPEC §7.4). */
 export const FactRequest = z.strictObject({
