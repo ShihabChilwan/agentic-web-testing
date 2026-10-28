@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiRuleProblems, checkSubmission, matchEndpoint, resourceOf, stepRequests } from '../../src/modules/test-case-generator/checks.js';
+import { apiRuleProblems, blankInputProblems, checkSubmission, matchEndpoint, resourceOf, stepRequests } from '../../src/modules/test-case-generator/checks.js';
 import { TestCases } from '../../src/shared/schemas.js';
 import type { Prd } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
@@ -146,5 +146,33 @@ describe('journey length', () => {
     expect(checkSubmission({ testCases: [journey(9)], declined: [] } as never, ctx)).toEqual([
       'testCases[0]: an e2e journey has 9 steps (at most 8); split it into shorter journeys, or prepare data in fewer steps through the API, and check what each page shows after you move to it',
     ]);
+  });
+});
+
+describe('blankInputProblems: boundary values for text', () => {
+  // The real line from the recorded run's support chat code.
+  const blocks = [{ file: 'client/app/components/Manager/Support/AddMessage.js', start: 10, lines: ['  const handleOnSubmit = e => {', '    e.preventDefault();', '    if (!message.trim()) {'] }];
+  const uiCase = (steps: string[], expected = 'The message appears in the list') =>
+    ({ requirementIds: ['REQ-001'], layer: 'ui', category: 'functional', priority: 'high', preconditions: [], fixturesUsed: [], steps, expected: [{ description: expected }] });
+  const sub = (testCases: unknown[], declined: unknown[] = []) => ({ testCases, declined }) as never;
+
+  it('asks for a case that enters only spaces where the code rejects blank text, naming the line', () => {
+    expect(blankInputProblems(sub([uiCase(['Open /support', 'Type a message and click Send'])]), blocks)).toEqual([
+      expect.stringMatching(/^The code rejects text that is empty or only spaces \(client\/app\/components\/Manager\/Support\/AddMessage.js:12 `if \(!message.trim\(\)\) \{`\)/),
+    ]);
+  });
+
+  it('is satisfied by such a case or a decline that says why, and not by an unrelated "empty"', () => {
+    expect(blankInputProblems(sub([uiCase(['Open /support', 'Type only spaces into the message box and click Send'])]), blocks)).toEqual([]);
+    expect(blankInputProblems(sub([uiCase(['Open /support'], 'A whitespace message is not sent')]), blocks)).toEqual([]);
+    expect(blankInputProblems(sub([], [{ requirementId: 'REQ-001', reasonKind: 'other', reason: 'A blank message cannot be typed: the button stays disabled.' }]), blocks)).toEqual([]);
+    expect(blankInputProblems(sub([uiCase(['Open /cart'], 'The empty cart message is shown')]), blocks)).toHaveLength(1);
+  });
+
+  it('asks nothing where the code has no such check, and recognises the other ways to write it', () => {
+    expect(blankInputProblems(sub([]), [{ file: 'a.js', start: 1, lines: ["const q = value.trim().toLowerCase();", 'if (!email) {'] }])).toEqual([]);
+    for (const line of ["if (name.trim() === '') return;", 'if (title.trim().length < 1) {', 'if (!form?.name.trim()) {']) {
+      expect(blankInputProblems(sub([]), [{ file: 'b.js', start: 1, lines: [line] }])).toHaveLength(1);
+    }
   });
 });

@@ -59,48 +59,16 @@ export function endpointReach(endpoints: readonly Endpoint[], files: Record<stri
  */
 export async function generateGaps(options: GenerateGapsOptions = {}): Promise<GenerateGapsResult> {
   const log = options.log ?? (() => {});
-  const runsDir = options.runsDir ?? RUNS_DIR;
-  const runId = options.runId ?? (await latestRunWith('scripts/manifest.json', runsDir));
-  if (!runId) throw new Error(`No run with a scripts/manifest.json in ${runsDir}; run "agent scripts" first`);
-  const paths = runPaths(runId, runsDir);
-  const manifest = await readRunManifest(paths.runJson);
-  const scriptsStatus = manifest.stages.scripts?.status;
-  if (scriptsStatus !== 'done') throw new Error(`The scripts stage of ${runId} is ${scriptsStatus ?? 'missing'}, not done; finish "agent scripts" first`);
-  const { config, repoDir, targetDir } = await loadTargetConfig(manifest.target, {
-    ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
-    ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
-  });
-  if (!config.coverage) throw new Error(`Target ${config.name} has no "coverage" setting in target.config.json; the gaps stage needs it`);
-  const prd = Prd.parse(JSON.parse(await readFile(paths.prd, 'utf8')));
+  const ctx = await gapsContext(options);
+  const { runId, paths, manifest, config, repoDir, prd } = ctx;
   const before = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8')));
 
   const startedAt = new Date().toISOString();
   await Transcript.archive(paths.transcriptsDir, 'gaps');
   await setStage(paths.dir, 'gaps', { status: 'running', startedAt });
   try {
-    log(`Measuring backend coverage: the passing scripts on ${manifest.generationRef}`);
-    const measured = await (options.measure ?? measureCoverage)({
-      runDir: paths.dir,
-      config,
-      repoDir,
-      targetDir,
-      generationRef: manifest.generationRef,
-      log,
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-    const reach = endpointReach(prd.apiEndpoints, measured.files);
-    const coverage = CoverageReport.parse({
-      schemaVersion: SCHEMA_VERSION,
-      kind: config.coverage.kind,
-      generationCommit: measured.commit,
-      measuredAt: new Date().toISOString(),
-      scripts: { run: measured.results.summary.total, passed: measured.results.summary.passed },
-      processes: measured.processes,
-      files: Object.fromEntries(Object.entries(measured.files).map(([file, lines]) => [file, { lines }])),
-      endpoints: reach,
-    });
-    await mkdir(paths.coverageDir, { recursive: true });
-    await writeFile(paths.coverage, `${JSON.stringify(coverage, null, 2)}\n`, 'utf8');
+    const { coverage, measured } = await measureAndWrite(ctx, options);
+    const reach = coverage.endpoints;
     const unreached = prd.apiEndpoints.filter((_, i) => !reach[i]!.reached);
     log(`Endpoints reached by a passing script: ${reach.length - unreached.length} of ${reach.length}`);
 
@@ -188,6 +156,78 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     await setStage(paths.dir, 'gaps', { status: 'failed', startedAt, finishedAt: new Date().toISOString(), error });
     throw err;
   }
+}
+
+/** What the gaps stage and the measure-only command share: the run, its target and its PRD. */
+async function gapsContext(options: Pick<GenerateGapsOptions, 'runId' | 'runsDir' | 'targetsDir' | 'projectRoot'>) {
+  const runsDir = options.runsDir ?? RUNS_DIR;
+  const runId = options.runId ?? (await latestRunWith('scripts/manifest.json', runsDir));
+  if (!runId) throw new Error(`No run with a scripts/manifest.json in ${runsDir}; run "agent scripts" first`);
+  const paths = runPaths(runId, runsDir);
+  const manifest = await readRunManifest(paths.runJson);
+  const scriptsStatus = manifest.stages.scripts?.status;
+  if (scriptsStatus !== 'done') throw new Error(`The scripts stage of ${runId} is ${scriptsStatus ?? 'missing'}, not done; finish "agent scripts" first`);
+  const { config, repoDir, targetDir } = await loadTargetConfig(manifest.target, {
+    ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
+    ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}),
+  });
+  if (!config.coverage) throw new Error(`Target ${config.name} has no "coverage" setting in target.config.json; the gaps stage needs it`);
+  const prd = Prd.parse(JSON.parse(await readFile(paths.prd, 'utf8')));
+  return { runId, paths, manifest, config, repoDir, targetDir, prd, coverageKind: config.coverage.kind };
+}
+
+/** Measures backend coverage of the passing scripts and writes coverage/coverage.json (§5.1 steps 1–3). */
+async function measureAndWrite(ctx: Awaited<ReturnType<typeof gapsContext>>, options: Pick<GenerateGapsOptions, 'measure' | 'signal' | 'log'>) {
+  const log = options.log ?? (() => {});
+  log(`Measuring backend coverage: the passing scripts on ${ctx.manifest.generationRef}`);
+  const measured = await (options.measure ?? measureCoverage)({
+    runDir: ctx.paths.dir,
+    config: ctx.config,
+    repoDir: ctx.repoDir,
+    targetDir: ctx.targetDir,
+    generationRef: ctx.manifest.generationRef,
+    log,
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+  const coverage = CoverageReport.parse({
+    schemaVersion: SCHEMA_VERSION,
+    kind: ctx.coverageKind,
+    generationCommit: measured.commit,
+    measuredAt: new Date().toISOString(),
+    scripts: { run: measured.results.summary.total, passed: measured.results.summary.passed },
+    processes: measured.processes,
+    files: Object.fromEntries(Object.entries(measured.files).map(([file, lines]) => [file, { lines }])),
+    endpoints: endpointReach(ctx.prd.apiEndpoints, measured.files),
+  });
+  await mkdir(ctx.paths.coverageDir, { recursive: true });
+  await writeFile(ctx.paths.coverage, `${JSON.stringify(coverage, null, 2)}\n`, 'utf8');
+  return { coverage, measured };
+}
+
+export interface MeasureEndpointsResult {
+  runId: string;
+  coverage: CoverageReport;
+}
+
+/**
+ * `agent gaps --measure-only` (SPEC §5.1): the measurement alone, for an honest "endpoints reached" figure of the
+ * current suite. Writes coverage/coverage.json; adds no test case and leaves run.json's stages alone.
+ */
+export async function measureEndpoints(options: Omit<GenerateGapsOptions, 'llmConfig' | 'createLlm'> = {}): Promise<MeasureEndpointsResult> {
+  const ctx = await gapsContext(options);
+  const { coverage } = await measureAndWrite(ctx, options);
+  return { runId: ctx.runId, coverage };
+}
+
+/** Lines for a person: the endpoints the passing scripts reached, and those they did not. */
+export function describeMeasurement(result: MeasureEndpointsResult): string[] {
+  const { coverage: c } = result;
+  const missed = c.endpoints.filter((e) => !e.reached).map((e) => `${e.method} ${e.path}`);
+  return [
+    `API endpoints reached by a passing script: ${c.endpoints.length - missed.length} of ${c.endpoints.length} (scripts run ${c.scripts.run}, passed ${c.scripts.passed})`,
+    ...(missed.length > 0 ? [`not reached: ${missed.join(', ')}`] : []),
+    `written: runs/${result.runId}/coverage/coverage.json (no test cases added)`,
+  ];
 }
 
 /** Lines for a person: reach before the round, what was asked, what was added, and what to run next. */

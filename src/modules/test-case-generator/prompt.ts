@@ -36,6 +36,9 @@ You get one feature at a time: its requirements, the code that implements them a
 - An e2e journey has at most 8 steps and checks what each page shows after moving to it (an expectation per page change). Prepare data through the API in a step rather than clicking through many pages; split a longer flow into two journeys.
 - A test case that expects success checks more than the status code: at least one value in the response or in the data read back (a field, the created item, a message).
 - When you test that reading a missing item gives "not found", also test reading an existing one (create it first when the fixtures and facts have none) and check its data.
+- Boundary values for text: where the code rejects text that is empty or only spaces (a required field, a check such as !value.trim()), write a boundary test case that enters only spaces (and an empty value) and checks it is rejected: the message shown, or nothing saved or sent. Say "only spaces" in its steps.
+  Bad: only a case that sends a normal message.
+  Good: also "Type only spaces into the message box and click Send" with { "description": "The message is not sent and an alert asks to type a message" }.
 - Cover the requirement's acceptance criteria. For high-priority requirements include at least one negative case (error-handling, boundary or auth) where it makes sense: missing or invalid input, wrong credentials, a user without the needed role.
 - When a flow needs a secret that only travels through a disabled service (for example a code sent only by email or SMS), test the parts that do not need it, such as rejecting an invalid or expired code. If nothing is testable, decline the requirement with reasonKind "third-party-disabled".
   Bad: a test case that asks the tester to "open the email and click the reset link".

@@ -47,6 +47,30 @@ export function findExpects(source: string): ExpectUse[] {
   return uses;
 }
 
+/** An action on the page that may start a navigation (a click, a key press, a form submit). */
+const PAGE_ACTION = /\.(click|dblclick|press|check|tap|submit|selectOption)\s*\(/g;
+/** Anything that waits for what an action started: a URL, a response, a load state, an element, a web-first assertion. */
+const WAIT = /\b(waitForURL|waitForResponse|waitForRequest|waitForLoadState|waitForNavigation|waitForEvent|waitFor)\s*\(|\bexpect\s*(\.\w+\s*)?\(/;
+
+/**
+ * A page.goto right after a page action, with nothing awaited between them (§6.3): when the action navigates (a
+ * submitted form that redirects), the goto races it and fails with net::ERR_ABORTED, or the page is left before the
+ * action's request finished. Seen on the correct version in the cloud, twice (TC-018).
+ */
+export function gotoAfterAction(body: string): string[] {
+  const actions = [...body.matchAll(PAGE_ACTION)].map((m) => m.index);
+  const problems: string[] = [];
+  for (const goto of body.matchAll(/\bpage\.goto\s*\(/g)) {
+    const last = actions.filter((i) => i < goto.index).at(-1);
+    if (last === undefined || WAIT.test(body.slice(last, goto.index))) continue;
+    const line = body.slice(0, goto.index).split('\n').length;
+    problems.push(
+      `Body line ${line}: page.goto follows a page action with nothing awaited in between. If the action navigates (a submitted form that redirects), the goto races it and fails with net::ERR_ABORTED. First wait for what the action does: await page.waitForURL(...) when it changes the page, or an expect on what it shows or a waitForResponse for its request.`,
+    );
+  }
+  return problems;
+}
+
 /**
  * The lock check (§6.3), run on every attempt before the dry run. Returns problems for the model.
  * - the EXPECTED block is byte-identical to the rendered one, and the body neither redefines nor edits it;
@@ -66,6 +90,7 @@ export function lockCheck(tc: TestCase, file: string, body: string, fixtures: un
   if (/\bEXPECTED\s*(\.\s*E\d+\s*(\.\s*\w+)?)?\s*=[^=]/.test(body)) problems.push('The body must not assign to EXPECTED.');
   if (/^\s*import\s/m.test(body) || /\brequire\(/.test(body)) problems.push('The body must not import anything; everything you need is already imported.');
   if (/\bwaitForTimeout\s*\(/.test(body)) problems.push('Do not use waitForTimeout; wait for a locator, a URL or a response instead.');
+  problems.push(...gotoAfterAction(body));
   if (/\.json\s*\(\s*\)/.test(body)) problems.push('Read response bodies with await bodyOf(res), not res.json(): an error response may not be JSON (e.g. a plain "Unauthorized"), and res.json() then throws before any check runs.');
 
   const uses = findExpects(body);

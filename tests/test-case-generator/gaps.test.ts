@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import { describesEndpoint, endpointRoundProblems } from '../../src/modules/test-case-generator/generate.js';
-import { describeGaps, endpointReach, generateGaps } from '../../src/modules/test-case-generator/gaps.js';
+import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
 import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { createRun, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
@@ -192,6 +192,22 @@ describe('generateGaps', () => {
     expect(result.summary).toMatchObject({ endpoints: { total: 2, reached: 2 }, asked: [], casesAdded: 0, sessions: 0 });
     expect(await readFile(paths.testCases, 'utf8')).toBe(before);
     expect((await readRunManifest(paths.runJson)).stages.scripts?.status).toBe('done');
+  });
+
+  it('--measure-only writes coverage.json and adds nothing: no model call, no stage change', async () => {
+    const { runId, runsDir, paths } = await makeRun();
+    const before = await readFile(paths.testCases, 'utf8');
+    const stagesBefore = (await readRunManifest(paths.runJson)).stages;
+    const result = await measureEndpoints({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, measure });
+    expect(result.coverage.endpoints.map((e) => e.reached)).toEqual([true, false]);
+    expect(CoverageReport.parse(JSON.parse(await readFile(paths.coverage, 'utf8'))).endpoints).toEqual(result.coverage.endpoints);
+    expect(await readFile(paths.testCases, 'utf8')).toBe(before);
+    expect((await readRunManifest(paths.runJson)).stages).toEqual(stagesBefore);
+    expect(describeMeasurement(result)).toEqual([
+      'API endpoints reached by a passing script: 1 of 2 (scripts run 1, passed 1)',
+      'not reached: GET /api/items/:id',
+      `written: runs/${runId}/coverage/coverage.json (no test cases added)`,
+    ]);
   });
 
   it('needs a finished scripts stage, and a coverage setting in the target config', async () => {

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Mutex, trimDom } from '../../src/modules/script-generator/dry-run.js';
 import { scriptsSummary } from '../../src/modules/script-generator/generate.js';
-import { findExpects, lockCheck } from '../../src/modules/script-generator/lock-check.js';
+import { findExpects, gotoAfterAction, lockCheck } from '../../src/modules/script-generator/lock-check.js';
 import { bodyLineOffset, renderExpected, renderScript } from '../../src/modules/script-generator/render.js';
 import { TypeChecker } from '../../src/modules/script-generator/typecheck.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
@@ -92,6 +92,19 @@ describe('lockCheck', () => {
     expect(check(good.replace('fixtures.users.alice.email', "'alice@example.test'"))).toEqual([
       'Do not write fixture data as a literal ("alice@example.test"); use fixtures.<path>, e.g. fixtures.users.<name>.email.',
     ]);
+  });
+
+  it('rejects a page.goto right after a page action with nothing awaited between (TC-018)', () => {
+    const racing = "await page.getByRole('button', { name: 'Add Address' }).click();\n\nawait page.goto('/dashboard/address');";
+    expect(gotoAfterAction(racing)).toEqual([
+      expect.stringMatching(/^Body line 3: page.goto follows a page action with nothing awaited in between/),
+    ]);
+    expect(check(`${good}\n${racing}`).some((p) => p.includes('net::ERR_ABORTED'))).toBe(true);
+    for (const wait of ["await page.waitForURL('**/dashboard/address');", "await expect(page.getByRole('alert')).toBeVisible();", "await page.waitForResponse((r) => r.url().includes('/api/address'));", "await page.getByText('Saved').waitFor();"]) {
+      expect(gotoAfterAction(racing.replace('\n\n', `\n${wait}\n`))).toEqual([]);
+    }
+    expect(gotoAfterAction("await page.goto('/a');\nawait page.goto('/b');")).toEqual([]); // no action before
+    expect(gotoAfterAction("await page.getByRole('button').click(); await expect(x).toBeVisible(); await page.goto('/b');")).toEqual([]);
   });
 
   it('rejects res.json(), which throws on an error body that is not JSON', () => {

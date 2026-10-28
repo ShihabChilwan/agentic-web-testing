@@ -316,6 +316,31 @@ export function checkSubmission(sub: SubmitTestCases, ctx: CheckContext): string
   return problems;
 }
 
+/** A line that rejects text that is empty or only spaces: a trim check (`!x.trim()`, `x.trim() === ''`, `x.trim().length < 1`). */
+const BLANK_CHECK = /!\s*[\w$.?]+\.trim\(\)|\.trim\(\)\s*(?:===?|!==?)\s*(?:''|""|``)|\.trim\(\)\.length\s*(?:===?|!==?|<|<=|>)\s*[01]\b/;
+/**
+ * Words that say a case enters text that is only spaces. Not "empty": a trim check exists for text that is not empty
+ * but blank, and "empty" matches unrelated cases (an empty cart); in run 152610 it would have let the check pass.
+ */
+const BLANK_WORDS = /\b(whitespace|blank|only spaces|spaces only)\b/i;
+
+/**
+ * Boundary values for text (SPEC §5): when the code in a session's task rejects text that is empty or only spaces, one of
+ * its cases must enter text that is only spaces (its steps or expectations say so: only spaces, blank, whitespace), or a
+ * decline must say why that cannot be tested. A code check, not only a prompt rule: run 152610 had no such case, and
+ * a development bug that removed the trim went unnoticed.
+ */
+export function blankInputProblems(sub: SubmitTestCases, blocks: ReadonlyArray<{ file: string; start: number; lines: string[] }>): string[] {
+  const where = blocks.flatMap((b) => b.lines.flatMap((line, i) => (BLANK_CHECK.test(line) ? [`${b.file}:${b.start + i} \`${line.trim()}\``] : [])));
+  if (where.length === 0) return [];
+  const covered = sub.testCases.some((tc) => BLANK_WORDS.test([...tc.steps, ...tc.expected.map((e) => e.description)].join(' ')));
+  const declined = sub.declined.some((d) => BLANK_WORDS.test(d.reason));
+  if (covered || declined) return [];
+  return [
+    `The code rejects text that is empty or only spaces (${[...new Set(where)].slice(0, 3).join('; ')}). Add a boundary test case that enters only spaces there (and an empty value) and checks it is rejected (the message shown, or nothing saved or sent); say "only spaces" in its steps. If that input cannot be tested, say why in declined.`,
+  ];
+}
+
 /** High-priority requirements whose test cases include no error-handling, boundary or auth case. */
 export function missingNegativeCases(requirements: PrdRequirement[], cases: TestCaseDraft[]): string[] {
   return requirements

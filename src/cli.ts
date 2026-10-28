@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { describeCompleteness, describeSummary, generatePrd } from './modules/prd-generator/index.js';
-import { describeCasesSummary, describeGaps, generateGaps, generateTestCases } from './modules/test-case-generator/index.js';
+import { describeCasesSummary, describeGaps, describeMeasurement, generateGaps, generateTestCases, measureEndpoints } from './modules/test-case-generator/index.js';
 import { inspectStage } from './modules/inspect.js';
 import { describeExecution, executeRun } from './modules/execution-engine/index.js';
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
@@ -151,7 +151,8 @@ agent
   .command('gaps')
   .description('Measure which API endpoints the passing scripts reach (backend coverage on the generation ref), then add test cases for the unreached ones')
   .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
-  .action(async (opts: { run?: string }) => {
+  .option('--measure-only', 'only measure which endpoints the passing scripts reach (coverage/coverage.json); add no test cases')
+  .action(async (opts: { run?: string; measureOnly?: boolean }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the stage failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -161,8 +162,9 @@ agent
     process.once('SIGINT', onSignal);
     process.once('SIGTERM', onSignal);
     try {
-      const result = await generateGaps({ ...(opts.run ? { runId: opts.run } : {}), signal: controller.signal, log: (m) => console.log(m) });
-      for (const line of describeGaps(result)) console.log(line);
+      const common = { ...(opts.run ? { runId: opts.run } : {}), signal: controller.signal, log: (m: string) => console.log(m) };
+      const lines = opts.measureOnly ? describeMeasurement(await measureEndpoints(common)) : describeGaps(await generateGaps(common));
+      for (const line of lines) console.log(line);
     } catch (err) {
       console.error(`gaps failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;

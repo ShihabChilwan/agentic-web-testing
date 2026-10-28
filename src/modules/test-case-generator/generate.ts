@@ -30,7 +30,7 @@ import type {
   UncoveredRequirement,
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
-import { checkSubmission, matchEndpoint, missingNegativeCases, openablePages, pagesOpened, stepPaths, stepRequests, SubmitTestCases, templateMatches, toTestCase } from './checks.js';
+import { blankInputProblems, checkSubmission, matchEndpoint, missingNegativeCases, openablePages, pagesOpened, stepPaths, stepRequests, SubmitTestCases, templateMatches, toTestCase } from './checks.js';
 import type { TestCaseDraft } from './checks.js';
 import { buildFeatureTask, buildGrounding, collectEvidence, linesAtCommit } from './context.js';
 import { readFacts } from '../execution-engine/facts.js';
@@ -149,6 +149,8 @@ export async function runSession(input: SessionInput, deps: SessionDeps): Promis
             }),
             ...(input.pageRound ? pageRoundProblems(sub, input.pageRound, input.requirements) : []),
             ...(endpointRound ? endpointRoundProblems(sub, endpointRound, input.requirements, deps.endpoints) : []),
+            // Boundary values for text: in the first and gap sessions (page and endpoint rounds have their own task).
+            ...(input.pageRound || endpointRound ? [] : blankInputProblems(sub, evidence.blocks)),
             ...snapshotProblems(sub, deps.pageSnapshots),
           ],
         },
