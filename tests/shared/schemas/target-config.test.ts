@@ -40,6 +40,14 @@ describe('target.config.json', () => {
     expect(errorPaths(TargetConfig, { ...single, backend: { ...config.backend, sourceRoots: [] } })).toContain('backend.sourceRoots');
   });
 
+  it('auth.storage may name a cookie, and nothing else but the two browser storages', () => {
+    const withStorage = (storage: unknown) => ({ ...config, auth: { ...config.auth, storage } });
+    expect(TargetConfig.parse(withStorage({ kind: 'cookie', key: 'token' })).auth?.storage).toEqual({ kind: 'cookie', key: 'token' });
+    expect(TargetConfig.parse(withStorage({ kind: 'sessionStorage', key: 'token' })).auth?.storage?.kind).toBe('sessionStorage');
+    expect(errorPaths(TargetConfig, withStorage({ kind: 'indexedDB', key: 'token' }))).toContain('auth.storage.kind');
+    expect(errorPaths(TargetConfig, withStorage({ kind: 'cookie', key: '' }))).toContain('auth.storage.key');
+  });
+
   it('validates the optional seedCheck', () => {
     expect(TargetConfig.parse(config).seedCheck?.expect.nonEmptyArrayAt).toBe('products');
     const { seedCheck: _s, ...noCheck } = config;

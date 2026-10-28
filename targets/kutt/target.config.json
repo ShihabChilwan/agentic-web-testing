@@ -85,6 +85,10 @@
     "tokenAt": "token",
     "header": "Cookie",
     "prefix": "token=",
+    "storage": {
+      "kind": "cookie",
+      "key": "token"
+    },
     "uiLogin": {
       "path": "/login",
       "fields": {

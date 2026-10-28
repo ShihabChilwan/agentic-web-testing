@@ -58,6 +58,28 @@ describe('pageSnapshot', () => {
     expect(snap?.aria).toContain('Signed in as tok-123');
   }, 60_000);
 
+  it('starts logged in with a cookie when the storage kind is cookie', async () => {
+    // A server-rendered page shows the cookie its request carried.
+    const app = createServer((req, res) => {
+      const token = /(?:^|; )session=([^;]*)/.exec(req.headers.cookie ?? '')?.[1];
+      res.writeHead(200, { 'content-type': 'text/html' }).end(`<!doctype html><main><h1>Home</h1><p>${token ? `Cookie ${token}` : 'No cookie'}</p></main>`);
+    });
+    const port = await listen(app);
+    try {
+      // The first backend answers the login; only the frontend and the storage kind differ.
+      const withLogin = TargetConfig.parse({
+        ...structuredClone(config),
+        frontend: { ...config.frontend!, baseUrl: `http://127.0.0.1:${port}` },
+        auth: { ...config.auth!, storage: { kind: 'cookie', key: 'session' } },
+      });
+      const snaps = await pageSnapshots(withLogin, [{ path: '/', user: 'users.alice' }, { path: '/' }]);
+      expect(snaps[0]?.aria).toContain('Cookie tok-123');
+      expect(snaps[1]?.aria).toContain('No cookie');
+    } finally {
+      await new Promise((r) => app.close(r));
+    }
+  }, 60_000);
+
   it('takes several pages in one browser, each in a fresh context (a login does not leak into the next page)', async () => {
     const snaps = await pageSnapshots(config, [{ path: '/a', user: 'users.alice' }, { path: '/b' }]);
     expect(snaps.map((x) => /Signed in as tok-123/.test(x?.aria ?? ''))).toEqual([true, false]);

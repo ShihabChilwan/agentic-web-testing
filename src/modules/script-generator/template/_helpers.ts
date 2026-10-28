@@ -22,7 +22,7 @@ interface TargetFile {
     tokenAt: string;
     header: string;
     prefix: string;
-    storage?: { kind: 'localStorage' | 'sessionStorage'; key: string };
+    storage?: { kind: 'localStorage' | 'sessionStorage' | 'cookie'; key: string };
     uiLogin?: {
       path: string;
       fields: Record<string, LocatorSpec>;
@@ -127,13 +127,18 @@ export async function loginViaUi(page: Page, user: User): Promise<void> {
 /**
  * Starts the page already logged in: logs in over the API and puts the token where the app keeps it,
  * before the first page load. Use it when the login itself is not what the test checks.
- * The token is set once per tab: an init script runs before every page load, so without the marker a
- * test that logs out and then reloads would be logged back in.
+ * In browser storage the token is set once per tab: an init script runs before every page load, so without the
+ * marker a test that logs out and then reloads would be logged back in. A cookie is set once on the browser
+ * context, so logging out (the app clears it) and reloading stays logged out.
  */
 export async function loggedInPage(page: Page, user: User): Promise<Page> {
   const storage = auth().storage;
   if (!storage) throw new Error('This target has no token storage settings (target.config.json "auth.storage")');
   const token = await loginToken(user);
+  if (storage.kind === 'cookie') {
+    await page.context().addCookies([{ name: storage.key, value: token, url: target.uiUrl }]);
+    return page;
+  }
   await page.addInitScript(
     // Runs in the browser before any page script, on every page load.
     ({ kind, key, value, origin, marker }) => {

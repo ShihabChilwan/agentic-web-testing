@@ -122,8 +122,12 @@ export const TargetAuth = z.strictObject({
   header: z.string().min(1),
   /** Put before the token in the header (e.g. "Bearer "); "" when the token already includes it. */
   prefix: z.string().default(''),
-  /** Where the frontend keeps the login token, so a test page can start logged in (`loggedInPage`). */
-  storage: z.strictObject({ kind: z.enum(['localStorage', 'sessionStorage']), key: z.string().min(1) }).optional(),
+  /**
+   * Where the app keeps the login token, so a test page can start logged in (`loggedInPage`). `localStorage` and
+   * `sessionStorage`: the item `key`; `cookie`: the cookie named `key` on the app's host, for apps whose server reads
+   * the token from a cookie. The value is the token as the login response returns it (`tokenAt`), without `prefix`.
+   */
+  storage: z.strictObject({ kind: z.enum(['localStorage', 'sessionStorage', 'cookie']), key: z.string().min(1) }).optional(),
   /** The frontend's login form, for `loginViaUi`. Field names are fixture user fields (e.g. email, password). */
   uiLogin: z
     .strictObject({

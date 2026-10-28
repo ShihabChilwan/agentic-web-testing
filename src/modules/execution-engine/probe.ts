@@ -122,7 +122,7 @@ export function snapshotForModel(aria: string): string {
  * Opens pages of the running app in one headless Chromium and returns each page's accessibility tree (SPEC §5, §6.2),
  * null for a page that could not be opened. Each page gets a fresh browser context; with a fixture user (a dot path
  * such as "users.<name>") it starts logged in the way the scripts' loggedInPage helper does it: the login request's
- * token put into the configured browser storage before the first load. Read-only: it changes no data.
+ * token put into the configured browser storage (or cookie) before the first load. Read-only: it changes no data.
  */
 export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArray<{ path: string; user?: string }>): Promise<Array<PageSnapshot | null>> {
   if (requests.length === 0) return [];
@@ -140,7 +140,9 @@ export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArra
       const context = await browser.newContext();
       try {
         const page = await context.newPage();
-        if (token && storage) {
+        if (token && storage?.kind === 'cookie') {
+          await context.addCookies([{ name: storage.key, value: token, url: uiBaseUrl(config) }]);
+        } else if (token && storage) {
           const origin = new URL(uiBaseUrl(config)).origin;
           await page.addInitScript(
             ({ kind, key, value, at }) => {
