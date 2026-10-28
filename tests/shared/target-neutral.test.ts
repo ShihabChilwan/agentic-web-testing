@@ -14,6 +14,8 @@ const DOMAIN_WORDS: Record<string, string[]> = {
     'cart', 'carts', 'order', 'orders', 'address', 'addresses', 'newsletter', 'contact', 'support', 'mern', 'ecommerce',
     'passport', 'mongoose', 'mongodb', 'mongo', 'slug', 'sku', 'mailchimp', 'mailgun',
   ],
+  // Not 'htmx' or 'handlebars': technologies that adapters are meant to recognise are not the app's own words.
+  kutt: ['kutt', 'shortener', 'shortened', 'short link', 'short links', 'customurl'],
 };
 
 /**
@@ -29,6 +31,7 @@ const GENERIC: Record<string, string> = {
   support: 'the verb ("the evidence does not support")',
   Test: 'a fixture last name that is also the ordinary word "test", which the pipeline uses everywhere',
   member: 'the generic role name in examples of fixture users',
+  user: 'the ordinary word, the pipeline\'s own vocabulary (a fixture user, the user of the app), and a generic role name',
   Unauthorized: 'the HTTP 401 reason phrase, which any backend may send as a plain-text body',
   admin: 'the generic role name in examples of fixture users',
 };
@@ -63,8 +66,8 @@ function targetTerms(target: string): Array<{ term: string; from: string }> {
     .map((p) => p.split('?')[0]!);
   const prefix = (config.backend.apiPrefix as string) || '';
   add('API paths in config and facts', [...new Set([...apiPaths, ...apiPaths.map((p) => p.split('/').slice(0, prefix ? 3 : 2).join('/'))])]);
-  add('base and health URLs', [config.backend.baseUrl, config.frontend.baseUrl, config.backend.healthCheckUrl, config.frontend.healthCheckUrl]);
-  add('service env values', Object.values({ ...config.backend.env, ...config.frontend.env }).filter((v): v is string => typeof v === 'string' && v.length >= 6));
+  add('base and health URLs', [config.backend.baseUrl, config.frontend?.baseUrl, config.backend.healthCheckUrl, config.frontend?.healthCheckUrl]); // a one-process app has no frontend
+  add('service env values', Object.values({ ...config.backend.env, ...config.frontend?.env }).filter((v): v is string => typeof v === 'string' && v.length >= 6));
   // Helper scripts the commands run, with their folder where they have one ("utils/seed.js", not our own "seed.js").
   add('helper files', strings(config.lifecycle).flatMap((c) => [...c.matchAll(/(?:\{\{targetDir\}\}\/)?([\w./-]+\.(?:cjs|js|mjs))\b/g)].map((m) => m[1]!)));
   const { role: _roles, ...fixtureData } = Object.fromEntries(Object.entries(config.fixtures.users).flatMap(([name, u]) => [[name, u]]));

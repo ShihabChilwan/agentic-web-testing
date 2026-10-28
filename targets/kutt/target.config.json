@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "1.0",
+  "name": "kutt",
+  "repoPath": "targets/kutt/repo",
+  "repoUrl": "https://github.com/thedevs-network/kutt",
+  "goldenRef": "golden",
+  "backend": {
+    "cwd": ".",
+    "install": "npm ci",
+    "start": "npm start",
+    "baseUrl": "http://localhost:3000",
+    "apiPrefix": "/api/v2",
+    "healthCheckUrl": "http://localhost:3000/api/v2/health",
+    "sourceRoots": [
+      "server/views",
+      "static/scripts"
+    ],
+    "env": {
+      "PORT": "3000",
+      "DEFAULT_DOMAIN": "localhost:3000",
+      "JWT_SECRET": "test-secret",
+      "DB_CLIENT": "better-sqlite3",
+      "DB_FILENAME": "db/data",
+      "DISALLOW_ANONYMOUS_LINKS": "false"
+    },
+    "disabledServices": {
+      "MAIL_ENABLED": "false",
+      "REDIS_ENABLED": "false",
+      "OIDC_ENABLED": "false"
+    }
+  },
+  "lifecycle": {
+    "reset": "rm -f db/data db/data-journal db/data-wal db/data-shm db/data.snapshot",
+    "resetCwd": ".",
+    "seedCommand": "npm run migrate && node \"{{targetDir}}/seed.cjs\"",
+    "seedCwd": ".",
+    "startupTimeoutMs": 120000,
+    "snapshot": {
+      "save": "node \"{{targetDir}}/sqlite-snapshot.cjs\" save",
+      "restore": "node \"{{targetDir}}/sqlite-snapshot.cjs\" restore"
+    }
+  },
+  "fixtures": {
+    "users": {
+      "admin": {
+        "email": "admin@kutt.test",
+        "password": "Admin-pass-123",
+        "role": "admin",
+        "apiKey": "adminadminadminadminadminadminadminadm01"
+      },
+      "alice": {
+        "email": "alice@kutt.test",
+        "password": "Alice-pass-123",
+        "role": "user",
+        "apiKey": "alicealicealicealicealicealicealiceali02"
+      },
+      "bob": {
+        "email": "bob@kutt.test",
+        "password": "Bob-pass-12345",
+        "role": "user"
+      }
+    }
+  },
+  "seed": [],
+  "seedCheck": {
+    "method": "POST",
+    "path": "/api/v2/auth/login",
+    "body": {
+      "email": "{{fixtures.users.admin.email}}",
+      "password": "{{fixtures.users.admin.password}}"
+    },
+    "expect": {
+      "status": 200
+    }
+  },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "/api/v2/auth/login",
+      "body": {
+        "email": "{{user.email}}",
+        "password": "{{user.password}}"
+      }
+    },
+    "tokenAt": "token",
+    "header": "Cookie",
+    "prefix": "token=",
+    "uiLogin": {
+      "path": "/login",
+      "fields": {
+        "email": {
+          "placeholder": "Email address..."
+        },
+        "password": {
+          "placeholder": "Password..."
+        }
+      },
+      "submit": {
+        "role": "button",
+        "name": "Log in"
+      },
+      "waitFor": {
+        "urlNot": "/login"
+      }
+    }
+  },
+  "facts": [
+    {
+      "name": "health",
+      "method": "GET",
+      "path": "/api/v2/health",
+      "as": null
+    },
+    {
+      "name": "wrongPassword",
+      "method": "POST",
+      "path": "/api/v2/auth/login",
+      "body": {
+        "email": "{{fixtures.users.alice.email}}",
+        "password": "wrong-password-1"
+      },
+      "as": null
+    },
+    {
+      "name": "linksAlice",
+      "method": "GET",
+      "path": "/api/v2/links",
+      "as": "users.alice",
+      "maxItems": 5
+    },
+    {
+      "name": "linksNoToken",
+      "method": "GET",
+      "path": "/api/v2/links",
+      "as": null
+    },
+    {
+      "name": "linkStatsAlice",
+      "method": "GET",
+      "path": "/api/v2/links/{{facts.linksAlice.body.data.3.id}}/stats",
+      "as": "users.alice"
+    },
+    {
+      "name": "meAlice",
+      "method": "GET",
+      "path": "/api/v2/users",
+      "as": "users.alice",
+      "keep": [
+        "email",
+        "role",
+        "verified",
+        "banned"
+      ]
+    },
+    {
+      "name": "usersAdmin",
+      "method": "GET",
+      "path": "/api/v2/users/admin",
+      "as": "users.admin",
+      "keep": [
+        "total",
+        "data[].email",
+        "data[].role",
+        "data[].verified",
+        "data[].banned"
+      ],
+      "maxItems": 5
+    },
+    {
+      "name": "usersAdminAsMember",
+      "method": "GET",
+      "path": "/api/v2/users/admin",
+      "as": "users.alice"
+    }
+  ],
+  "sourceHints": {
+    "include": [
+      "server/routes/**",
+      "server/handlers/**",
+      "server/queries/**",
+      "server/views/**",
+      "static/scripts/**"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "docs/**",
+      "db/**"
+    ]
+  },
+  "forbiddenPaths": [],
+  "accountResources": [
+    "/api/v2/users"
+  ],
+  "coverage": {
+    "kind": "node-v8"
+  }
+}
