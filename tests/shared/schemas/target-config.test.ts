@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TargetConfig } from '../../../src/shared/schemas.js';
+import { hasFrontend, uiBaseUrl, uiSourceRoots } from '../../../src/shared/target-ui.js';
 import { errorPaths, example } from './helpers.js';
 
 describe('target.config.json', () => {
@@ -24,6 +25,21 @@ describe('target.config.json', () => {
     expect(errorPaths(TargetConfig, { ...config, coverage: { kind: 'istanbul' } })).toContain('coverage.kind');
   });
 
+  it('frontend is optional (a one-process app): pages open at the backend\'s URL and the page source is backend.sourceRoots', () => {
+    const { frontend: _f, ...single } = config;
+    const parsed = TargetConfig.parse({ ...single, backend: { ...config.backend, sourceRoots: ['server/views', 'static/scripts'] } });
+    expect(parsed.frontend).toBeUndefined();
+    expect(hasFrontend(parsed)).toBe(false);
+    expect(uiBaseUrl(parsed)).toBe(config.backend.baseUrl);
+    expect(uiSourceRoots(parsed)).toEqual(['server/views', 'static/scripts']);
+    // Without sourceRoots the backend's cwd is the page source; with a frontend, its settings apply.
+    expect(uiSourceRoots(TargetConfig.parse(single))).toEqual([config.backend.cwd]);
+    const withFrontend = TargetConfig.parse(config);
+    expect([hasFrontend(withFrontend), uiBaseUrl(withFrontend), uiSourceRoots(withFrontend)]).toEqual([true, config.frontend.baseUrl, ['client/app']]);
+    expect(errorPaths(TargetConfig, { ...single, backend: { ...config.backend, sourceRoots: ['../x'] } })).toContain('backend.sourceRoots.0');
+    expect(errorPaths(TargetConfig, { ...single, backend: { ...config.backend, sourceRoots: [] } })).toContain('backend.sourceRoots');
+  });
+
   it('validates the optional seedCheck', () => {
     expect(TargetConfig.parse(config).seedCheck?.expect.nonEmptyArrayAt).toBe('products');
     const { seedCheck: _s, ...noCheck } = config;
@@ -40,9 +56,9 @@ describe('target.config.json', () => {
   });
 
     it('accepts optional frontend.sourceRoots as relative folders', () => {
-    expect(TargetConfig.parse(config).frontend.sourceRoots).toEqual(['client/app']);
+    expect(TargetConfig.parse(config).frontend?.sourceRoots).toEqual(['client/app']);
     const { sourceRoots: _r, ...frontend } = config.frontend;
-    expect(TargetConfig.parse({ ...config, frontend }).frontend.sourceRoots).toBeUndefined();
+    expect(TargetConfig.parse({ ...config, frontend }).frontend?.sourceRoots).toBeUndefined();
     expect(errorPaths(TargetConfig, { ...config, frontend: { ...frontend, sourceRoots: [] } })).toContain('frontend.sourceRoots');
     expect(errorPaths(TargetConfig, { ...config, frontend: { ...frontend, sourceRoots: ['../x'] } })).toContain(
       'frontend.sourceRoots.0',
@@ -58,9 +74,9 @@ describe('target.config.json', () => {
     expect(errorPaths(TargetConfig, { ...config, auth: { ...config.auth, tokenAt: '' } })).toContain('auth.tokenAt');
   });
 
-    it('rejects a target missing backend or frontend', () => {
-    const { frontend: _f, ...noFrontend } = config;
-    expect(errorPaths(TargetConfig, noFrontend)).toContain('frontend');
+  it('rejects a target without a backend (a frontend alone is not an app to test)', () => {
+    const { backend: _b, ...noBackend } = config;
+    expect(errorPaths(TargetConfig, noBackend)).toContain('backend');
   });
 
   it('rejects a wrong schemaVersion', () => {

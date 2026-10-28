@@ -159,11 +159,21 @@ export const TargetConfig = z.strictObject({
   backend: ServiceConfig.extend({
     apiPrefix: z.string(),
     disabledServices: EnvMap.default({}),
+    /**
+     * Only for a one-process app (no `frontend`): folders holding the page source (templates, page scripts), relative
+     * to the repo root. Default: [cwd]. Ignored when there is a frontend (its own `sourceRoots` apply).
+     */
+    sourceRoots: z.array(RelPath).min(1).optional(),
   }),
+  /**
+   * Optional: absent for a one-process app whose backend serves the pages at its own URL (server-rendered pages). Then
+   * `backend.baseUrl` is also where pages open, only one service is started and checked, and `override.frontend` is
+   * ignored.
+   */
   frontend: ServiceConfig.extend({
     /** Folders holding the frontend's own source (pages, components), relative to the repo root. Default: [cwd]. */
     sourceRoots: z.array(RelPath).min(1).optional(),
-  }),
+  }).optional(),
   lifecycle: z.strictObject({
     reset: z.string().min(1),
     resetCwd: z.string(),

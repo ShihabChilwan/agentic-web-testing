@@ -51,7 +51,7 @@ export async function startCheck<T = undefined>(
       repoDir: options.repoDir,
       commit: options.commit,
       ...(options.patchFile ? { patchFile: options.patchFile } : {}),
-      linkNodeModules: [config.backend.cwd, config.frontend.cwd],
+      linkNodeModules: [config.backend.cwd, ...(config.frontend ? [config.frontend.cwd] : [])],
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -87,7 +87,7 @@ export async function startCheck<T = undefined>(
       };
       return {
         observation: {
-          healthChecks: { backend: health('backend'), frontend: health('frontend') },
+          healthChecks: { backend: health('backend'), frontend: config.frontend ? health('frontend') : true }, // a one-process app has no frontend to fail
           exited: { backend: exit('backend'), frontend: exit('frontend') },
           buildErrors,
         },

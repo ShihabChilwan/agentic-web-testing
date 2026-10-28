@@ -1,5 +1,6 @@
 import { chromium, type Request } from '@playwright/test';
 import type { TargetConfig } from '../../shared/schemas.js';
+import { uiBaseUrl } from '../../shared/target-ui.js';
 import { checkFixtureLogins, type FixtureGuardResult } from './guard.js';
 import { fillPlaceholders } from './placeholders.js';
 import { runSeedCheck, valueAtPath } from './seed.js';
@@ -77,7 +78,7 @@ export async function observeApp(config: TargetConfig): Promise<AppObservation> 
   return {
     ...(seedCheck && { seedCheck: { ok: seedCheck.ok, status: seedCheck.status } }),
     logins: await checkFixtureLogins(config),
-    page: await observePage(config.frontend.baseUrl),
+    page: await observePage(uiBaseUrl(config)),
   };
 }
 
@@ -140,7 +141,7 @@ export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArra
       try {
         const page = await context.newPage();
         if (token && storage) {
-          const origin = new URL(config.frontend.baseUrl).origin;
+          const origin = new URL(uiBaseUrl(config)).origin;
           await page.addInitScript(
             ({ kind, key, value, at }) => {
               const g = globalThis as unknown as Record<string, { setItem(k: string, v: string): void }> & { location: { origin: string } };
@@ -153,7 +154,7 @@ export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArra
             { kind: storage.kind, key: storage.key, value: token, at: origin },
           );
         }
-        const res = await page.goto(new URL(req.path, config.frontend.baseUrl).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
+        const res = await page.goto(new URL(req.path, uiBaseUrl(config)).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
         if (!res) {
           out.push(null);
           continue;

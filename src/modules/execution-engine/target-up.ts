@@ -77,7 +77,7 @@ try {
   if (!allOk) process.exitCode = 1;
 
   if (values.hold && !controller.signal.aborted) {
-    console.log(`\nApp is up: ${config.frontend.baseUrl} and ${config.backend.baseUrl}. Press Ctrl+C to stop.`);
+    console.log(`\nApp is up: ${config.frontend ? `${config.frontend.baseUrl} and ${config.backend.baseUrl}` : config.backend.baseUrl}. Press Ctrl+C to stop.`);
     const running = target;
     const print = () => memoryLine(running).then(console.log, () => {});
     await print();

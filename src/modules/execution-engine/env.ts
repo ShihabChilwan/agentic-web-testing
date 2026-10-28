@@ -31,7 +31,7 @@ export function applyOverride(env: Env, override: Record<string, string | null> 
 /** A service's own env: config `env` (plus `disabledServices` for the backend), then the override. */
 export function serviceEnv(config: TargetConfig, service: ServiceName, override?: ConfigOverride): Env {
   const configured =
-    service === 'backend' ? { ...config.backend.env, ...config.backend.disabledServices } : { ...config.frontend.env };
+    service === 'backend' ? { ...config.backend.env, ...config.backend.disabledServices } : { ...config.frontend?.env };
   return applyOverride(configured, override?.[service]?.env);
 }
 

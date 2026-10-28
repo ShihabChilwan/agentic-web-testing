@@ -1,10 +1,11 @@
 import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { TargetConfig } from '../../shared/schemas.js';
+import { uiBaseUrl } from '../../shared/target-ui.js';
 
 /** What the helpers read from `_target.json`: base URLs, fixtures and login settings (SPEC §6.1). */
 export function targetSettings(config: TargetConfig) {
-  return { apiUrl: config.backend.baseUrl, uiUrl: config.frontend.baseUrl, fixtures: config.fixtures, auth: config.auth };
+  return { apiUrl: config.backend.baseUrl, uiUrl: uiBaseUrl(config), fixtures: config.fixtures, auth: config.auth };
 }
 
 /**
@@ -75,6 +76,6 @@ export async function buildSuite(execDir: string, scriptsDir: string, testIds: r
   await copyFile(path.join(scriptsDir, '_helpers.ts'), path.join(suiteDir, '_helpers.base.ts'));
   await writeFile(path.join(suiteDir, '_helpers.ts'), EXECUTION_HELPERS, 'utf8');
   await writeFile(path.join(suiteDir, '_target.json'), `${JSON.stringify(targetSettings(config), null, 2)}\n`, 'utf8');
-  await writeFile(path.join(execDir, 'playwright.config.ts'), playwrightConfig(config.frontend.baseUrl), 'utf8');
+  await writeFile(path.join(execDir, 'playwright.config.ts'), playwrightConfig(uiBaseUrl(config)), 'utf8');
   return suiteDir;
 }

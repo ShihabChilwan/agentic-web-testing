@@ -20,7 +20,8 @@ export interface TestRecord {
 export interface IsolationOptions {
   /** The execution's server/backend.log. */
   backendLog: string;
-  frontendHealthUrl: string;
+  /** The frontend's health check; absent for a one-process app, whose frontend checks are skipped. */
+  frontendHealthUrl?: string;
   /** Quick frontend check before each test (default: its health check within 5 s). */
   frontendUp?: () => Promise<boolean>;
   log?: (message: string) => void;
@@ -51,7 +52,7 @@ export class TestIsolation {
   ) {
     this.frontendUp =
       options.frontendUp ??
-      (async () => (await waitForHealthy('frontend', options.frontendHealthUrl, { timeoutMs: 5000, intervalMs: 500 })).ok);
+      (async () => (await waitForHealthy('frontend', options.frontendHealthUrl!, { timeoutMs: 5000, intervalMs: 500 })).ok);
   }
 
   private incident(beforeTestCaseId: string | null, kind: Incident['kind'], detail: string): void {
@@ -66,6 +67,7 @@ export class TestIsolation {
   }
 
   private async checkFrontend(testId: string): Promise<void> {
+    if (!this.options.frontendHealthUrl && !this.options.frontendUp) return; // a one-process app: nothing separate to check
     if (this.failedFrontendRestarts >= MAX_FAILED_FRONTEND_RESTARTS) return;
     const exit = this.target.exitOf('frontend');
     if (!exit && (await this.frontendUp())) return;

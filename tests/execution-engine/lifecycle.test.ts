@@ -172,6 +172,28 @@ describe('startTarget', () => {
     await target.stop(); // a second stop is harmless
   });
 
+  it('starts one service for a one-process app (no frontend): one port, one health check, restores, no frontend restart', async () => {
+    // The backend also serves the pages; the frontend port is not used at all (even when something else holds it).
+    const config = makeConfig((c) => delete c.frontend);
+    const blocker = http.createServer();
+    await new Promise<void>((resolve) => blocker.listen(frontendPort, '127.0.0.1', resolve));
+    try {
+      await withTarget(config, options(), async (target) => {
+        expect(target.healthChecks.map((c) => [c.name, c.ok])).toEqual([['backend', true]]);
+        expect(target.services.map((s) => s.name)).toEqual(['backend']);
+        expect(target.exitOf('frontend')).toBeNull();
+        const backendBefore = target.services[0]!.pid;
+        const result = await target.restore();
+        expect(result).toMatchObject({ backendHealthy: true, problems: [] });
+        expect(target.services[0]!.pid).not.toBe(backendBefore);
+        await expect(target.restartFrontend()).rejects.toThrow(/no separate frontend/);
+      });
+    } finally {
+      await new Promise((resolve) => blocker.close(resolve));
+    }
+    expect(await portsFree()).toBe(true);
+  });
+
   it('installs only when the lockfile changed', async () => {
     for (const sub of ['api', 'web']) await rm(path.join(repoDir, sub, 'node_modules'), { recursive: true, force: true });
     await rm(path.join(repoDir, 'installs.txt'), { force: true });

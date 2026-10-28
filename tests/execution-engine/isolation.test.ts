@@ -50,6 +50,20 @@ afterEach(async () => {
 const make = (target: ReturnType<typeof fakeTarget>['target'], frontendUp = async () => true) =>
   new TestIsolation(target, { backendLog, frontendHealthUrl: 'http://127.0.0.1:1', frontendUp });
 
+describe('TestIsolation without a frontend (a one-process app)', () => {
+  it('checks and restarts nothing for a frontend, and still restores before each test', async () => {
+    const { target, state } = fakeTarget([]);
+    state.exits.frontend = { code: 1, signal: null }; // would be restarted if there were a frontend
+    const iso = new TestIsolation(target, { backendLog });
+    await iso.before('TC-001');
+    await iso.after('TC-001', '/out/TC-001');
+    expect(state.frontendRestarts).toBe(0);
+    expect(state.restores).toBe(1);
+    expect(iso.incidents).toEqual([]);
+    expect(iso.records.get('TC-001')?.isolated).toBe(true);
+  });
+});
+
 describe('TestIsolation', () => {
   it('restores before every test and marks each isolated, with its own backend log range', async () => {
     const { target, state } = fakeTarget([]);

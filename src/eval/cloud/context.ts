@@ -73,7 +73,7 @@ function fill(template: string, values: Record<string, string>): string {
 
 /** Dockerfile lines that install each service's packages and record the lockfile hash (SPEC §7.5). */
 function installLines(config: TargetConfig): string {
-  const services = [config.backend, config.frontend].filter((s, i, all) => all.findIndex((o) => o.cwd === s.cwd) === i);
+  const services = [config.backend, ...(config.frontend ? [config.frontend] : [])].filter((s, i, all) => all.findIndex((o) => o.cwd === s.cwd) === i);
   return services
     .map((s) => ` && (cd ${path.posix.join(config.repoPath, s.cwd)} && ${s.install} && sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.lockfile-hash) \\\n`)
     .join('');

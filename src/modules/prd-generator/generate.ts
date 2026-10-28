@@ -12,6 +12,7 @@ import { createRun, errorSummary, llmSettings, setStage } from '../../shared/run
 import { Prd } from '../../shared/schemas.js';
 import type { StageAgentSummary, StageCompletenessSummary, TargetConfig } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
+import { uiSourceRoots } from '../../shared/target-ui.js';
 import { checkoutRef } from '../execution-engine/lifecycle.js';
 import { createCompletenessSubmit, createDraftTools, createSubmit, draftCounts, featureId, PrdDraft, RECORDING_TOOLS, requirementId, unnamedPages } from './draft.js';
 import type { SubmitInput } from './draft.js';
@@ -177,7 +178,7 @@ export async function generatePrd(options: GeneratePrdOptions): Promise<Generate
     const draft = new PrdDraft({
       scope,
       apiPrefix: config.backend.apiPrefix,
-      frontendRoots: config.frontend.sourceRoots ?? [config.frontend.cwd],
+      frontendRoots: uiSourceRoots(config),
     });
 
     const result = await runAgent(

@@ -24,6 +24,7 @@ import type {
   TestCase,
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
+import { uiBaseUrl, uiSourceRoots } from '../../shared/target-ui.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { checkFixtureLogins } from '../execution-engine/guard.js';
 import { startTarget } from '../execution-engine/lifecycle.js';
@@ -201,7 +202,7 @@ async function generateOne(tc: TestCase, deps: Deps, reviewNote?: string): Promi
   const callers = await callerBlocks(tc, {
     endpoints: deps.prd.apiEndpoints,
     apiPrefix: deps.config.backend.apiPrefix,
-    frontendRoots: deps.config.frontend.sourceRoots ?? [deps.config.frontend.cwd],
+    frontendRoots: uiSourceRoots(deps.config),
     scope: { root: deps.repoDir, forbiddenPaths: deps.config.forbiddenPaths },
     commit: deps.generationCommit,
     read: deps.read,
@@ -474,7 +475,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       path.join(paths.scriptsDir, '_target.json'),
       `${JSON.stringify(targetSettings(config), null, 2)}\n`,
     );
-    await writePlaywrightConfig(paths.dir, config.frontend.baseUrl);
+    await writePlaywrightConfig(paths.dir, uiBaseUrl(config));
 
     const llm = options.createLlm
       ? await options.createLlm(llmConfig, paths.llmCalls)

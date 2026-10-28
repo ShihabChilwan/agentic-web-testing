@@ -3,6 +3,7 @@ import { isHidden, splitLines } from '../../agent/tools/repo-tools.js';
 import type { RepoScope } from '../../agent/tools/repo-tools.js';
 import { showFile } from '../../shared/git.js';
 import type { Prd, PrdRequirement, TargetConfig, TargetFacts } from '../../shared/schemas.js';
+import { hasFrontend, uiBaseUrl } from '../../shared/target-ui.js';
 import type { Grounding } from './checks.js';
 
 /** Characters of evidence code inserted into one call (about 10k tokens). */
@@ -184,7 +185,7 @@ export function groundingText(evidence: CodeExcerpts, config: TargetConfig): str
     ...fixtureValues(config.fixtures),
     config.backend.apiPrefix,
     config.backend.baseUrl,
-    config.frontend.baseUrl,
+    uiBaseUrl(config),
   ].join('\n');
 }
 
@@ -296,7 +297,7 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
     `## Limits\nAt most ${quota} test cases in this submission, and at most 4 per requirement.`,
     [
       '## Environment',
-      `- Frontend base URL: ${config.frontend.baseUrl}`,
+      `- Frontend base URL: ${uiBaseUrl(config)}${hasFrontend(config) ? '' : ' (the same server as the backend)'}`,
       `- Backend base URL: ${config.backend.baseUrl}`,
       `- API path prefix: ${config.backend.apiPrefix || '(none)'}`,
       `- Disabled third-party services (configuration keys): ${disabled.length > 0 ? disabled.join(', ') : 'email, payments, OAuth, external storage'}`,

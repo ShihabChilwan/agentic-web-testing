@@ -91,7 +91,7 @@ export async function sourceTreeFor(config: TargetConfig, repoDir: string, reque
     repoDir,
     commit,
     ...(request.patch ? { patchFile: path.resolve(projectRoot, request.patch) } : {}),
-    linkNodeModules: [...new Set([config.backend.cwd, config.frontend.cwd])],
+    linkNodeModules: [...new Set([config.backend.cwd, ...(config.frontend ? [config.frontend.cwd] : [])])],
   });
   return { commit, tree };
 }
@@ -214,7 +214,7 @@ async function runSuite(options: ExecuteVersionOptions, request: ExecutionReques
   const startupMs = Date.now() - startedAt.getTime();
   let control: Awaited<ReturnType<typeof startControlServer>> | undefined;
   try {
-    const isolation = new TestIsolation(target, { backendLog, frontendHealthUrl: config.frontend.healthCheckUrl, log });
+    const isolation = new TestIsolation(target, { backendLog, ...(config.frontend ? { frontendHealthUrl: config.frontend.healthCheckUrl } : {}), log });
     let n = 0;
     control = await startControlServer({
       before: async (testId) => {

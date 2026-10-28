@@ -1,4 +1,5 @@
 import type { Prd, PrdRequirement, TargetConfig, TargetFacts, TestCase } from '../../shared/schemas.js';
+import { hasFrontend, uiBaseUrl } from '../../shared/target-ui.js';
 import { snapshotForModel } from '../execution-engine/probe.js';
 import { renderEndpointIndex, renderFacts } from '../test-case-generator/context.js';
 import type { CodeExcerpts } from '../test-case-generator/context.js';
@@ -82,7 +83,7 @@ export function buildScriptTask(input: ScriptTaskInput): string {
     `## The file around your body\n\`\`\`ts\n${header(tc)}\n  // <your body goes here>\n});\n\`\`\``,
     [
       '## Environment',
-      `- Frontend base URL: ${config.frontend.baseUrl}`,
+      `- Frontend base URL: ${uiBaseUrl(config)}${hasFrontend(config) ? '' : ' (the same server as the backend)'}`,
       `- Backend base URL: ${config.backend.baseUrl}`,
       `- API path prefix: ${config.backend.apiPrefix || '(none)'}`,
       '- Fixtures (refer to them as fixtures.<path>):',

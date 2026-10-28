@@ -74,7 +74,7 @@ export interface RunningTarget {
    * bug may cause it (as with the seed check at start).
    */
   restore(): Promise<RestoreResult>;
-  /** Stops and starts the frontend, then waits for its health check. */
+  /** Stops and starts the frontend, then waits for its health check. Throws for a one-process app (no frontend). */
   restartFrontend(): Promise<HealthCheckResult>;
   /** How a service's current process exited, or null while it runs. */
   exitOf(name: ServiceName): ExitInfo | null;
@@ -142,10 +142,10 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
   const fill = (command: string) => fillPlaceholders(command, { targetDir: options.targetDir });
 
   try {
-    await assertPortsFree([
-      { name: 'backend', url: config.backend.baseUrl },
-      { name: 'frontend', url: config.frontend.baseUrl },
-    ]);
+    // A one-process app (no `frontend`, SPEC §1.2) has one service; its backend serves the pages.
+    const names: ServiceName[] = config.frontend ? ['backend', 'frontend'] : ['backend'];
+    const serviceOf = (name: ServiceName) => (name === 'frontend' ? config.frontend! : config.backend);
+    await assertPortsFree(names.map((name) => ({ name, url: serviceOf(name).baseUrl })));
 
     let commit: string;
     if (options.prepared) {
@@ -156,10 +156,10 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     }
 
     // A prepared tree links the target repo's installed node_modules (checked when it was built).
-    for (const name of options.prepared ? [] : (['backend', 'frontend'] as const)) {
+    for (const name of options.prepared ? [] : names) {
       throwIfAborted(signal);
       // Installs use the configured env without the override: an environment fault targets the running app.
-      const outcome = await installIfNeeded(dir(config[name].cwd), fill(config[name].install), {
+      const outcome = await installIfNeeded(dir(serviceOf(name).cwd), fill(serviceOf(name).install), {
         env: childEnv(serviceEnv(config, name)),
         logFile: setupLog,
         timeoutMs: INSTALL_TIMEOUT_MS,
@@ -200,7 +200,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
       }
     };
     const startOne = async (name: ServiceName, say: (m: string) => void = log) => {
-      const service = config[name];
+      const service = serviceOf(name);
       const env = serviceEnv(config, name, configOverride);
       if (service.envFile) await writeFile(path.join(dir(service.cwd), service.envFile), formatEnvFile(env));
       say(`Starting ${name}: ${service.start}`);
@@ -221,7 +221,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     };
 
     await resetData();
-    for (const name of ['backend', 'frontend'] as ServiceName[]) {
+    for (const name of names) {
       throwIfAborted(signal);
       services.push(await startOne(name));
     }
@@ -229,7 +229,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     log(`Waiting for health checks (up to ${Math.round(startupTimeoutMs / 1000)} s)`);
     const healthChecks = await Promise.all(
       services.map((service) =>
-        waitForHealthy(service.name, config[service.name as ServiceName].healthCheckUrl, {
+        waitForHealthy(service.name, serviceOf(service.name as ServiceName).healthCheckUrl, {
           timeoutMs: startupTimeoutMs,
           giveUp: service.exited,
           signal,
@@ -325,6 +325,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
       return { durationMs: Date.now() - started, via: 'full', backendHealthy: health.ok, problems };
     };
     const restartFrontend = async () => {
+      if (!config.frontend) throw new Error('This target has no separate frontend (a one-process app)');
       const frontend = await replace('frontend');
       return waitForHealthy('frontend', config.frontend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: frontend.exited, signal });
     };

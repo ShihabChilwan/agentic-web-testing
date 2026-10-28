@@ -112,3 +112,13 @@ describe('request shapes in the task', () => {
     expect(task).toContain('sends: body {"category":"object with slug"}');
   });
 });
+
+describe('the environment lines of the script task', () => {
+  it('say the pages are served by the backend when the target has no separate frontend', () => {
+    const base = TargetConfig.parse(example('target.config.json'));
+    const { frontend: _f, ...rest } = base;
+    const build = (config: TargetConfig) => buildScriptTask({ testCase: tc(['Send GET /api/category']), requirements: [], evidence: { blocks: [], omitted: [] }, config, facts: null, endpoints });
+    expect(build(TargetConfig.parse(rest))).toContain(`- Frontend base URL: ${base.backend.baseUrl} (the same server as the backend)`);
+    expect(build(base)).toContain(`- Frontend base URL: ${base.frontend!.baseUrl}\n`);
+  });
+});

@@ -1,4 +1,5 @@
 import type { TargetConfig } from '../../shared/schemas.js';
+import { hasFrontend, uiSourceRoots } from '../../shared/target-ui.js';
 
 export const MAX_BATCH_ITEMS = 25;
 
@@ -58,8 +59,12 @@ export function buildTask(config: TargetConfig): string {
   if (config.backend.apiPrefix) {
     lines.push(`The API path prefix is "${config.backend.apiPrefix}": every endpoint path starts with it.`);
   }
-  const frontendRoots = config.frontend.sourceRoots ?? [config.frontend.cwd];
-  lines.push(`The frontend's page and component source is under: ${frontendRoots.join(', ')}.`);
+  const pageRoots = uiSourceRoots(config).join(', ');
+  lines.push(
+    hasFrontend(config)
+      ? `The frontend's page and component source is under: ${pageRoots}.`
+      : `There is no separate frontend: the backend serves the pages. Their templates and page scripts are under: ${pageRoots}.`,
+  );
   const disabled = Object.keys(config.backend.disabledServices);
   lines.push(
     disabled.length > 0

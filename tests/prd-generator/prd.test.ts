@@ -361,9 +361,16 @@ describe('PRD prompts', () => {
     expect(task).not.toContain(config.name);
   });
 
+  it('for a one-process app (no frontend) says the backend serves the pages and where their source is', () => {
+    const { frontend: _f, ...rest } = TargetConfig.parse(example('target.config.json'));
+    const task = buildTask({ ...rest, backend: { ...rest.backend, sourceRoots: ['server/views', 'static/scripts'] } });
+    expect(task).toContain('There is no separate frontend: the backend serves the pages. Their templates and page scripts are under: server/views, static/scripts.');
+    expect(task).not.toContain("The frontend's page and component source");
+  });
+
   it('falls back to frontend.cwd and generic service names when the config has neither', () => {
     const config = TargetConfig.parse(example('target.config.json'));
-    const { sourceRoots: _r, ...frontend } = config.frontend;
+    const { sourceRoots: _r, ...frontend } = config.frontend!;
     const task = buildTask({ ...config, frontend, backend: { ...config.backend, disabledServices: {} } });
     expect(task).toContain('source is under: client.');
     expect(task).toContain('(email, payments, OAuth, external storage) are disabled');
