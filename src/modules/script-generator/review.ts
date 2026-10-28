@@ -12,6 +12,8 @@ import { stripAnsi } from './classify.js';
 import { failureContext } from './dry-run.js';
 import { messageValue } from './suspected.js';
 
+/** Reviews one script may get: another one only when it fails on an expectation no earlier review looked at. */
+export const MAX_REVIEWS = 3;
 /** Exploring tool calls a review may make (read_file, search_code, list_files). */
 const REVIEW_TOOL_CALLS = 10;
 /** A citation covers at most this many lines, so it points at the code rather than a whole file. */
@@ -109,13 +111,41 @@ export async function reviewProblems(sub: SubmitReview, ctx: ReviewCheckContext)
   return problems;
 }
 
-/** The test case with the reviewed expectation changed and the revision recorded (SPEC §5). */
+/** The attempt whose result stands (the kept one, else the last) and the expectation it failed on. */
+export function failingExpectation(entry: ScriptManifestEntry): { attempt: ScriptManifestEntry['attemptLog'][number]; expectationId: string | null } {
+  const kept = entry.keptAttempt === undefined ? undefined : entry.attemptLog.find((a) => a.attempt === entry.keptAttempt);
+  const attempt = kept ?? entry.attemptLog.at(-1)!;
+  const expectationId = /^Error: (E\d+)\s*$/m.exec(stripAnsi(attempt.error ?? '').split('\n')[0] ?? '')?.[1] ?? null;
+  return { attempt, expectationId };
+}
+
+/**
+ * Whether a script whose locked value differed gets a review now (SPEC §6.2): it has none yet, or it fails on an
+ * expectation that no earlier review looked at, with fewer than MAX_REVIEWS reviews so far. A review written before the
+ * expectation was recorded counts by its case's revision when it revised one, and otherwise as having seen the
+ * current failure.
+ */
+export function needsReview(entry: ScriptManifestEntry, tc: TestCase): boolean {
+  if (entry.validationOutcome !== 'assertion_failed') return false;
+  const reviews = [...(entry.earlierReviews ?? []), ...(entry.review ? [entry.review] : [])];
+  if (reviews.length === 0) return true;
+  if (reviews.length >= MAX_REVIEWS) return false;
+  const failing = failingExpectation(entry).expectationId;
+  if (failing === null) return false;
+  const revisions = [...(tc.earlierRevisions ?? []), ...(tc.revision ? [tc.revision] : [])];
+  const seen = reviews.map((r) => r.expectationId ?? (r.verdict === 'test_case_wrong' ? revisions.at(-1)?.expectationId : failing));
+  return !seen.includes(failing);
+}
+
+/** The test case with the reviewed expectation changed and the revision recorded (SPEC §5); an earlier revision is kept. */
 export function reviseTestCase(tc: TestCase, sub: SubmitReview, expectationId: string, now: Date = new Date()): TestCase {
   const old = tc.expected.find((e) => e.id === expectationId)!;
   const from = { description: old.description, ...(old.value !== undefined ? { value: old.value } : {}) };
+  const earlier = tc.revision ? { earlierRevisions: [...(tc.earlierRevisions ?? []), tc.revision] } : {};
   if (sub.change!.kind === 'remove') {
     return {
       ...tc,
+      ...earlier,
       expected: tc.expected.filter((e) => e.id !== expectationId),
       revision: { expectationId, change: 'remove', from, to: null, citation: sub.citation!, explanation: sub.explanation, revisedAt: now.toISOString() },
     };
@@ -123,6 +153,7 @@ export function reviseTestCase(tc: TestCase, sub: SubmitReview, expectationId: s
   const updated = { ...old, value: sub.change!.value!, description: sub.change!.description ?? old.description };
   return {
     ...tc,
+    ...earlier,
     expected: tc.expected.map((e) => (e.id === expectationId ? updated : e)),
     revision: {
       expectationId,
@@ -197,10 +228,8 @@ export interface ReviewOutcome {
  * read-only repo tools at the generation version. A session that ends without an accepted verdict keeps the result.
  */
 export async function reviewSuspected(tc: TestCase, entry: ScriptManifestEntry, deps: ReviewDeps, now: () => Date = () => new Date()): Promise<ReviewOutcome> {
-  const kept = entry.keptAttempt === undefined ? undefined : entry.attemptLog.find((a) => a.attempt === entry.keptAttempt);
-  const attempt = kept ?? entry.attemptLog.at(-1)!;
+  const { attempt, expectationId } = failingExpectation(entry);
   const message = stripAnsi(attempt.error ?? '');
-  const expectationId = /^Error: (E\d+)\s*$/m.exec(message.split('\n')[0] ?? '')?.[1];
   if (!expectationId || !tc.expected.some((e) => e.id === expectationId)) {
     return { review: { verdict: 'failed', explanation: 'The failing expectation could not be read from the recorded error', reviewedAt: now().toISOString() } };
   }
@@ -227,6 +256,7 @@ export async function reviewSuspected(tc: TestCase, entry: ScriptManifestEntry, 
     const sub = result.output;
     const review: ScriptReview = {
       verdict: sub.verdict,
+      expectationId,
       explanation: sub.explanation,
       ...(sub.verdict === 'test_case_wrong' && sub.citation ? { citation: { file: sub.citation.file, lines: sub.citation.lines } } : {}),
       reviewedAt: now().toISOString(),
@@ -234,6 +264,6 @@ export async function reviewSuspected(tc: TestCase, entry: ScriptManifestEntry, 
     return sub.verdict === 'test_case_wrong' ? { review, revised: reviseTestCase(tc, sub, expectationId, now()) } : { review };
   } catch (err) {
     if (!(err instanceof AgentSubmitError || err instanceof AgentBudgetError)) throw err;
-    return { review: { verdict: 'failed', explanation: errorSummary(err), reviewedAt: now().toISOString() } };
+    return { review: { verdict: 'failed', expectationId, explanation: errorSummary(err), reviewedAt: now().toISOString() } };
   }
 }

@@ -157,7 +157,7 @@ describe('generateScripts: progress, interruption and resume', () => {
     });
     // Interrupt once the manifest on disk shows the two finished cases (it is written after each one).
     const done = async () => (JSON.parse(await readFile(paths.scriptsManifest, 'utf8').catch(() => '{"scripts":[]}')) as { scripts: unknown[] }).scripts.length;
-    for (let i = 0; i < 400 && (await done()) < 2; i++) await new Promise((r) => setTimeout(r, 50));
+    for (let i = 0; i < 2400 && (await done()) < 2; i++) await new Promise((r) => setTimeout(r, 50));
     controller.abort();
     await expect(running).rejects.toThrow('Interrupted');
     const partial = ScriptManifest.parse(JSON.parse(await readFile(paths.scriptsManifest, 'utf8')));

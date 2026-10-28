@@ -17,7 +17,7 @@ const MAX_ENDPOINTS = 6;
 
 type Endpoint = Prd['apiEndpoints'][number];
 
-/** A regex for an endpoint path, with `:param` segments matching any value (e.g. /api/product/item/:slug). */
+/** A regex for an endpoint path, with `:param` segments matching any value (e.g. /api/items/:id). */
 const pathPattern = (p: string) => new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:[A-Za-z_]\w*/g, '[^/\\s]+')}$`);
 
 /** The PRD endpoints a test case's steps, preconditions and title mention, by method and path. */
@@ -35,7 +35,7 @@ export function endpointsUsed(tc: TestCase, endpoints: Endpoint[]): Endpoint[] {
 
 /**
  * Definitions, in the same file, of functions whose results the calling code uses
- * (e.g. `const products = getCartItems(cartItems)`): they often build the request body.
+ * (e.g. `const lines = toLines(items)`): they often build the request body.
  */
 export function helperRanges(lines: string[], start: number, end: number): Array<{ start: number; end: number; name: string }> {
   const names = new Set<string>();
@@ -137,7 +137,7 @@ export async function callerBlocks(
         })),
       ];
       for (const block of candidates) {
-        // The same lines may serve several endpoints (e.g. /cart/add and /cart/add/:cartId): show them once.
+        // The same lines may serve several endpoints (e.g. /items/add and /items/add/:listId): show them once.
         if (blocks.some((b) => b.file === block.file && b.start === block.start && b.end === block.end)) continue;
         const size = block.lines.join('\n').length;
         if (used + size > CALLERS_CHAR_CAP) return blocks;

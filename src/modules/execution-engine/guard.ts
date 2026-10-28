@@ -3,7 +3,7 @@ import { fillPlaceholders } from './placeholders.js';
 import { valueAtPath } from './seed.js';
 
 export interface FixtureGuardResult {
-  /** Fixture users whose login no longer works (e.g. "users.alice"): a test changed them. */
+  /** Fixture users whose login no longer works (e.g. "users.<name>"): a test changed them. */
   broken: string[];
   /** True when the backend did not answer at all: not a fixture change, but the app is down. */
   unreachable: boolean;

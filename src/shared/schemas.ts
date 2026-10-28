@@ -90,8 +90,8 @@ export const SeedCheck = z.strictObject({
   body: z.unknown().optional(),
   expect: z.strictObject({
     status: z.number().int().min(100).max(599),
-    /** Dot path into the JSON response (e.g. `products` or `data.items`) that must hold a non-empty array. */
-    nonEmptyArrayAt: z.string().regex(/^[^.]+(\.[^.]+)*$/, 'expected a dot path like products or data.items').optional(),
+    /** Dot path into the JSON response (e.g. `items` or `data.items`) that must hold a non-empty array. */
+    nonEmptyArrayAt: z.string().regex(/^[^.]+(\.[^.]+)*$/, 'expected a dot path like items or data.items').optional(),
   }),
 });
 
@@ -143,9 +143,9 @@ export const FactRequest = z.strictObject({
   /** May use `{{facts.<earlier name>.body.<path>}}`, filled from an earlier fact's full response (URL-encoded). */
   path: z.string().startsWith('/'),
   body: z.unknown().optional(),
-  /** A fixture user path to log in as (e.g. "users.alice"), or null for no token. */
+  /** A fixture user path to log in as (e.g. "users.<name>"), or null for no token. */
   as: z.string().min(1).nullable().default(null),
-  /** Dot paths to keep, `[]` for every item (e.g. "products[].name"); all of the body when left out. */
+  /** Dot paths to keep, `[]` for every item (e.g. "items[].name"); all of the body when left out. */
   keep: z.array(z.string().min(1)).optional(),
   maxItems: z.number().int().positive().default(5),
 });
@@ -410,6 +410,8 @@ export const TestCase = z.object({
   steps: z.array(z.string().min(1)).min(1),
   expected: z.array(Expectation).min(1),
   revision: TestCaseRevision.optional(),
+  /** Earlier revisions of the case, oldest first, when a later review revised it again (SPEC §6.2). */
+  earlierRevisions: z.array(TestCaseRevision).optional(),
 });
 
 export const UncoveredReasonKind = z.enum(['third-party-disabled', 'data-not-reachable', 'out-of-scope', 'other']);
@@ -562,6 +564,8 @@ const withFailureCategory = (value: unknown) => {
 export const ReviewVerdict = z.enum(['keep', 'test_case_wrong', 'script_wrong', 'failed']);
 export const ScriptReview = z.object({
   verdict: ReviewVerdict,
+  /** The expectation that failed when the review ran; absent in reviews written before it was recorded. */
+  expectationId: ExpectationId.optional(),
   explanation: z.string(),
   citation: Evidence.optional(),
   reviewedAt: Timestamp,
@@ -585,6 +589,8 @@ export const ScriptManifestEntry = z.preprocess(withFailureCategory, z
     unstable: z.literal(true).optional(),
     /** The review of a script whose locked value differed on the generation version (SPEC §6.2); absent when not reviewed. */
     review: ScriptReview.optional(),
+    /** Earlier reviews of this script, oldest first, when it failed again on another expectation (SPEC §6.2). */
+    earlierReviews: z.array(ScriptReview).optional(),
   })
   .refine((s) => (s.status === 'validated') === (s.validationOutcome !== null), {
     message: 'validationOutcome must be set for validated scripts and null for invalid ones',

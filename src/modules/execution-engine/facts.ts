@@ -15,7 +15,7 @@ const REDACTED = '[redacted]';
 
 type Fact = TargetFacts['facts'][number];
 
-/** The parts of a value named by dot paths; `name[]` maps over an array (e.g. "products[].name"). */
+/** The parts of a value named by dot paths; `name[]` maps over an array (e.g. "items[].name"). */
 export function project(value: unknown, keep: string[]): unknown {
   const pick = (v: unknown, segments: string[]): unknown => {
     if (segments.length === 0) return v;

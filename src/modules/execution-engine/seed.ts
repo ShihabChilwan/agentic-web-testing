@@ -31,7 +31,7 @@ export async function sendSeedRequests(
   return results;
 }
 
-/** The value at a dot path such as `products` or `data.items`; undefined when any step is missing. */
+/** The value at a dot path such as `items` or `data.items`; undefined when any step is missing. */
 export function valueAtPath(value: unknown, dotPath: string): unknown {
   let current = value;
   for (const key of dotPath.split('.')) {

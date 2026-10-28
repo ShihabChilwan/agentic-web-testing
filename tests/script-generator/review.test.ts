@@ -6,14 +6,14 @@ import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import type { DryRunResult } from '../../src/modules/script-generator/dry-run.js';
 import { generateScripts } from '../../src/modules/script-generator/index.js';
-import { receivedValue, reviewProblems, reviseTestCase } from '../../src/modules/script-generator/review.js';
+import { MAX_REVIEWS, needsReview, receivedValue, reviewProblems, reviseTestCase } from '../../src/modules/script-generator/review.js';
 import type { SubmitReview } from '../../src/modules/script-generator/review.js';
 import { linesAtCommit } from '../../src/modules/test-case-generator/context.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
 import { createRun, llmSettings, readRunManifest } from '../../src/shared/run-manifest.js';
 import { ScriptManifest, TestCases } from '../../src/shared/schemas.js';
-import type { TestCase } from '../../src/shared/schemas.js';
+import type { ScriptManifestEntry, ScriptReview, TestCase } from '../../src/shared/schemas.js';
 import { example } from '../shared/schemas/helpers.js';
 
 // A fake app's code, so citations can be checked against a real commit.
@@ -118,6 +118,32 @@ describe('review checks (code, no model)', () => {
   });
 });
 
+describe('another review when a script fails on another expectation', () => {
+  const failing = (id: string, extra: Partial<ScriptManifestEntry> = {}): ScriptManifestEntry => ({
+    testCaseId: 'TC-001', file: 'scripts/TC-001.spec.ts', status: 'validated', validationOutcome: 'assertion_failed', attempts: 1, failureCategory: null,
+    attemptLog: [{ attempt: 1, stage: 'dry-run', error: `Error: ${id}\n\nExpected: 1\nReceived: 2`, durationMs: 1 }], ...extra,
+  });
+  const review = (verdict: ScriptReview['verdict'], expectationId?: string): ScriptReview => ({ verdict, explanation: 'x', reviewedAt: '2026-10-28T12:00:00.000Z', ...(expectationId ? { expectationId } : {}) });
+  const t = tc('TC-001', [{ id: 'E1', description: 'a', value: 1 }, { id: 'E2', description: 'b', value: 1 }]);
+
+  it('reviews a script with no review, again only on an expectation not yet reviewed, and at most MAX_REVIEWS times', () => {
+    expect(needsReview(failing('E1'), t)).toBe(true);
+    expect(needsReview(failing('E1', { review: review('test_case_wrong', 'E1') }), t)).toBe(false);
+    expect(needsReview(failing('E2', { review: review('test_case_wrong', 'E1') }), t)).toBe(true);
+    expect(needsReview(failing('E2', { review: review('keep', 'E2'), earlierReviews: [review('test_case_wrong', 'E1')] }), t)).toBe(false);
+    const full = { review: review('keep', 'E2'), earlierReviews: [review('script_wrong', 'E3'), review('test_case_wrong', 'E4')] };
+    expect(MAX_REVIEWS).toBe(3);
+    expect(needsReview(failing('E1', full), t)).toBe(false);
+    expect(needsReview({ ...failing('E1'), validationOutcome: 'passed' }, t)).toBe(false);
+  });
+
+  it('an older review without its expectation counts by the case\'s revision, or as having seen the current failure', () => {
+    const revised = { ...t, revision: { expectationId: 'E1', change: 'remove' as const, from: { description: 'a', value: 1 }, to: null, citation: { file: 'server/items.js', lines: [1, 3] as [number, number] }, explanation: 'x', revisedAt: '2026-10-28T12:00:00.000Z' } };
+    expect(needsReview(failing('E2', { review: review('test_case_wrong') }), revised)).toBe(true);
+    expect(needsReview(failing('E2', { review: review('failed') }), t)).toBe(false);
+  });
+});
+
 describe('reviews in the scripts stage (fake model and dry runs)', () => {
   it('revises a blamed test case and writes its script again, rewrites a blamed script with the reason, and keeps the rest', { timeout: 180_000 }, async () => {
     const runsDir = await mkdtemp(path.join(root, 'runs-'));
@@ -130,6 +156,7 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       tc('TC-001', [{ id: 'E1', description: 'The message says updated', value: 'Updated!' }]),
       tc('TC-002', [{ id: 'E1', description: 'The response holds the item count', value: 3 }]),
       tc('TC-003', [{ id: 'E1', description: 'The item count', value: 5 }]),
+      tc('TC-004', [{ id: 'E1', description: 'The message says updated', value: 'Updated!' }, { id: 'E2', description: 'The item count', value: 7 }]),
     ];
     await writeFile(paths.testCases, JSON.stringify({ schemaVersion: '1.0', generatedAt: '2026-10-28T10:00:00Z', testCases: cases, coverage: { requirementsTotal: 1, requirementsCovered: 1, uncovered: [] } }));
 
@@ -144,6 +171,11 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       ],
       'TC-002': [FakeLLMClient.toolCall('submit_review', { verdict: 'script_wrong', explanation: 'The script compared the length of the message; the count is in b.count.' })],
       'TC-003': [FakeLLMClient.toolCall('submit_review', { verdict: 'keep', explanation: 'The handler may be wrong.' })],
+      // Revised on E1, then failing on E2: a second review, which keeps it.
+      'TC-004': [
+        FakeLLMClient.toolCall('submit_review', { verdict: 'test_case_wrong', explanation: 'The handler sends this message on purpose.', citation: { file: 'server/items.js', lines: [2, 2] }, change: { kind: 'value', value: 'Added to your list!' } }),
+        FakeLLMClient.toolCall('submit_review', { verdict: 'keep', explanation: 'The count may be wrong.' }),
+      ],
     };
     const respond = (req: ChatRequest): ChatResponse => {
       const first = req.messages[0];
@@ -155,6 +187,7 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       }
       const id = /test for (TC-\d+)/.exec(task)![1]!;
       (scriptTasks[id] ??= []).push(task);
+      if (id === 'TC-004') return FakeLLMClient.toolCall('submit_script', { body: `${body('b.message')}\nexpect(b.count, 'E2').toBe(EXPECTED.E2.value);` });
       // TC-002 after its review: the count.
       return FakeLLMClient.toolCall('submit_script', { body: body(id === 'TC-002' && task.includes('A reviewer looked') ? 'b.count' : 'b.message.length') });
     };
@@ -164,6 +197,11 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       const fails = (expected: string, received: string): DryRunResult => ({ status: 'failed', message: `Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: ${expected}\nReceived: ${received}`, durationMs: 1 });
       if (text.includes('TC-001: ')) return text.includes("value: 'Added to your list!'") ? { status: 'passed', message: '', durationMs: 1 } : fails('"Updated!"', '"Added to your list!"');
       if (text.includes('TC-002: ')) return text.includes('b.count') ? { status: 'passed', message: '', durationMs: 1 } : fails('3', '19');
+      if (text.includes('TC-004: ')) {
+        return text.includes("value: 'Added to your list!'")
+          ? { status: 'failed', message: 'Error: E2\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 7\nReceived: 3', durationMs: 1 }
+          : fails('"Updated!"', '"Added to your list!"');
+      }
       return fails('5', '3');
     };
     const result = await generateScripts({
@@ -187,12 +225,15 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
     expect(scriptTasks['TC-002']!.at(-1)).toContain('The script compared the length of the message; the count is in b.count.');
     // TC-003: kept as a suspected defect, with the review's reason.
     expect(byId['TC-003']).toMatchObject({ validationOutcome: 'assertion_failed', review: { verdict: 'keep' } });
-    expect(result.suspectedDefects.map((d) => [d.testCaseId, d.review?.verdict])).toEqual([['TC-003', 'keep']]);
+    expect(result.suspectedDefects.map((d) => [d.testCaseId, d.review?.verdict])).toEqual([['TC-003', 'keep'], ['TC-004', 'keep']]);
+    // TC-004: revised on E1, then a second review on E2; both are kept, and the revision too.
+    expect(byId['TC-004']?.review).toMatchObject({ verdict: 'keep', expectationId: 'E2' });
+    expect(byId['TC-004']?.earlierReviews).toEqual([expect.objectContaining({ verdict: 'test_case_wrong', expectationId: 'E1' })]);
     // The review saw the failure and the script.
     expect(reviewTasks['TC-002']).toContain('the correct version gave 19');
     expect(reviewTasks['TC-002']).toContain("expect(b.message.length, 'E1')");
 
-    expect(result.summary.reviewed).toEqual({ cases: 3, keep: 1, testCaseWrong: 1, scriptWrong: 1, failed: 0, passedAfter: 2 });
+    expect(result.summary.reviewed).toEqual({ cases: 4, keep: 2, testCaseWrong: 1, scriptWrong: 1, failed: 0, passedAfter: 2 });
     ScriptManifest.parse(JSON.parse(await readFile(paths.scriptsManifest, 'utf8')));
     expect((await readRunManifest(paths.runJson)).stages.scripts?.scripts?.reviewed).toEqual(result.summary.reviewed);
 

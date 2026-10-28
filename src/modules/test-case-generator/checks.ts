@@ -17,7 +17,7 @@ export { templateMatches };
  * session has finished), the expectation ids E1, E2, ... in order, and a missing title (from the first
  * expectation; the model often leaves it out). Empty lists may be left out.
  */
-export const TestCaseDraft = TestCase.omit({ id: true, title: true, expected: true, preconditions: true, fixturesUsed: true, revision: true }).extend({
+export const TestCaseDraft = TestCase.omit({ id: true, title: true, expected: true, preconditions: true, fixturesUsed: true, revision: true, earlierRevisions: true }).extend({
   title: z.string().min(1).optional(),
   preconditions: z.array(z.string()).default([]),
   fixturesUsed: z.array(z.string()).default([]),
@@ -84,7 +84,7 @@ export function isGroundedIn(value: string | number | boolean, g: Grounding): bo
   return false;
 }
 
-/** True when a dot path such as `users.alice` exists in the fixtures. */
+/** True when a dot path such as `users.<name>` exists in the fixtures. */
 export function fixtureExists(fixtures: unknown, dotPath: string): boolean {
   let current: unknown = fixtures;
   for (const key of dotPath.split('.')) {
@@ -320,15 +320,15 @@ export function checkSubmission(sub: SubmitTestCases, ctx: CheckContext): string
 const BLANK_CHECK = /!\s*[\w$.?]+\.trim\(\)|\.trim\(\)\s*(?:===?|!==?)\s*(?:''|""|``)|\.trim\(\)\.length\s*(?:===?|!==?|<|<=|>)\s*[01]\b/;
 /**
  * Words that say a case enters text that is only spaces. Not "empty": a trim check exists for text that is not empty
- * but blank, and "empty" matches unrelated cases (an empty cart); in run 152610 it would have let the check pass.
+ * but blank, and "empty" matches unrelated cases (an empty list), which would let the check pass without the case that matters.
  */
 const BLANK_WORDS = /\b(whitespace|blank|only spaces|spaces only)\b/i;
 
 /**
  * Boundary values for text (SPEC §5): when the code in a session's task rejects text that is empty or only spaces, one of
  * its cases must enter text that is only spaces (its steps or expectations say so: only spaces, blank, whitespace), or a
- * decline must say why that cannot be tested. A code check, not only a prompt rule: run 152610 had no such case, and
- * a development bug that removed the trim went unnoticed.
+ * decline must say why that cannot be tested. A code check, not only a prompt rule: without it no such case was written,
+ * and a bug that removes the trim goes unnoticed.
  */
 export function blankInputProblems(sub: SubmitTestCases, blocks: ReadonlyArray<{ file: string; start: number; lines: string[] }>): string[] {
   const where = blocks.flatMap((b) => b.lines.flatMap((line, i) => (BLANK_CHECK.test(line) ? [`${b.file}:${b.start + i} \`${line.trim()}\``] : [])));

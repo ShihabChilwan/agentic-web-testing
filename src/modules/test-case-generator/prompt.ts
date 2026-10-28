@@ -24,7 +24,7 @@ You get one feature at a time: its requirements, the code that implements them a
 - Use only the fixtures listed, plus the data the observed facts show (it exists at the start of every test). Do not assume anything else exists.
 - Data a test needs that is not there yet is created in the test's steps, through the API endpoints listed (for example log in as an admin fixture user and create the record first). Do not decline a requirement as "data-not-reachable" when the facts already show the data or an endpoint can create it.
 - Never change a fixture user: not its profile, password, role or data. A test that changes a user first registers a new user with unique values and changes that one.
-  Bad: steps that rename users.alice or change her password.
+  Bad: steps that rename a fixture user (users.<name>) or change its password.
   Good: "Register a new user with a unique email", then "Change that user's first name".
 - Tests are independent: each starts from the fixture data only and must not rely on another test or on running order. Data a test creates must use unique values, e.g. a timestamp in a name or email, so the test can run again.
 - An api test case that changes data (create, update or delete, also when the request should be rejected) reads it back afterwards with a GET request from the endpoint list (or, only when it changes a user account such as a registration or password change, by logging in) and checks what comes back in an expectation marked "readBack": true: the new values after a create or update, the item gone after a delete, nothing changed after a rejected request. Skip this only when no endpoint can read that data.

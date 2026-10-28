@@ -55,7 +55,7 @@ const WAIT = /\b(waitForURL|waitForResponse|waitForRequest|waitForLoadState|wait
 /**
  * A page.goto right after a page action, with nothing awaited between them (§6.3): when the action navigates (a
  * submitted form that redirects), the goto races it and fails with net::ERR_ABORTED, or the page is left before the
- * action's request finished. Seen on the correct version in the cloud, twice (TC-018).
+ * action's request finished. A race that passes locally can fail on a slower machine.
  */
 export function gotoAfterAction(body: string): string[] {
   const actions = [...body.matchAll(PAGE_ACTION)].map((m) => m.index);

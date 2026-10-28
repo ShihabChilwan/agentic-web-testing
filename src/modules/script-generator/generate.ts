@@ -38,7 +38,7 @@ import { DryRunQueue, Mutex, oneByOne, playwrightBatch, playwrightVersion, write
 import type { DryRunItem, DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
-import { reviewSuspected, type ReviewDeps } from './review.js';
+import { MAX_REVIEWS, needsReview, reviewSuspected, type ReviewDeps } from './review.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
 import { buildScriptTask, buildSystemPrompt } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
@@ -554,11 +554,11 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
     };
     await untilInterrupted(work);
 
-    // S3: every script whose locked value differed, not reviewed yet, gets one review (SPEC §6.2). A blamed test case is
-    // revised in testcases.json and its script written again; a blamed script is written again with the reason.
-    const toReview = cases.filter((tc) => finished.get(tc.id)?.validationOutcome === 'assertion_failed' && !finished.get(tc.id)?.review);
-    if (toReview.length > 0) {
-      log(`Reviewing ${toReview.length} scripts whose locked value differed`);
+    // S3: every script whose locked value differed gets a review (SPEC §6.2): a blamed test case is revised in
+    // testcases.json and its script written again; a blamed script is written again with the reason. A script that then
+    // fails on another expectation gets another review, up to MAX_REVIEWS, in rounds.
+    const reviewable = () => cases.filter((tc) => needsReview(finished.get(tc.id)!, tc));
+    if (reviewable().length > 0) {
       let caseWrites: Promise<void> = Promise.resolve();
       const writeTestCases = () => {
         const text = `${JSON.stringify(TestCases.parse({ ...parsedCases.data, testCases: cases }), null, 2)}\n`;
@@ -575,24 +575,31 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
         requirements: (tc) => prd.requirements.filter((r) => tc.requirementIds.includes(r.id)),
         readScript: (tc) => readFile(path.join(paths.scriptsDir, `${tc.id}.spec.ts`), 'utf8'),
       };
-      const reviewing = Promise.all(
-        toReview.map(async (tc) => {
-          const outcome = await reviewSuspected(tc, finished.get(tc.id)!, reviewDeps);
-          let next = finished.get(tc.id)!;
-          if (outcome.revised) {
-            cases[cases.findIndex((c) => c.id === tc.id)] = outcome.revised;
-            await writeTestCases();
-            next = await generateOne(outcome.revised, deps);
-          } else if (outcome.review.verdict === 'script_wrong') {
-            next = await generateOne(tc, deps, outcome.review.explanation);
-          }
-          if (!options.signal?.aborted) {
-            finished.set(tc.id, { ...next, review: outcome.review });
-            await writeManifest();
-          }
-        }),
-      );
-      await untilInterrupted(reviewing);
+      for (let round = 1; round <= MAX_REVIEWS && !options.signal?.aborted; round++) {
+        const toReview = reviewable();
+        if (toReview.length === 0) break;
+        log(`Reviewing ${toReview.length} scripts whose locked value differed${round > 1 ? ` (round ${round}: failing on another expectation)` : ''}`);
+        const reviewing = Promise.all(
+          toReview.map(async (tc) => {
+            const previous = finished.get(tc.id)!;
+            const outcome = await reviewSuspected(tc, previous, reviewDeps);
+            let next = previous;
+            if (outcome.revised) {
+              cases[cases.findIndex((c) => c.id === tc.id)] = outcome.revised;
+              await writeTestCases();
+              next = await generateOne(outcome.revised, deps);
+            } else if (outcome.review.verdict === 'script_wrong') {
+              next = await generateOne(tc, deps, outcome.review.explanation);
+            }
+            if (!options.signal?.aborted) {
+              const earlierReviews = [...(previous.earlierReviews ?? []), ...(previous.review ? [previous.review] : [])];
+              finished.set(tc.id, { ...next, review: outcome.review, ...(earlierReviews.length > 0 ? { earlierReviews } : {}) });
+              await writeManifest();
+            }
+          }),
+        );
+        await untilInterrupted(reviewing);
+      }
     }
     const entries = cases.map((tc) => finished.get(tc.id)!);
     const result = ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, helpersHash: hash, scripts: entries });
