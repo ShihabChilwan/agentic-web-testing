@@ -41,6 +41,7 @@ export function runPaths(runId: string, runsDir: string = RUNS_DIR) {
     coverageDir: path.join(dir, 'coverage'),
     coverage: path.join(dir, 'coverage', 'coverage.json'),
     testCases: path.join(dir, 'testcases.json'),
+    verdicts: path.join(dir, 'verdicts.json'),
     scriptsDir: path.join(dir, 'scripts'),
     scriptsManifest: path.join(dir, 'scripts', 'manifest.json'),
     executionDir,

@@ -35,7 +35,14 @@ export async function makeReportRun() {
   tcs.testCases = [
     { ...base, id: 'TC-001', title: 'Wrong password is rejected' },
     { ...base, id: 'TC-002', title: 'Missing email is rejected' },
-    { ...base, id: 'TC-003', title: 'Login page heading' },
+    // Revised after review (S3): an expectation removed, with hostile text in the reason to check escaping.
+    {
+      ...base, id: 'TC-003', title: 'Login page heading',
+      revision: {
+        expectationId: 'E2', change: 'remove', from: { description: 'The heading says Welcome', value: 'Welcome' }, to: null,
+        citation: { file: 'client/app/Login.js', lines: [3, 9] }, explanation: `The page has no such heading ${EVIL}`, revisedAt: '2026-10-28T12:00:00.000Z',
+      },
+    },
     // The generation version contradicts it: a suspected defect (§6.4). Hostile text checks escaping.
     { ...base, id: 'TC-004', title: `Non-admin cannot approve ${EVIL}`, expected: [{ id: 'E1', description: 'Response status is 403', value: 403 }] },
   ];

@@ -12,10 +12,10 @@ export type StageName = keyof RunManifest['stages'];
 export function llmSettings(config: LLMConfig): RunManifest['llm'] {
   return {
     provider: config.provider,
-    models: { ...config.models },
+    models: { ...config.models, other: config.model },
     temperature: config.temperature,
     topP: config.topP,
-    reasoningEffort: { ...config.reasoningEfforts },
+    reasoningEffort: { ...config.reasoningEfforts, other: config.reasoningEffort },
     concurrency: config.concurrency,
   };
 }

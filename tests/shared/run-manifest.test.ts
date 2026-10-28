@@ -15,6 +15,27 @@ const input = (runsDir: string, now = new Date('2026-10-24T10:00:00Z')) => ({
   now,
 });
 
+describe('llmSettings', () => {
+  it('records the model and the reasoning effort of every call purpose, including those outside the four modules', () => {
+    const settings = llmSettings(parseLLMConfig({
+      LLM_BASE_URL: 'http://model.test/v1', LLM_MODEL: 'default-model', LLM_MODEL_PRD: 'prd-model', LLM_REASONING_EFFORT: 'high', LLM_REASONING_EFFORT_CASES: 'low',
+    }));
+    // gaps, review, one-prompt and ping use the default model and LLM_REASONING_EFFORT.
+    expect(settings.models).toEqual({ prd: 'prd-model', cases: 'default-model', scripts: 'default-model', analyzer: 'default-model', other: 'default-model' });
+    expect(settings.reasoningEffort).toEqual({ prd: 'medium', cases: 'low', scripts: 'medium', analyzer: 'medium', other: 'high' });
+  });
+
+  it('an older run.json without the "other" entries still reads', async () => {
+    const runsDir = await mkdtemp(path.join(tmpdir(), 'runs-'));
+    const { paths } = await createRun(input(runsDir));
+    const written = JSON.parse(await readFile(paths.runJson, 'utf8'));
+    delete written.llm.models.other;
+    delete written.llm.reasoningEffort.other;
+    await writeFile(paths.runJson, JSON.stringify(written));
+    expect((await readRunManifest(paths.runJson)).llm.reasoningEffort.other).toBeUndefined();
+  });
+});
+
 describe('run manifest', () => {
   it('creates the run folder and a valid run.json without secrets', async () => {
     const runsDir = await mkdtemp(path.join(tmpdir(), 'runs-'));

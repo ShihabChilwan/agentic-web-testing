@@ -102,6 +102,7 @@ function overview() {
       tile(s.assertionFailed, 'scripts disagree with ' + V.run.generationRef),
       tile(s.invalid + s.none, 'scripts invalid or missing')),
     suspected(),
+    revisions(),
     section('Stages'),
     table(['Stage', 'Status', 'Time', 'Model calls', 'Cost'], V.stages.map(function (st) {
       return h('tr', null, h('td', null, st.name), h('td', null, badge(st.status)), h('td', null, secs(st.durationMs)), h('td', null, st.calls), h('td', null, money(st.costUsd)));
@@ -132,6 +133,27 @@ function suspected() {
         h('td', null, d.expected === null ? '' : d.expected),
         h('td', { class: 'failed' }, d.received === null ? '' : d.received),
         h('td', null, d.review ? d.review.verdict + ': ' + d.review.explanation : 'not reviewed'));
+    })),
+  ];
+}
+
+function revisions() {
+  var list = V.revisions;
+  if (!list.length) return null;
+  var removed = list.filter(function (r) { return r.change === 'remove'; }).length;
+  function shown(x) { return x ? x.description + (x.value === undefined ? '' : ' [' + JSON.stringify(x.value) + ']') : ''; }
+  return [
+    section('Expectations changed after review (' + list.length + (removed ? ', ' + removed + ' removed' : '') + ')'),
+    h('p', { class: 'muted' }, 'A review found the test case wrong and cited the code. A removed expectation is no longer checked: look at each removal, and at each cited line.'),
+    table(['Test', 'Expectation', 'Change', 'Before', 'After', 'Cited code', 'Reason'], list.map(function (r) {
+      return h('tr', null,
+        h('td', null, r.testCaseId + ': ' + r.title),
+        h('td', null, r.expectationId),
+        h('td', { class: r.change === 'remove' ? 'failed' : '' }, r.change === 'remove' ? 'removed' : 'value changed'),
+        h('td', null, shown(r.from)),
+        h('td', null, r.to ? shown(r.to) : '(none)'),
+        h('td', null, r.citation.file + ':' + r.citation.lines[0] + '-' + r.citation.lines[1]),
+        h('td', null, r.explanation));
     })),
   ];
 }

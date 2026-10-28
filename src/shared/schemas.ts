@@ -560,12 +560,25 @@ const withFailureCategory = (value: unknown) => {
   return { ...entry, failureCategory: last ?? 'no-submit' };
 };
 
+/** A decision a person makes on a reviewed script, in runs/<runId>/verdicts.json (SPEC §6.2); the model is not asked. */
+export const HumanVerdicts = z.record(
+  TestCaseId,
+  z.object({
+    verdict: z.enum(['script_wrong', 'keep']),
+    /** For script_wrong this goes to the script writer: what the script must check instead, and how. */
+    explanation: z.string().min(20),
+  }),
+);
+export type HumanVerdicts = z.infer<typeof HumanVerdicts>;
+
 /** keep: the app may be wrong or it is unclear; test_case_wrong: the expectation was revised; script_wrong: the script was written again. */
 export const ReviewVerdict = z.enum(['keep', 'test_case_wrong', 'script_wrong', 'failed']);
 export const ScriptReview = z.object({
   verdict: ReviewVerdict,
   /** The expectation that failed when the review ran; absent in reviews written before it was recorded. */
   expectationId: ExpectationId.optional(),
+  /** Set when a person decided (verdicts.json) instead of the model. */
+  decidedBy: z.literal('human').optional(),
   explanation: z.string(),
   citation: Evidence.optional(),
   reviewedAt: Timestamp,
@@ -932,6 +945,10 @@ export const StageScriptsSummary = z.object({
   repaired: z.object({ cases: count, passed: count }).default({ cases: 0, passed: 0 }),
   /** Passed scripts that passed only after an earlier dry run timed out or hit a browser or network error (SPEC §6.2). */
   unstable: count.default(0),
+  /** Every expectation a review removed, to be checked by a person (SPEC §6.2). Empty in older summaries. */
+  removedExpectations: z
+    .array(z.object({ testCaseId: TestCaseId, expectationId: ExpectationId, description: z.string(), citation: Evidence, explanation: z.string() }))
+    .default([]),
   /** Reviews of scripts whose locked value differed (SPEC §6.2), by verdict, and how many scripts then passed. */
   reviewed: z
     .object({ cases: count, keep: count, testCaseWrong: count, scriptWrong: count, failed: count, passedAfter: count })
@@ -999,10 +1016,12 @@ export const RunManifest = z.object({
   createdAt: Timestamp,
   llm: z.object({
     provider: LLMProvider,
-    models: PerModule(z.string().min(1)),
+    // `other`: every call purpose outside the four modules (gaps, review, one-prompt, ping) uses the default model and
+    // LLM_REASONING_EFFORT; absent in files written before it was recorded.
+    models: PerModule(z.string().min(1)).extend({ other: z.string().min(1).optional() }),
     temperature: z.number().min(0).max(2),
     topP: z.number().gt(0).max(1),
-    reasoningEffort: PerModule(ReasoningEffort),
+    reasoningEffort: PerModule(ReasoningEffort).extend({ other: ReasoningEffort.optional() }),
     concurrency: z.number().int().positive(),
     /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Wafer"]). */
     upstreamProviders: z.array(z.string().min(1)).optional(),
@@ -1278,6 +1297,18 @@ export type OnePromptScript = z.infer<typeof OnePromptScript>;
 // Module 6 — run view model (SPEC §9.1): what the report and the dashboard render
 // ---------------------------------------------------------------------------
 
+/** A test case expectation a review changed or removed (SPEC §6.2), for a person to check. */
+export const ViewRevision = z.object({
+  testCaseId: TestCaseId,
+  title: z.string(),
+  expectationId: ExpectationId,
+  change: z.enum(['value', 'remove']),
+  from: z.object({ description: z.string(), value: z.union([z.string(), z.number(), z.boolean()]).optional() }),
+  to: z.object({ description: z.string(), value: z.union([z.string(), z.number(), z.boolean()]).optional() }).nullable(),
+  citation: Evidence,
+  explanation: z.string(),
+});
+
 export const ViewStage = z.object({
   name: z.enum(['prd', 'cases', 'scripts', 'gaps']),
   status: StageStatus,
@@ -1436,6 +1467,8 @@ export const RunView = z.object({
   requirements: z.array(ViewRequirement),
   /** Test cases the generation version contradicts (§6.4): reported, not executed. */
   suspectedDefects: z.array(SuspectedDefect),
+  /** Expectations changed or removed after review, removals first; empty when none (SPEC §6.2). */
+  revisions: z.array(ViewRevision).default([]),
   executions: z.array(ViewExecution),
   /** Keyed "<a>|<b>" in run.json order; only tests whose status differs. */
   comparisons: z.record(z.string(), z.array(ComparisonRow)),
@@ -1443,6 +1476,7 @@ export const RunView = z.object({
 
 export type RunView = z.infer<typeof RunView>;
 export type ViewStage = z.infer<typeof ViewStage>;
+export type ViewRevision = z.infer<typeof ViewRevision>;
 export type ViewRequirement = z.infer<typeof ViewRequirement>;
 export type ViewExecution = z.infer<typeof ViewExecution>;
 export type ViewTest = z.infer<typeof ViewTest>;

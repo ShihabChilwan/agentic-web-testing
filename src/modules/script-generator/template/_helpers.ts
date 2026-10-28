@@ -37,7 +37,7 @@ const target = JSON.parse(readFileSync(new URL('./_target.json', import.meta.url
 /** A fixture user: at least the fields the login uses (e.g. email and password). */
 export type User = Record<string, unknown>;
 
-/** The target's fixture data, e.g. `fixtures.users.alice.email`. Never write credentials as literals. */
+/** The target's fixture data, e.g. `fixtures.users.<name>.email`. Never write credentials as literals. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const fixtures = target.fixtures as Record<string, any>;
 

@@ -1,6 +1,6 @@
 import { rm } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildRunView, MAX_EXCERPT_CHARS } from '../../src/modules/report/view-model.js';
+import { buildRunView, MAX_EXCERPT_CHARS, revisionsOf } from '../../src/modules/report/view-model.js';
 import { messageValue } from '../../src/modules/script-generator/suspected.js';
 import { RunView } from '../../src/shared/schemas.js';
 import { COMMIT, makeReportRun, PNG } from './fixture.js';
@@ -105,5 +105,26 @@ describe('messageValue', () => {
     expect(messageValue(m, 'Expected')).toBe('"Password Incorrect"');
     expect(messageValue(m, 'Received')).toBe('""');
     expect(messageValue('- Expected  - 1\n+ Received  + 1', 'Expected')).toBeNull();
+  });
+});
+
+describe('revisionsOf', () => {
+  const rev = (expectationId: string, change: 'value' | 'remove') => ({
+    expectationId, change, from: { description: `before ${expectationId}`, value: 1 }, to: change === 'remove' ? null : { description: `after ${expectationId}`, value: 2 },
+    citation: { file: 'server/x.js', lines: [1, 2] as [number, number] }, explanation: `why ${expectationId}`, revisedAt: '2026-10-28T12:00:00.000Z',
+  });
+  const tc = (id: string, over: Record<string, unknown>) => ({
+    id, requirementIds: ['REQ-001'], title: `case ${id}`, layer: 'api', category: 'functional', priority: 'high',
+    preconditions: [], fixturesUsed: [], steps: ['s'], expected: [{ id: 'E1', description: 'd' }], ...over,
+  }) as never;
+
+  it('lists changes and removals of all cases, current and earlier, removals first', () => {
+    const list = revisionsOf([
+      tc('TC-001', { revision: rev('E1', 'value') }),
+      tc('TC-002', { earlierRevisions: [rev('E1', 'remove')], revision: rev('E2', 'value') }),
+      tc('TC-003', {}),
+    ]);
+    expect(list.map((r) => [r.testCaseId, r.expectationId, r.change])).toEqual([['TC-002', 'E1', 'remove'], ['TC-001', 'E1', 'value'], ['TC-002', 'E2', 'value']]);
+    expect(list[0]).toMatchObject({ title: 'case TC-002', to: null, citation: { file: 'server/x.js' }, explanation: 'why E1' });
   });
 });

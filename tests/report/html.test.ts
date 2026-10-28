@@ -58,6 +58,12 @@ describe('renderReport', () => {
         'not reviewed',
       ]);
       expect(await page.getByRole('heading', { name: 'Suspected defects in golden (1)' }).count()).toBe(1);
+      // The expectation a review removed is listed with its citation and reason; hostile text stays text.
+      expect(await page.getByRole('heading', { name: 'Expectations changed after review (1, 1 removed)' }).count()).toBe(1);
+      const removed = page.getByRole('row', { name: /TC-003/ });
+      expect(await removed.getByRole('cell').allTextContents()).toEqual([
+        'TC-003: Login page heading', 'E2', 'removed', 'The heading says Welcome ["Welcome"]', '(none)', 'client/app/Login.js:3-9', `The page has no such heading ${EVIL}`,
+      ]);
       await page.getByRole('button', { name: 'Executions' }).click();
       await page.locator('select').selectOption('x-02');
       await page.getByRole('row', { name: /TC-001/ }).click();

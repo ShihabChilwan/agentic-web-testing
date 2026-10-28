@@ -33,18 +33,6 @@ const GENERIC: Record<string, string> = {
   admin: 'the generic role name in examples of fixture users',
 };
 
-/**
- * Single occurrences that may stay, with the reason. Only for files whose change has a cost of its own: the script
- * helpers are hashed into every run's scripts (helpersHash), so editing a comment there regenerates all scripts.
- */
-const KEPT_OCCURRENCES: Array<{ file: string; term: string; reason: string }> = [
-  {
-    file: 'src/modules/script-generator/template/_helpers.ts',
-    term: 'alice',
-    reason: 'a comment example `fixtures.users.alice.email`; the helpers are hashed into every run (helpersHash), so it changes with the next real helpers change',
-  },
-];
-
 const TEXT_FILES = /\.(ts|js|cjs|mjs|json|md|txt|html|css)$/;
 
 function filesUnder(dir: string): string[] {
@@ -96,9 +84,7 @@ function hits(target: string): string[] {
     const pattern = /^\w+$/.test(term) ? new RegExp(`\\b${escape(term)}\\b`, 'i') : new RegExp(escape(term));
     for (const { file, lines } of sources) {
       lines.forEach((line, i) => {
-        if (!pattern.test(line)) return;
-        if (KEPT_OCCURRENCES.some((k) => k.file === file && k.term.toLowerCase() === term.toLowerCase())) return;
-        out.push(`${file}:${i + 1}: "${term}" (${from})`);
+        if (pattern.test(line)) out.push(`${file}:${i + 1}: "${term}" (${from})`);
       });
     }
   }

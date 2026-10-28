@@ -6,7 +6,7 @@ import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import type { DryRunResult } from '../../src/modules/script-generator/dry-run.js';
 import { generateScripts } from '../../src/modules/script-generator/index.js';
-import { MAX_REVIEWS, needsReview, receivedValue, reviewProblems, reviseTestCase } from '../../src/modules/script-generator/review.js';
+import { humanReview, MAX_REVIEWS, needsReview, readHumanVerdicts, receivedValue, removedExpectations, reviewProblems, reviseTestCase } from '../../src/modules/script-generator/review.js';
 import type { SubmitReview } from '../../src/modules/script-generator/review.js';
 import { linesAtCommit } from '../../src/modules/test-case-generator/context.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
@@ -118,6 +118,31 @@ describe('review checks (code, no model)', () => {
   });
 });
 
+describe('removed expectations and verdicts by a person', () => {
+  it('lists every removal, current and earlier, with its citation and reason', () => {
+    const t = tc('TC-001', [{ id: 'E1', description: 'a', value: 1 }, { id: 'E2', description: 'b', value: 2 }, { id: 'E3', description: 'c', value: 3 }]);
+    const sub = (id: string): SubmitReview => ({ verdict: 'test_case_wrong', explanation: `why ${id}`, citation: { file: 'server/items.js', lines: [1, 3] }, change: { kind: 'remove' } });
+    const once = reviseTestCase(t, sub('E1'), 'E1');
+    const twice = reviseTestCase(once, { ...sub('E2'), change: { kind: 'value', value: 5 } }, 'E2'); // a value change is not a removal
+    const thrice = reviseTestCase(twice, sub('E3'), 'E3');
+    expect(thrice.earlierRevisions?.map((r) => r.expectationId)).toEqual(['E1', 'E2']);
+    expect(removedExpectations([t, thrice])).toEqual([
+      { testCaseId: 'TC-001', expectationId: 'E1', description: 'a', citation: { file: 'server/items.js', lines: [1, 3] }, explanation: 'why E1' },
+      { testCaseId: 'TC-001', expectationId: 'E3', description: 'c', citation: { file: 'server/items.js', lines: [1, 3] }, explanation: 'why E3' },
+    ]);
+  });
+
+  it('reads verdicts.json: absent is empty, an invalid file says what it expects, test_case_wrong cannot be decided by hand', async () => {
+    const dir = await mkdtemp(path.join(root, 'verdicts-'));
+    expect(await readHumanVerdicts(path.join(dir, 'verdicts.json'))).toEqual({});
+    await writeFile(path.join(dir, 'ok.json'), JSON.stringify({ 'TC-036': { verdict: 'script_wrong', explanation: 'E1 is the status of the GET; the script compared the quantity.' } }));
+    expect((await readHumanVerdicts(path.join(dir, 'ok.json')))['TC-036']?.verdict).toBe('script_wrong');
+    await writeFile(path.join(dir, 'bad.json'), JSON.stringify({ 'TC-036': { verdict: 'test_case_wrong', explanation: 'x'.repeat(30) } }));
+    await expect(readHumanVerdicts(path.join(dir, 'bad.json'))).rejects.toThrow(/maps a test case id to \{ "verdict": "script_wrong" \| "keep"/);
+    expect(humanReview('keep', 'x'.repeat(25), 'E2', new Date('2026-10-28T12:00:00Z'))).toEqual({ verdict: 'keep', decidedBy: 'human', explanation: 'x'.repeat(25), expectationId: 'E2', reviewedAt: '2026-10-28T12:00:00.000Z' });
+  });
+});
+
 describe('another review when a script fails on another expectation', () => {
   const failing = (id: string, extra: Partial<ScriptManifestEntry> = {}): ScriptManifestEntry => ({
     testCaseId: 'TC-001', file: 'scripts/TC-001.spec.ts', status: 'validated', validationOutcome: 'assertion_failed', attempts: 1, failureCategory: null,
@@ -157,7 +182,10 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       tc('TC-002', [{ id: 'E1', description: 'The response holds the item count', value: 3 }]),
       tc('TC-003', [{ id: 'E1', description: 'The item count', value: 5 }]),
       tc('TC-004', [{ id: 'E1', description: 'The message says updated', value: 'Updated!' }, { id: 'E2', description: 'The item count', value: 7 }]),
+      tc('TC-005', [{ id: 'E1', description: 'The item count', value: 3 }]),
     ];
+    // A person decided TC-005: its script is written with the finding, and the model is not asked about it.
+    await writeFile(paths.verdicts, JSON.stringify({ 'TC-005': { verdict: 'script_wrong', explanation: 'The count is in b.count; the script must read it from there.' } }));
     await writeFile(paths.testCases, JSON.stringify({ schemaVersion: '1.0', generatedAt: '2026-10-28T10:00:00Z', testCases: cases, coverage: { requirementsTotal: 1, requirementsCovered: 1, uncovered: [] } }));
 
     const body = (subject: string) => `const res = await api.post('/api/items/add');\nconst b = await bodyOf(res);\nexpect(${subject}, 'E1').toBe(EXPECTED.E1.value);`;
@@ -187,6 +215,7 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       }
       const id = /test for (TC-\d+)/.exec(task)![1]!;
       (scriptTasks[id] ??= []).push(task);
+      if (id === 'TC-005') return FakeLLMClient.toolCall('submit_script', { body: body(task.includes('The count is in b.count') ? 'b.count' : 'b.message.length') });
       if (id === 'TC-004') return FakeLLMClient.toolCall('submit_script', { body: `${body('b.message')}\nexpect(b.count, 'E2').toBe(EXPECTED.E2.value);` });
       // TC-002 after its review: the count.
       return FakeLLMClient.toolCall('submit_script', { body: body(id === 'TC-002' && task.includes('A reviewer looked') ? 'b.count' : 'b.message.length') });
@@ -197,6 +226,7 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       const fails = (expected: string, received: string): DryRunResult => ({ status: 'failed', message: `Error: E1\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: ${expected}\nReceived: ${received}`, durationMs: 1 });
       if (text.includes('TC-001: ')) return text.includes("value: 'Added to your list!'") ? { status: 'passed', message: '', durationMs: 1 } : fails('"Updated!"', '"Added to your list!"');
       if (text.includes('TC-002: ')) return text.includes('b.count') ? { status: 'passed', message: '', durationMs: 1 } : fails('3', '19');
+      if (text.includes('TC-005: ')) return text.includes('b.count') ? { status: 'passed', message: '', durationMs: 1 } : fails('3', '19');
       if (text.includes('TC-004: ')) {
         return text.includes("value: 'Added to your list!'")
           ? { status: 'failed', message: 'Error: E2\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: 7\nReceived: 3', durationMs: 1 }
@@ -233,7 +263,13 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
     expect(reviewTasks['TC-002']).toContain('the correct version gave 19');
     expect(reviewTasks['TC-002']).toContain("expect(b.message.length, 'E1')");
 
-    expect(result.summary.reviewed).toEqual({ cases: 4, keep: 2, testCaseWrong: 1, scriptWrong: 1, failed: 0, passedAfter: 2 });
+    // TC-005: decided by a person; the script was written with the finding and passes; no model review was asked for it.
+    expect(byId['TC-005']).toMatchObject({ validationOutcome: 'passed', review: { verdict: 'script_wrong', decidedBy: 'human' } });
+    expect(reviewTasks['TC-005']).toBeUndefined();
+    expect(scriptTasks['TC-005']!.length).toBe(1);
+    expect(scriptTasks['TC-005']![0]).toContain('The count is in b.count; the script must read it from there.');
+    expect(result.summary.reviewed).toEqual({ cases: 5, keep: 2, testCaseWrong: 1, scriptWrong: 2, failed: 0, passedAfter: 3 });
+    expect(result.summary.removedExpectations).toEqual([]);
     ScriptManifest.parse(JSON.parse(await readFile(paths.scriptsManifest, 'utf8')));
     expect((await readRunManifest(paths.runJson)).stages.scripts?.scripts?.reviewed).toEqual(result.summary.reviewed);
 
@@ -247,5 +283,20 @@ describe('reviews in the scripts stage (fake model and dry runs)', () => {
       redo: [],
     });
     expect(calls).toBe(0);
+    expect(JSON.parse(await readFile(paths.scriptsManifest, 'utf8')).scripts.find((e: { testCaseId: string }) => e.testCaseId === 'TC-005').review.decidedBy).toBe('human');
+
+    // A person's script_wrong on a script that is kept: it is written again with the finding, its earlier review is kept.
+    await writeFile(paths.verdicts, JSON.stringify({ 'TC-001': { verdict: 'script_wrong', explanation: 'Check the message from b.message, not its length.' } }));
+    await generateScripts({
+      runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, llmConfig: parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' }),
+      createLlm: async () => new FakeLLMClient(Array.from({ length: 5 }, () => respond)),
+      startApp: async () => ({ stop: async () => {}, restore: async () => ({ durationMs: 1 }) }),
+      runDryRun,
+      redo: [],
+    });
+    expect(scriptTasks['TC-001']!.at(-1)).toContain('Check the message from b.message, not its length.');
+    const again = JSON.parse(await readFile(paths.scriptsManifest, 'utf8')).scripts.find((e: { testCaseId: string }) => e.testCaseId === 'TC-001');
+    expect(again.review).toMatchObject({ verdict: 'script_wrong', decidedBy: 'human' });
+    expect(again.earlierReviews).toEqual([expect.objectContaining({ verdict: 'test_case_wrong' })]);
   });
 });

@@ -38,7 +38,7 @@ import { DryRunQueue, Mutex, oneByOne, playwrightBatch, playwrightVersion, write
 import type { DryRunItem, DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
-import { MAX_REVIEWS, needsReview, reviewSuspected, type ReviewDeps } from './review.js';
+import { failingExpectation, humanReview, MAX_REVIEWS, needsReview, readHumanVerdicts, removedExpectations, reviewSuspected, type ReviewDeps } from './review.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
 import { buildScriptTask, buildSystemPrompt } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
@@ -325,6 +325,7 @@ export function scriptsSummary(
     resumed?: number;
     restores?: number;
     restoreMs?: number;
+    removedExpectations?: StageScriptsSummary['removedExpectations'];
   },
 ): StageScriptsSummary {
   const summary: StageScriptsSummary = {
@@ -342,6 +343,7 @@ export function scriptsSummary(
     repaired: { cases: 0, passed: 0 },
     unstable: 0,
     reviewed: { cases: 0, keep: 0, testCaseWrong: 0, scriptWrong: 0, failed: 0, passedAfter: 0 },
+    removedExpectations: [],
     ...extra,
   };
   for (const e of entries) {
@@ -533,9 +535,15 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
     const todo = cases.filter((tc) => !kept.has(tc.id));
     log(`${cases.length} test cases${kept.size > 0 ? `; keeping ${kept.size} validated scripts from the earlier run, generating ${todo.length}` : ''}`);
     await writeManifest();
+    // Decisions a person made (verdicts.json): applied once per script, and the model is not asked for those.
+    const verdicts = await readHumanVerdicts(paths.verdicts);
+    const hasHumanReview = (e: ScriptManifestEntry | undefined) => [...(e?.earlierReviews ?? []), ...(e?.review ? [e.review] : [])].some((r) => r.decidedBy === 'human');
     const work = Promise.all(
       todo.map(async (tc) => {
-        const entry = await generateOne(tc, deps);
+        // A script that is written for the first time after a person's script_wrong verdict gets the finding at once.
+        const verdict = verdicts[tc.id];
+        const note = verdict?.verdict === 'script_wrong' ? verdict.explanation : undefined;
+        const entry = await generateOne(tc, deps, note);
         if (!options.signal?.aborted) {
           finished.set(tc.id, entry);
           await writeManifest();
@@ -553,6 +561,22 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       await Promise.race([task, interrupted]);
     };
     await untilInterrupted(work);
+
+    for (const tc of cases) {
+      const verdict = verdicts[tc.id];
+      const before = finished.get(tc.id)!;
+      if (!verdict || hasHumanReview(before)) continue;
+      // A script generated in this run was written with the finding at once; a kept script is written again now.
+      const next = todo.includes(tc) || verdict.verdict !== 'script_wrong' ? before : await generateOne(tc, deps, verdict.explanation);
+      const earlierReviews = [...(before.earlierReviews ?? []), ...(before.review ? [before.review] : [])];
+      finished.set(tc.id, {
+        ...next,
+        review: humanReview(verdict.verdict, verdict.explanation, next.validationOutcome === 'assertion_failed' ? failingExpectation(next).expectationId : null),
+        ...(earlierReviews.length > 0 ? { earlierReviews } : {}),
+      });
+      log(`${tc.id}: ${verdict.verdict} (decided by a person, verdicts.json)`);
+      await writeManifest();
+    }
 
     // S3: every script whose locked value differed gets a review (SPEC §6.2): a blamed test case is revised in
     // testcases.json and its script written again; a blamed script is written again with the reason. A script that then
@@ -625,6 +649,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       resumed: kept.size,
       restores: deps.restores.count,
       restoreMs: deps.restores.ms,
+      removedExpectations: removedExpectations(cases),
     });
     await setStage(paths.dir, 'scripts', { status: 'done', startedAt, finishedAt: new Date().toISOString(), scripts: summary });
     return { runId, manifestFile: paths.scriptsManifest, manifest: result, summary, suspectedDefects: suspectedDefects(result, parsedCases.data, prd) };
@@ -647,6 +672,12 @@ export function describeScriptsSummary(s: StageScriptsSummary): string[] {
     `attempts: ${Object.entries(s.attemptsHistogram).map(([k, n]) => `${k}×${n}`).join(', ')}; failed attempts by stage: ${Object.entries(s.failuresByStage).map(([k, n]) => `${k} ${n}`).join(', ')}`,
     `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s in ${s.dryRunBatches} Playwright runs, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
     `reviews: ${s.reviewed.cases} scripts whose locked value differed: ${s.reviewed.testCaseWrong} test cases revised, ${s.reviewed.scriptWrong} scripts written again, ${s.reviewed.keep} kept as suspected defects${s.reviewed.failed ? `, ${s.reviewed.failed} reviews failed` : ''}; ${s.reviewed.passedAfter} then passed`,
+    ...(s.removedExpectations.length > 0
+      ? [
+          `expectations removed after review (${s.removedExpectations.length}; check them by hand):`,
+          ...s.removedExpectations.map((r) => `  ${r.testCaseId} ${r.expectationId} "${r.description}" — ${r.citation.file}:${r.citation.lines[0]}-${r.citation.lines[1]}: ${r.explanation.length > 200 ? `${r.explanation.slice(0, 199)}…` : r.explanation}`),
+        ]
+      : []),
     `repairs: ${s.repaired.cases} scripts got repair attempts after a locked value failed like a script error, ${s.repaired.passed} then passed; unstable on the generation version (passed only after a timeout or a browser or network error): ${s.unstable}`,
     ...Object.entries(s.invalidCases).map(([k, ids]) => `invalid (${k}): ${ids.join(', ')}`),
     ...s.warnings.map((w) => `Warning: ${w}`),

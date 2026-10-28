@@ -6,7 +6,9 @@ import { AgentBudgetError, AgentSubmitError } from '../../agent/types.js';
 import type { LLMClient } from '../../llm/types.js';
 import type { LLMConfig } from '../../shared/config.js';
 import { errorSummary } from '../../shared/run-manifest.js';
-import type { PrdRequirement, ScriptManifestEntry, ScriptReview, TestCase } from '../../shared/schemas.js';
+import { readFile } from 'node:fs/promises';
+import { HumanVerdicts } from '../../shared/schemas.js';
+import type { PrdRequirement, ScriptManifestEntry, ScriptReview, StageScriptsSummary, TestCase } from '../../shared/schemas.js';
 import type { ReadLines } from '../test-case-generator/context.js';
 import { stripAnsi } from './classify.js';
 import { failureContext } from './dry-run.js';
@@ -165,6 +167,32 @@ export function reviseTestCase(tc: TestCase, sub: SubmitReview, expectationId: s
       revisedAt: now.toISOString(),
     },
   };
+}
+
+/** Every expectation a review removed, from the test cases' revisions (current and earlier), for a person to check. */
+export function removedExpectations(cases: readonly TestCase[]): StageScriptsSummary['removedExpectations'] {
+  return cases.flatMap((tc) =>
+    [...(tc.earlierRevisions ?? []), ...(tc.revision ? [tc.revision] : [])]
+      .filter((r) => r.change === 'remove')
+      .map((r) => ({ testCaseId: tc.id, expectationId: r.expectationId, description: r.from.description, citation: r.citation, explanation: r.explanation })),
+  );
+}
+
+/** runs/<runId>/verdicts.json: decisions a person made on reviewed scripts (SPEC §6.2); empty without the file. */
+export async function readHumanVerdicts(file: string): Promise<HumanVerdicts> {
+  const raw = await readFile(file, 'utf8').catch(() => null);
+  if (raw === null) return {};
+  const parsed = HumanVerdicts.safeParse(JSON.parse(raw));
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    throw new Error(`${file} is not valid (${first?.path.join('.')}: ${first?.message}); it maps a test case id to { "verdict": "script_wrong" | "keep", "explanation": at least 20 characters }`);
+  }
+  return parsed.data;
+}
+
+/** The review record of a person's decision. */
+export function humanReview(verdict: 'script_wrong' | 'keep', explanation: string, expectationId: string | null, now: Date = new Date()): ScriptReview {
+  return { verdict, decidedBy: 'human', explanation, ...(expectationId ? { expectationId } : {}), reviewedAt: now.toISOString() };
 }
 
 export function buildReviewSystemPrompt(): string {

@@ -14,6 +14,7 @@ import type {
   ViewExecution,
   ViewFailure,
   ViewRequirement,
+  ViewRevision,
   ViewStage,
   ViewTest,
 } from '../../shared/schemas.js';
@@ -155,6 +156,16 @@ function stagesView(manifest: RunManifest, calls: readonly LLMCallLogLine[]): Vi
   });
 }
 
+/** Every expectation a review changed or removed, removals first, then in test case order (SPEC §9.1). */
+export function revisionsOf(cases: readonly TestCase[]): ViewRevision[] {
+  const all = cases.flatMap((tc) =>
+    [...(tc.earlierRevisions ?? []), ...(tc.revision ? [tc.revision] : [])].map((r) => ({
+      testCaseId: tc.id, title: tc.title, expectationId: r.expectationId, change: r.change, from: r.from, to: r.to, citation: r.citation, explanation: r.explanation,
+    })),
+  );
+  return [...all.filter((r) => r.change === 'remove'), ...all.filter((r) => r.change !== 'remove')];
+}
+
 /**
  * The run view model (SPEC §9.1): everything the report and the dashboard show, built from the run
  * folder by reading files only. Missing files give empty parts.
@@ -238,6 +249,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
     },
     requirements,
     suspectedDefects: scripts && testCases ? suspectedDefects(scripts, testCases, prd) : [],
+    revisions: revisionsOf(testCases?.testCases ?? []),
     executions,
     comparisons: allComparisons(executions),
   });
