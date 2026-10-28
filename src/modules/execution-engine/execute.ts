@@ -66,7 +66,7 @@ async function lockedValueIds(file: string): Promise<Map<string, Set<string>>> {
 }
 
 /** Runs Playwright once on the suite; output goes to playwright.log. Throws "Interrupted" when aborted. */
-async function runPlaywright(execDir: string, env: Record<string, string>, signal?: AbortSignal): Promise<void> {
+export async function runPlaywright(execDir: string, env: Record<string, string>, signal?: AbortSignal): Promise<void> {
   const fd = openSync(path.join(execDir, 'playwright.log'), 'a');
   try {
     const child = spawn(process.execPath, [PLAYWRIGHT_CLI, 'test', '--config', 'playwright.config.ts'], {

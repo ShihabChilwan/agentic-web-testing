@@ -884,8 +884,10 @@ export const StageScriptsSummary = z.object({
   invalidCases: z.record(z.string(), z.array(z.string())),
   calls: count,
   costUsd: z.number().nonnegative().nullable(),
-  /** Total time spent in dry runs (they run one at a time). */
+  /** Total time spent in dry runs (they run one batch at a time). */
   dryRunMs: DurationMs,
+  /** Playwright processes the dry runs ran in (batches, SPEC §6.2); 0 in summaries written before batching. */
+  dryRunBatches: count.default(0),
   /** Scripts that got repair attempts after a locked value failed like a script error, and how many of those then passed. */
   repaired: z.object({ cases: count, passed: count }).default({ cases: 0, passed: 0 }),
   /** Passed scripts that passed only after an earlier dry run timed out or hit a browser or network error (SPEC §6.2). */

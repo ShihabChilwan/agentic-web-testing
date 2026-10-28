@@ -34,8 +34,8 @@ import { collectEvidence, linesAtCommit } from '../test-case-generator/context.j
 import type { ReadLines } from '../test-case-generator/context.js';
 import { callerBlocks } from './callers.js';
 import { classifyDryRun } from './classify.js';
-import { Mutex, playwrightVersion, runSpec, writePlaywrightConfig } from './dry-run.js';
-import type { DryRunResult } from './dry-run.js';
+import { DryRunQueue, Mutex, oneByOne, playwrightBatch, playwrightVersion, writePlaywrightConfig } from './dry-run.js';
+import type { DryRunItem, DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
@@ -93,7 +93,7 @@ export interface GenerateScriptsOptions {
   createLlm?: (config: LLMConfig, callLogFile: string) => Promise<LLMClient>;
   /** For tests: replaces starting the real app (defaults to the Execution Engine lifecycle). */
   startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<RunningApp>;
-  /** For tests: replaces running Playwright on one spec. */
+  /** For tests: replaces running Playwright on one spec; dry runs then run one at a time instead of in batches. */
   runDryRun?: (runDir: string, specFile: string, outputDir: string, signal?: AbortSignal) => Promise<DryRunResult>;
   /** For tests: replaces opening a page of the running app for its accessibility tree (default: the Execution Engine's pageSnapshot). */
   snapshotPage?: (config: TargetConfig, pagePath: string, userPath?: string) => Promise<PageSnapshot | null>;
@@ -143,7 +143,10 @@ interface Deps {
   transcriptsDir: string;
   typeChecker: TypeChecker;
   mutex: Mutex;
-  runDryRun: NonNullable<GenerateScriptsOptions['runDryRun']>;
+  /** Dry runs, batched (SPEC §6.2). */
+  dryRuns: DryRunQueue;
+  /** Fixture users each dry run broke, by its output folder (filled by the check after each dry run). */
+  broken: Map<string, string[]>;
   dryRunMs: { total: number };
   app: RunningApp;
   restores: { count: number; ms: number };
@@ -225,22 +228,9 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
       return lockProblems;
     }
     const outputDir = path.join(deps.runDir, 'dry-runs', tc.id, `attempt-${attempt}`);
-    const queued = Date.now();
-    const { result, broken } = await deps.mutex.run(async () => {
-      queuedMs = Date.now() - queued;
-      const wall = Date.now();
-      if (deps.signal?.aborted) throw new Error('Interrupted');
-      const r = await deps.runDryRun(deps.runDir, file, outputDir, deps.signal);
-      // Wall time, including Playwright's start-up, which dominates short tests.
-      deps.dryRunMs.total += Date.now() - wall;
-      // Isolation: find out whether this test broke a fixture user, then always put the data back,
-      // so the next dry run starts from the clean seeded state whatever this one changed (stock, names, ...).
-      const guard = await checkFixtureLogins(deps.config);
-      const restored = await deps.app.restore();
-      deps.restores.count++;
-      deps.restores.ms += restored.durationMs;
-      return { result: r, broken: guard.broken };
-    });
+    const { result, waitedMs } = await deps.dryRuns.run({ testId: tc.id, file, outputDir });
+    queuedMs = waitedMs;
+    const broken = deps.broken.get(outputDir) ?? [];
     const verdict = classifyDryRun(result, valueIds);
     if (broken.length > 0 && verdict.kind !== 'assertion_failed') {
       const message = `This test changed fixture user${broken.length > 1 ? 's' : ''} ${broken.join(', ')}: logging in as ${broken.length > 1 ? 'them' : 'it'} failed afterwards (the data has been restored). Never change a fixture user; register a new user with uniq values and change that one.`;
@@ -328,6 +318,7 @@ export function scriptsSummary(
     calls: number;
     costUsd: number | null;
     dryRunMs: number;
+    dryRunBatches?: number;
     playwrightVersion: string;
     warnings: string[];
     resumed?: number;
@@ -340,6 +331,7 @@ export function scriptsSummary(
     resumed: 0,
     restores: 0,
     restoreMs: 0,
+    dryRunBatches: 0,
     validated: { passed: 0, assertionFailed: 0 },
     invalid: 0,
     attemptsHistogram: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
@@ -481,6 +473,20 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       ? await options.startApp(config, manifest.generationRef, logsDir)
       : await startTarget(config, { ref: manifest.generationRef, generationRef: manifest.generationRef, repoDir, targetDir, logsDir, log });
 
+    // After every dry run: find out whether it broke a fixture user, then always put the data back, so the next one
+    // starts from the clean seeded state whatever this one changed (stock, names, ...).
+    const mutex = new Mutex();
+    const broken = new Map<string, string[]>();
+    const restores = { count: 0, ms: 0 };
+    const dryRunMs = { total: 0 };
+    const running = app;
+    const afterEach = async (item: DryRunItem) => {
+      broken.set(item.outputDir, (await checkFixtureLogins(config)).broken);
+      const restored = await running.restore();
+      restores.count++;
+      restores.ms += restored.durationMs;
+    };
+    const runBatch = options.runDryRun ? oneByOne(paths.dir, options.runDryRun) : playwrightBatch({ runDir: paths.dir, scriptsDir: paths.scriptsDir, config });
     const deps: Deps = {
       llm,
       llmConfig,
@@ -494,11 +500,21 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       scriptsDir: paths.scriptsDir,
       transcriptsDir: paths.transcriptsDir,
       typeChecker: new TypeChecker(),
-      mutex: new Mutex(),
-      runDryRun: options.runDryRun ?? runSpec,
-      dryRunMs: { total: 0 },
+      mutex,
+      dryRuns: new DryRunQueue(mutex, async (items) => {
+        if (options.signal?.aborted) throw new Error('Interrupted');
+        const wall = Date.now();
+        try {
+          return await runBatch(items, afterEach, options.signal);
+        } finally {
+          // Wall time, including Playwright's start-up.
+          dryRunMs.total += Date.now() - wall;
+        }
+      }),
+      broken,
+      dryRunMs,
       app,
-      restores: { count: 0, ms: 0 },
+      restores,
       snapshotPage: options.snapshotPage ?? pageSnapshot,
       snapshots: await reusedSnapshots(paths.dir, manifest.generationCommit),
       ...(options.signal ? { signal: options.signal } : {}),
@@ -544,6 +560,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       calls: calls.length,
       costUsd: costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null,
       dryRunMs: deps.dryRunMs.total,
+      dryRunBatches: deps.dryRuns.batches.length,
       playwrightVersion: version,
       warnings,
       resumed: kept.size,
@@ -569,7 +586,7 @@ export function describeScriptsSummary(s: StageScriptsSummary): string[] {
   return [
     `${s.cases} scripts: ${s.validated.passed} passed, ${s.validated.assertionFailed} assertion_failed, ${s.invalid} invalid${invalid ? ` (${invalid})` : ''}${s.resumed > 0 ? `; ${s.resumed} kept from the earlier run` : ''}`,
     `attempts: ${Object.entries(s.attemptsHistogram).map(([k, n]) => `${k}×${n}`).join(', ')}; failed attempts by stage: ${Object.entries(s.failuresByStage).map(([k, n]) => `${k} ${n}`).join(', ')}`,
-    `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
+    `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s in ${s.dryRunBatches} Playwright runs, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
     `repairs: ${s.repaired.cases} scripts got repair attempts after a locked value failed like a script error, ${s.repaired.passed} then passed; unstable on the generation version (passed only after a timeout or a browser or network error): ${s.unstable}`,
     ...Object.entries(s.invalidCases).map(([k, ids]) => `invalid (${k}): ${ids.join(', ')}`),
     ...s.warnings.map((w) => `Warning: ${w}`),

@@ -281,6 +281,9 @@ describe('generateScripts with real Playwright', () => {
     // One restore after every dry run: 14 dry runs (TC-001..008: 1+1+1+2+5+1+1+2, TC-005 being a ui case with 5 attempts;
     // typecheck and lock-check failures run none).
     expect(result.summary.restores).toBe(17);
+    // Dry runs that waited share a Playwright process (SPEC §6.2): fewer processes than dry runs, one restore each.
+    expect(result.summary.dryRunBatches).toBeGreaterThan(0);
+    expect(result.summary.dryRunBatches).toBeLessThan(result.summary.restores);
     expect(started).toBe(1);
     expect(stopped).toBe(1);
 

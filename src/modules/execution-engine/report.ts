@@ -17,7 +17,8 @@ interface ReportSuite {
 
 export interface PlaywrightReport {
   suites?: ReportSuite[];
-  errors?: Array<{ message?: string }>;
+  /** Top-level errors; a file that failed to load is named only in `location` and `stack`. */
+  errors?: Array<{ message?: string; stack?: string; location?: { file?: string } }>;
 }
 
 /** Each spec file's (e.g. `TC-004.spec.ts`) result, plus the report's top-level errors (e.g. a file that failed to load). */

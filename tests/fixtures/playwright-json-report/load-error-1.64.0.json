@@ -1,0 +1,99 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/project/node_modules/@playwright/test/cli.js",
+      "test"
+    ],
+    "configFile": "/project/run/playwright.config.ts",
+    "rootDir": "/project/run/suite",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/project/run/suite",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "",
+        "testDir": "/project/run/suite",
+        "snapshotDir": "/project/run/suite",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {},
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json",
+        {
+          "outputFile": "report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: broken at load",
+      "stack": "Error: broken at load\n    at /project/run/suite/TC-003.spec.ts:2:7",
+      "location": {
+        "file": "/project/run/suite/TC-003.spec.ts",
+        "column": 7,
+        "line": 2
+      },
+      "snippet": "   at TC-003.spec.ts:2\n\n  1 | import { test, expect } from '@playwright/test';\n> 2 | throw new Error('broken at load');\n    |       ^\n  3 | test('TC-003: c', async () => {});\n  4 |"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-10-28T16:14:05.321Z",
+    "duration": 146.58700000000044,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
