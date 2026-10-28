@@ -11,6 +11,9 @@ const execFileAsync = promisify(execFile);
 export const CALLERS_CHAR_CAP = 8_000;
 const LINES_AROUND = 12;
 const HITS_PER_ENDPOINT = 2;
+/** Lines before a hit that rankHit may read (a multi-line `<form` tag), and the most a form block may span. */
+const FORM_LINES_BEFORE = 5;
+const FORM_MAX_LINES = 80;
 /** Rank a hit: 2 = a call with the endpoint's method to its whole path, 1 = a call with its method, 0 = any other mention. */
 export type HitRank = 0 | 1 | 2;
 const MAX_ENDPOINTS = 6;
@@ -63,16 +66,30 @@ export function searchText(endpoint: Endpoint, apiPrefix: string): string | null
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** An htmx request attribute (`hx-post="/x"`, also `data-hx-post`) or a form's `action=` on this line. */
+export const MARKUP_REQUEST = /\b(?:data-)?hx-(?:get|post|put|patch|delete)\s*=|\baction\s*=/i;
+
 /**
- * How well a line of frontend code (with the line before it) is a request for the endpoint: a call of the endpoint's
- * HTTP method (`axios.put(`, `http.put(`, `fetch(` with the method named) naming its whole path, where a parameter
- * is anything in one segment (`${id}`, `:id`, a variable). Page routes and links that only mention the path rank 0.
+ * How well a line of frontend code (with the lines before it, the last one first considered) is a request for the
+ * endpoint: a call of the endpoint's HTTP method (`axios.put(`, `http.put(`, `fetch(` with the method named), an htmx
+ * attribute of that method (`hx-post=`), or a `<form>` whose `action=` is on this line and whose method is that one
+ * (no `method=` means GET), naming its whole path, where a parameter is anything in one segment (`${id}`, `:id`,
+ * `{id}`, a variable). Page routes and links that only mention the path rank 0.
  */
 export function rankHit(endpoint: Endpoint, apiPrefix: string, line: string, previous = ''): HitRank {
   const method = endpoint.method.toLowerCase();
-  const text = `${previous}\n${line}`;
-  const calls = new RegExp(`\\.${method}\\s*[(<]`, 'i').test(text) || (/\bfetch\s*\(/.test(text) && new RegExp(`method\\s*:\\s*['"\`]${endpoint.method}['"\`]`, 'i').test(text));
-  if (!calls) return 0;
+  const text = `${previous.split('\n').at(-1) ?? ''}\n${line}`;
+  const code = new RegExp(`\\.${method}\\s*[(<]`, 'i').test(text) || (/\bfetch\s*\(/.test(text) && new RegExp(`method\\s*:\\s*['"\`]${endpoint.method}['"\`]`, 'i').test(text));
+  const htmx = new RegExp(`\\b(?:data-)?hx-${method}\\s*=`, 'i').test(line);
+  // The form's opening tag may run over several lines: its method sits in the lines before `action=`, but only in the
+  // tag the `action=` belongs to (the last `<form` before it), not in an earlier form.
+  const formText = `${previous}\n${line}`;
+  const tag = formText.includes('<form') ? formText.slice(formText.toLowerCase().lastIndexOf('<form')) : '';
+  const form =
+    tag !== '' &&
+    /\baction\s*=/i.test(line) &&
+    (new RegExp(`\\bmethod\\s*=\\s*["']?${method}\\b`, 'i').test(tag) || (method === 'get' && !/\bmethod\s*=/i.test(tag)));
+  if (!code && !htmx && !form) return 0;
   const prefix = apiPrefix.replace(/\/$/, '');
   const rest = prefix && endpoint.path.startsWith(prefix) ? endpoint.path.slice(prefix.length) : endpoint.path;
   const whole = rest
@@ -83,9 +100,29 @@ export function rankHit(endpoint: Endpoint, apiPrefix: string, line: string, pre
 }
 
 /**
+ * The `<form> ... </form>` around a line, when there is one: where its fields are, which show the request shape
+ * (field names) that an htmx or a plain form sends. 1-based, inclusive; null when no form encloses the line.
+ */
+export function enclosingForm(lines: readonly string[], line: number): { start: number; end: number } | null {
+  let start = -1;
+  for (let i = line - 1; i >= Math.max(0, line - 40); i--) {
+    if (i < line - 1 && /<\/form\b/i.test(lines[i]!)) return null; // that form was closed before this line
+    if (/<form\b/i.test(lines[i]!)) {
+      start = i + 1;
+      break;
+    }
+  }
+  if (start < 0) return null;
+  for (let i = line - 1; i < Math.min(lines.length, start + FORM_MAX_LINES); i++) {
+    if (/<\/form\b/i.test(lines[i]!)) return { start, end: i + 1 };
+  }
+  return null;
+}
+
+/**
  * Frontend code that calls the endpoints a test case uses, read at the generation commit: it shows the
  * request shape the app really sends (fields, nesting), which the route handler alone often does not.
- * Searched with `git grep` in `frontend.sourceRoots`; hidden paths are skipped.
+ * Searched with `git grep` in the page source folders; hidden paths are skipped.
  */
 export async function callerBlocks(
   tc: TestCase,
@@ -120,15 +157,21 @@ export async function callerBlocks(
       .filter((h) => !isHidden(h.file, options.scope));
     // Requests first: a mention of the path in a page route or a link says nothing about the request's shape.
     const ranked = await Promise.all(
-      found.map(async (h) => ({ ...h, rank: rankHit(endpoint, options.apiPrefix, h.text, h.line > 1 ? ((await options.read(h.file))?.[h.line - 2] ?? '') : '') })),
+      found.map(async (h) => {
+        const before = ((await options.read(h.file)) ?? []).slice(Math.max(0, h.line - 1 - FORM_LINES_BEFORE), h.line - 1).join('\n');
+        return { ...h, rank: rankHit(endpoint, options.apiPrefix, h.text, before) };
+      }),
     );
-    const requests = ranked.filter((h) => h.rank > 0).sort((a, b) => b.rank - a.rank);
-    const hits = (requests.length > 0 ? requests : ranked).slice(0, HITS_PER_ENDPOINT);
+    // Only the best rank counts: a request to a longer path (rank 1) would show another endpoint's fields next to it.
+    const best = Math.max(0, ...ranked.map((h) => h.rank));
+    const hits = (best > 0 ? ranked.filter((h) => h.rank === best) : ranked).slice(0, HITS_PER_ENDPOINT);
     for (const hit of hits) {
       const lines = await options.read(hit.file);
       if (!lines) continue;
-      const start = Math.max(1, hit.line - LINES_AROUND);
-      const end = Math.min(lines.length, hit.line + LINES_AROUND);
+      // A request in markup (htmx attribute, form action) is shown with its whole form, where the fields are.
+      const form = hit.rank > 0 && MARKUP_REQUEST.test(hit.text) ? enclosingForm(lines, hit.line) : null;
+      const start = form?.start ?? Math.max(1, hit.line - LINES_AROUND);
+      const end = form?.end ?? Math.min(lines.length, hit.line + LINES_AROUND);
       const calls = `${endpoint.method} ${endpoint.path}`;
       const candidates: EvidenceBlock[] = [
         { file: hit.file, start, end, lines: lines.slice(start - 1, end), calls },

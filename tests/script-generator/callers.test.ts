@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { callerBlocks, endpointsUsed, rankHit } from '../../src/modules/script-generator/callers.js';
+import { callerBlocks, enclosingForm, endpointsUsed, rankHit } from '../../src/modules/script-generator/callers.js';
 import { linesAtCommit, renderEndpointIndex, requestShape } from '../../src/modules/test-case-generator/context.js';
 import { buildScriptTask } from '../../src/modules/script-generator/prompt.js';
 import type { TestCase } from '../../src/shared/schemas.js';
@@ -30,6 +30,27 @@ const CATEGORY_ACTIONS = [
   '};',
 ].join('\n');
 
+// A server-rendered page: htmx attributes and plain forms send the requests, and a page link only mentions the path.
+const LINKS_VIEW = [
+  '<nav><a href="/dashboard/links">Links</a></nav>', // 1
+  '<form', // 2
+  '  id="create"', // 3
+  '  hx-post="/api/links"', // 4
+  '  hx-swap="outerHTML"', // 5
+  '>', // 6
+  '  <input name="target" placeholder="URL">', // 7
+  '  <input name="description">', // 8
+  '  <button>Shorten</button>', // 9
+  '</form>', // 10
+  '<button hx-delete="/api/links/{id}">Delete</button>', // 11
+  '<form', // 12
+  '  method="post"', // 13
+  '  action="/api/links/report">', // 14
+  '  <input name="link">', // 15
+  '</form>', // 16
+  '<form action="/api/links/search"><input name="q"></form>', // 17
+].join('\n');
+
 let repo: string;
 let commit: string;
 const tempDirs: string[] = [];
@@ -40,6 +61,7 @@ beforeAll(async () => {
   await mkdir(path.join(repo, 'server'), { recursive: true });
   await writeFile(path.join(repo, 'client', 'app', 'actions.js'), CATEGORY_ACTIONS);
   await writeFile(path.join(repo, 'server', 'category.js'), "router.put('/:id', handler);\n");
+  await writeFile(path.join(repo, 'client', 'app', 'links.hbs'), LINKS_VIEW);
   const git = (...a: string[]) => execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@x.test', ...a], { encoding: 'utf8' });
   git('init', '--quiet');
   git('add', '.');
@@ -120,5 +142,47 @@ describe('the environment lines of the script task', () => {
     const build = (config: TargetConfig) => buildScriptTask({ testCase: tc(['Send GET /api/category']), requirements: [], evidence: { blocks: [], omitted: [] }, config, facts: null, endpoints });
     expect(build(TargetConfig.parse(rest))).toContain(`- Frontend base URL: ${base.backend.baseUrl} (the same server as the backend)`);
     expect(build(base)).toContain(`- Frontend base URL: ${base.frontend!.baseUrl}\n`);
+  });
+});
+
+describe('requests in markup: htmx attributes and forms', () => {
+  const ep = (method: 'GET' | 'POST' | 'DELETE', p: string) => endpoint(method as never, p);
+  const rankLine = (e: ReturnType<typeof ep>, n: number) => rankHit(e, '/api', LINKS_VIEW.split('\n')[n - 1]!, LINKS_VIEW.split('\n').slice(Math.max(0, n - 6), n - 1).join('\n'));
+
+  it('ranks an htmx attribute of the endpoint\'s method that names the whole path first; a page link and another method rank 0', () => {
+    expect(rankLine(ep('POST', '/api/links'), 4)).toBe(2);
+    expect(rankLine(ep('POST', '/api/links'), 14)).toBe(1); // a form to /api/links/report: the path goes on
+    expect(rankLine(ep('DELETE', '/api/links/:id'), 11)).toBe(2); // {id} is a parameter
+    expect(rankLine(ep('GET', '/api/links'), 4)).toBe(0); // hx-post is not a GET
+    expect(rankLine(ep('POST', '/api/links'), 1)).toBe(0); // a link to a page route
+  });
+
+  it('reads a form\'s method from the lines of its opening tag, and a form without a method is a GET', () => {
+    expect(rankLine(ep('POST', '/api/links/report'), 14)).toBe(2);
+    expect(rankLine(ep('GET', '/api/links/report'), 14)).toBe(0);
+    expect(rankLine(ep('GET', '/api/links/search'), 17)).toBe(2);
+    expect(rankLine(ep('POST', '/api/links/search'), 17)).toBe(0);
+  });
+
+  it('finds the form around a line, and none when the line is outside any form or the form closed before it', () => {
+    const lines = LINKS_VIEW.split('\n');
+    expect(enclosingForm(lines, 4)).toEqual({ start: 2, end: 10 });
+    expect(enclosingForm(lines, 14)).toEqual({ start: 12, end: 16 });
+    expect(enclosingForm(lines, 17)).toEqual({ start: 17, end: 17 });
+    expect(enclosingForm(lines, 11)).toBeNull(); // after the first form closed
+    expect(enclosingForm(lines, 1)).toBeNull();
+  });
+
+  it('shows the whole form with its fields, not the page link that names the same path', async () => {
+    const scope = { root: repo, forbiddenPaths: [] };
+    const options = { endpoints: [ep('POST', '/api/links'), ep('DELETE', '/api/links/:id')], apiPrefix: '/api', frontendRoots: ['client/app'], scope, commit, read: linesAtCommit(scope, commit) };
+    const blocks = await callerBlocks(tc(['Send POST /api/links with a target and a description']), options);
+    // Only the form that posts to this very path: the form posting to a longer path would show another endpoint's fields.
+    expect(blocks.map((b) => [b.file, b.start, b.end, b.calls])).toEqual([['client/app/links.hbs', 2, 10, 'POST /api/links']]);
+    expect(blocks[0]!.lines.join('\n')).toContain('name="target"');
+    expect(blocks[0]!.lines.join('\n')).toContain('name="description"');
+    // A request on a button outside any form is shown with the lines around it.
+    const del = await callerBlocks(tc(['Send DELETE /api/links/<id>']), options);
+    expect(del.map((b) => [b.start, b.calls])).toEqual([[1, 'DELETE /api/links/:id']]);
   });
 });
