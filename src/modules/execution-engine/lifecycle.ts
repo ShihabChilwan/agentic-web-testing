@@ -49,6 +49,8 @@ export interface StartOptions {
 
 export interface RestoreResult {
   durationMs: number;
+  /** "snapshot": the saved data was put back (lifecycle.snapshot); "full": reset, seed command, backend restart, seed requests. */
+  via: 'snapshot' | 'full';
   /** False when the backend did not answer its health check after the restart (only returned on a start that is not clean). */
   backendHealthy: boolean;
   /** Seed problems after the restore (only returned on a start that is not clean; a clean start throws instead). */
@@ -256,9 +258,51 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
         log('Seed check passed');
       }
     }
+    // The seeded data, saved once for restores (lifecycle.snapshot). Without it, or when saving fails, restores are full.
+    const snapshot = config.lifecycle.snapshot;
+    const snapshotCommand = (command: string) =>
+      runCommand(fill(command), { cwd: dir(config.lifecycle.resetCwd), env: childEnv(), logFile: setupLog, timeoutMs: RESET_TIMEOUT_MS, signal });
+    let snapshotSaved = false;
+    if (snapshot) {
+      const saved = await snapshotCommand(snapshot.save);
+      throwIfAborted(signal);
+      snapshotSaved = saved.code === 0;
+      if (!snapshotSaved) {
+        appendFileSync(setupLog, `[warning] snapshot save exited with ${saved.code ?? saved.signal}; restores reset and seed instead\n`);
+        log(`Warning: saving the data snapshot failed; restores reset and seed instead (see ${setupLog})`);
+      }
+    }
+
     const clean = isCleanStart(config, options);
+    const restoreFromSnapshot = async (started: number): Promise<RestoreResult | null> => {
+      const restored = await snapshotCommand(snapshot!.restore);
+      throwIfAborted(signal);
+      if (restored.code !== 0) {
+        appendFileSync(setupLog, `[warning] snapshot restore exited with ${restored.code ?? restored.signal}; full restore instead\n`);
+        return null;
+      }
+      // The running backend keeps going (the snapshot holds its indexes too); one that exited is started again.
+      const backend = exitOf('backend') ? await replace('backend') : services.find((s) => s.name === 'backend')!;
+      const health = await waitForHealthy('backend', config.backend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: backend.exited, signal, intervalMs: 200 });
+      const problems: string[] = [];
+      const fail = (message: string) => {
+        if (clean) throw new Error(`Restore: ${message}`);
+        problems.push(message);
+      };
+      if (!health.ok) fail(`the backend did not become healthy again; see ${logsDir}`);
+      if (config.seedCheck && !options.skipSeed && health.ok) {
+        const check = await runSeedCheck(config.backend.baseUrl, config.seedCheck, config.fixtures);
+        if (!check.ok) fail(`seed check failed: ${check.detail}`);
+      }
+      appendFileSync(setupLog, `[restore] snapshot in ${Date.now() - started} ms${problems.length ? `; ${problems.join('; ')}` : ''}\n`);
+      return { durationMs: Date.now() - started, via: 'snapshot', backendHealthy: health.ok, problems };
+    };
     const restore = async (): Promise<RestoreResult> => {
       const started = Date.now();
+      if (snapshotSaved) {
+        const fast = await restoreFromSnapshot(started);
+        if (fast) return fast;
+      }
       await resetData(() => {}); // runs before or after every test: the setup log has the details
       const backend = await replace('backend');
       const health = await waitForHealthy('backend', config.backend.healthCheckUrl, { timeoutMs: startupTimeoutMs, giveUp: backend.exited, signal });
@@ -278,7 +322,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
         }
       }
       appendFileSync(setupLog, `[restore] done in ${Date.now() - started} ms${problems.length ? `; ${problems.join('; ')}` : ''}\n`);
-      return { durationMs: Date.now() - started, backendHealthy: health.ok, problems };
+      return { durationMs: Date.now() - started, via: 'full', backendHealthy: health.ok, problems };
     };
     const restartFrontend = async () => {
       const frontend = await replace('frontend');

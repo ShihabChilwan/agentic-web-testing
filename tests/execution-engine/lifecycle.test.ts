@@ -12,6 +12,7 @@ import {
   type StartOptions,
 } from '../../src/modules/execution-engine/lifecycle.js';
 import { isPortInUse } from '../../src/modules/execution-engine/ports.js';
+import { stopProcessGroup } from '../../src/modules/execution-engine/processes.js';
 import { TargetConfig } from '../../src/shared/schemas.js';
 
 // A fake two-service app in a temporary git repo: each service is a tiny Node HTTP server
@@ -304,6 +305,51 @@ describe('startTarget', () => {
       expect(target.services.find((s) => s.name === 'frontend')!.pid).toBe(frontendBefore);
     });
     expect(await portsFree()).toBe(true); // stop() also stopped the restarted backend
+  });
+
+  describe('restore() from a snapshot (lifecycle.snapshot)', () => {
+    // The fake app's data is api/requests.log; the snapshot is a copy of it.
+    const withSnapshot = (save = 'cp api/requests.log snap.log', restore = 'cp snap.log api/requests.log') =>
+      makeConfig((c) => (c.lifecycle.snapshot = { save, restore }));
+    const post = (body: string) => fetch(`http://127.0.0.1:${backendPort}/api/items`, { method: 'POST', body });
+    const lines = async (file: string) => (await read(file)).split('\n').filter(Boolean);
+
+    it('puts the saved data back without a reset, a seed or a backend restart', async () => {
+      await withTarget(withSnapshot(), options(), async (target) => {
+        const backendBefore = target.services.find((s) => s.name === 'backend')!.pid;
+        const resetsBefore = (await lines('resets.txt')).length;
+        const seeded = await lines('api/requests.log');
+        await post('{"written":"by a test"}');
+        expect((await lines('api/requests.log')).length).toBe(seeded.length + 1);
+        const result = await target.restore();
+        expect(result).toMatchObject({ via: 'snapshot', backendHealthy: true, problems: [] });
+        expect(await lines('api/requests.log')).toEqual(seeded);
+        expect((await lines('resets.txt')).length).toBe(resetsBefore);
+        expect(target.services.find((s) => s.name === 'backend')!.pid).toBe(backendBefore);
+      });
+      expect(await portsFree()).toBe(true);
+    });
+
+    it('starts a backend that exited again', async () => {
+      await withTarget(withSnapshot(), options(), async (target) => {
+        const backend = target.services.find((s) => s.name === 'backend')!;
+        await stopProcessGroup(backend.pid);
+        await backend.exited;
+        const result = await target.restore();
+        expect(result).toMatchObject({ via: 'snapshot', backendHealthy: true });
+        expect(target.services.find((s) => s.name === 'backend')!.pid).not.toBe(backend.pid);
+      });
+    });
+
+    it('restores in full when the snapshot could not be saved, or when putting it back fails', async () => {
+      await withTarget(withSnapshot('exit 4'), options(), async (target) => {
+        expect((await target.restore()).via).toBe('full');
+      });
+      await withTarget(withSnapshot(undefined, 'exit 5'), options(), async (target) => {
+        expect((await target.restore()).via).toBe('full');
+      });
+      expect(await readFile(path.join(logsDir, 'setup.log'), 'utf8')).toMatch(/snapshot save exited with 4[\s\S]*snapshot restore exited with 5/);
+    });
   });
 
   it('restore() throws when a step fails', async () => {

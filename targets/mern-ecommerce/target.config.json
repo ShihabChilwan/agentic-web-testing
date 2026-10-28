@@ -51,7 +51,11 @@
     "resetCwd": ".",
     "seedCommand": "node --require \"{{targetDir}}/seed-deterministic.cjs\" utils/seed.js admin@example.com admin123",
     "seedCwd": "server",
-    "startupTimeoutMs": 180000
+    "startupTimeoutMs": 180000,
+    "snapshot": {
+      "save": "FROM_DB=mern_ecommerce_test TO_DB=mern_ecommerce_test_snapshot mongosh \"mongodb://mongo:27017\" --quiet --file \"{{targetDir}}/db-snapshot.js\"",
+      "restore": "FROM_DB=mern_ecommerce_test_snapshot TO_DB=mern_ecommerce_test mongosh \"mongodb://mongo:27017\" --quiet --file \"{{targetDir}}/db-snapshot.js\""
+    }
   },
   "fixtures": {
     "users": {

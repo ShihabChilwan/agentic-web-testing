@@ -9,8 +9,8 @@ import type { ExitInfo } from '../../src/modules/execution-engine/processes.js';
 // TestIsolation against a fake target: each restore's outcome and each service's state is scripted.
 
 type Outcome = RestoreResult | Error;
-const ok: RestoreResult = { durationMs: 1, backendHealthy: true, problems: [] };
-const unhealthy: RestoreResult = { durationMs: 1, backendHealthy: false, problems: ['the backend did not become healthy again'] };
+const ok: RestoreResult = { durationMs: 1, via: 'full', backendHealthy: true, problems: [] };
+const unhealthy: RestoreResult = { durationMs: 1, via: 'full', backendHealthy: false, problems: ['the backend did not become healthy again'] };
 
 function fakeTarget(outcomes: Outcome[]) {
   const state = {
@@ -94,7 +94,7 @@ describe('TestIsolation', () => {
   });
 
   it('seed problems on a restore are recorded, and the test stays isolated', async () => {
-    const { target } = fakeTarget([{ durationMs: 1, backendHealthy: true, problems: ['seed check failed: empty'] }]);
+    const { target } = fakeTarget([{ durationMs: 1, via: 'full', backendHealthy: true, problems: ['seed check failed: empty'] }]);
     const iso = make(target);
     await iso.before('TC-001');
     expect(iso.records.get('TC-001')?.isolated).toBe(true);

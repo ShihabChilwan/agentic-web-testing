@@ -170,6 +170,11 @@ export const TargetConfig = z.strictObject({
     seedCommand: z.string().min(1).optional(),
     seedCwd: z.string().optional(),
     startupTimeoutMs: z.number().int().positive(),
+    /**
+     * Optional (§7.1): commands that save the seeded data once after the start and put it back as a restore, instead
+     * of reset, seed command, backend restart and seed requests. Run in `resetCwd` with PATH and HOME only.
+     */
+    snapshot: z.strictObject({ save: z.string().min(1), restore: z.string().min(1) }).optional(),
   }),
   fixtures: z.looseObject({
     users: z.record(z.string(), FixtureUser),
