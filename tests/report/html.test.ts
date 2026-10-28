@@ -55,6 +55,7 @@ describe('renderReport', () => {
         'E1 Response status is 403',
         '403',
         '200',
+        'not reviewed',
       ]);
       expect(await page.getByRole('heading', { name: 'Suspected defects in golden (1)' }).count()).toBe(1);
       await page.getByRole('button', { name: 'Executions' }).click();

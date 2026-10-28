@@ -38,6 +38,7 @@ import { DryRunQueue, Mutex, oneByOne, playwrightBatch, playwrightVersion, write
 import type { DryRunItem, DryRunResult } from './dry-run.js';
 import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
+import { reviewSuspected, type ReviewDeps } from './review.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
 import { buildScriptTask, buildSystemPrompt } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
@@ -176,7 +177,7 @@ function dryRunFeedback(category: string, expectationId: string | null, result: 
   return lines;
 }
 
-async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntry> {
+async function generateOne(tc: TestCase, deps: Deps, reviewNote?: string): Promise<ScriptManifestEntry> {
   const file = path.join(deps.scriptsDir, `${tc.id}.spec.ts`);
   const relFile = path.relative(deps.runDir, file).split(path.sep).join('/');
   const attempts: ScriptAttempt[] = [];
@@ -266,7 +267,7 @@ async function generateOne(tc: TestCase, deps: Deps): Promise<ScriptManifestEntr
       {
         purpose: 'scripts',
         system: buildSystemPrompt(),
-        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots }),
+        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots, ...(reviewNote ? { reviewNote } : {}) }),
         tools: [],
         submit: { name: 'submit_script', description: 'Submit the body of the test function.', schema: SubmitScript, validate },
         budget: sessionBudget(FIX_ATTEMPTS[tc.layer]),
@@ -340,6 +341,7 @@ export function scriptsSummary(
     invalidCases: {},
     repaired: { cases: 0, passed: 0 },
     unstable: 0,
+    reviewed: { cases: 0, keep: 0, testCaseWrong: 0, scriptWrong: 0, failed: 0, passedAfter: 0 },
     ...extra,
   };
   for (const e of entries) {
@@ -348,6 +350,15 @@ export function scriptsSummary(
       if (e.validationOutcome === 'passed') summary.repaired.passed++;
     }
     if (e.unstable) summary.unstable++;
+    if (e.review) {
+      const r = summary.reviewed;
+      r.cases++;
+      if (e.review.verdict === 'keep') r.keep++;
+      else if (e.review.verdict === 'test_case_wrong') r.testCaseWrong++;
+      else if (e.review.verdict === 'script_wrong') r.scriptWrong++;
+      else r.failed++;
+      if (e.validationOutcome === 'passed') r.passedAfter++;
+    }
     if (e.status === 'validated') {
       if (e.validationOutcome === 'passed') summary.validated.passed++;
       else summary.validated.assertionFailed++;
@@ -532,21 +543,62 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
         return entry;
       }),
     );
-    if (options.signal) {
+    const untilInterrupted = async (task: Promise<unknown>) => {
+      if (!options.signal) return void (await task);
       const signal = options.signal;
       const interrupted = new Promise<never>((_, reject) => {
         if (signal.aborted) reject(new Error('Interrupted'));
         signal.addEventListener('abort', () => reject(new Error('Interrupted')), { once: true });
       });
-      await Promise.race([work, interrupted]);
-    } else {
-      await work;
+      await Promise.race([task, interrupted]);
+    };
+    await untilInterrupted(work);
+
+    // S3: every script whose locked value differed, not reviewed yet, gets one review (SPEC §6.2). A blamed test case is
+    // revised in testcases.json and its script written again; a blamed script is written again with the reason.
+    const toReview = cases.filter((tc) => finished.get(tc.id)?.validationOutcome === 'assertion_failed' && !finished.get(tc.id)?.review);
+    if (toReview.length > 0) {
+      log(`Reviewing ${toReview.length} scripts whose locked value differed`);
+      let caseWrites: Promise<void> = Promise.resolve();
+      const writeTestCases = () => {
+        const text = `${JSON.stringify(TestCases.parse({ ...parsedCases.data, testCases: cases }), null, 2)}\n`;
+        caseWrites = caseWrites.then(() => writeFile(paths.testCases, text, 'utf8'));
+        return caseWrites;
+      };
+      const reviewDeps: ReviewDeps = {
+        llm,
+        llmConfig,
+        transcriptsDir: paths.transcriptsDir,
+        read: deps.read,
+        scope: { root: repoDir, forbiddenPaths: config.forbiddenPaths },
+        runDir: paths.dir,
+        requirements: (tc) => prd.requirements.filter((r) => tc.requirementIds.includes(r.id)),
+        readScript: (tc) => readFile(path.join(paths.scriptsDir, `${tc.id}.spec.ts`), 'utf8'),
+      };
+      const reviewing = Promise.all(
+        toReview.map(async (tc) => {
+          const outcome = await reviewSuspected(tc, finished.get(tc.id)!, reviewDeps);
+          let next = finished.get(tc.id)!;
+          if (outcome.revised) {
+            cases[cases.findIndex((c) => c.id === tc.id)] = outcome.revised;
+            await writeTestCases();
+            next = await generateOne(outcome.revised, deps);
+          } else if (outcome.review.verdict === 'script_wrong') {
+            next = await generateOne(tc, deps, outcome.review.explanation);
+          }
+          if (!options.signal?.aborted) {
+            finished.set(tc.id, { ...next, review: outcome.review });
+            await writeManifest();
+          }
+        }),
+      );
+      await untilInterrupted(reviewing);
     }
     const entries = cases.map((tc) => finished.get(tc.id)!);
     const result = ScriptManifest.parse({ schemaVersion: '1.0', generationRef: manifest.generationRef, helpersHash: hash, scripts: entries });
     await writeManifest();
 
-    const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => l.purpose === 'scripts' && l.ts >= startedAt);
+    const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => (l.purpose === 'scripts' || l.purpose === 'review') && l.ts >= startedAt);
     const costs = calls.map((l) => l.costUsd).filter((c): c is number => c !== null);
     const warnings = [
       ...resumeWarnings,
@@ -587,6 +639,7 @@ export function describeScriptsSummary(s: StageScriptsSummary): string[] {
     `${s.cases} scripts: ${s.validated.passed} passed, ${s.validated.assertionFailed} assertion_failed, ${s.invalid} invalid${invalid ? ` (${invalid})` : ''}${s.resumed > 0 ? `; ${s.resumed} kept from the earlier run` : ''}`,
     `attempts: ${Object.entries(s.attemptsHistogram).map(([k, n]) => `${k}×${n}`).join(', ')}; failed attempts by stage: ${Object.entries(s.failuresByStage).map(([k, n]) => `${k} ${n}`).join(', ')}`,
     `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}, dry runs ${Math.round(s.dryRunMs / 1000)} s in ${s.dryRunBatches} Playwright runs, ${s.restores} data restores ${Math.round(s.restoreMs / 1000)} s, Playwright ${s.playwrightVersion}`,
+    `reviews: ${s.reviewed.cases} scripts whose locked value differed: ${s.reviewed.testCaseWrong} test cases revised, ${s.reviewed.scriptWrong} scripts written again, ${s.reviewed.keep} kept as suspected defects${s.reviewed.failed ? `, ${s.reviewed.failed} reviews failed` : ''}; ${s.reviewed.passedAfter} then passed`,
     `repairs: ${s.repaired.cases} scripts got repair attempts after a locked value failed like a script error, ${s.repaired.passed} then passed; unstable on the generation version (passed only after a timeout or a browser or network error): ${s.unstable}`,
     ...Object.entries(s.invalidCases).map(([k, ids]) => `invalid (${k}): ${ids.join(', ')}`),
     ...s.warnings.map((w) => `Warning: ${w}`),

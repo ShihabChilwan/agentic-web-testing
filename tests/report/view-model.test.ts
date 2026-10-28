@@ -49,6 +49,7 @@ describe('buildRunView', () => {
         expected: '403',
         received: '200',
         message: expect.stringMatching(/^Error: E1\n/),
+        review: null,
       },
     ]);
   });

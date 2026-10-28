@@ -133,7 +133,7 @@ describe('runAll', () => {
     const lines = describeRunAll(result);
     expect(lines.at(-1)).toBe(`To continue: npm run agent -- all --run ${result.runId}`);
     expect(result.suspectedDefects).toEqual([]);
-    const defect = { testCaseId: 'TC-068', title: 't', requirements: [{ id: 'REQ-001', statement: null }], expectationId: 'E1', expectation: 'Status 403', expected: '403', received: '200', message: '' };
+    const defect = { testCaseId: 'TC-068', title: 't', requirements: [{ id: 'REQ-001', statement: null }], expectationId: 'E1', expectation: 'Status 403', expected: '403', received: '200', message: '', review: null };
     expect(describeRunAll({ ...result, suspectedDefects: [defect] })).toContain('  TC-068 E1 (REQ-001) "Status 403": expected 403, got 200');
   });
 

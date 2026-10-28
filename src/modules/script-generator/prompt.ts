@@ -59,6 +59,8 @@ export interface ScriptTaskInput {
   endpoints: Prd['apiEndpoints'];
   /** ui test cases: the pages the steps open, as an accessibility tree taken on the current version. */
   pageSnapshots?: Array<{ path: string; user?: string; snapshot: { finalPath: string; aria: string } }>;
+  /** Set when a review found that an earlier script checked the wrong thing or at the wrong time (SPEC §6.2). */
+  reviewNote?: string;
 }
 
 const renderBlock = (b: CodeExcerpts['blocks'][number]) => {
@@ -98,6 +100,13 @@ export function buildScriptTask(input: ScriptTaskInput): string {
     });
     parts.push(
       `## The pages as they are now (accessibility tree, taken on the running application)\nUse these roles, names, labels and texts for locators (getByRole, getByLabel, getByPlaceholder, getByText); they are what the browser shows.\n${pages.join('\n\n')}`,
+    );
+  }
+  if (input.reviewNote) {
+    parts.splice(
+      1,
+      0,
+      `## A reviewer looked at an earlier script for this test case\nThe expectations are right; the earlier script checked the wrong thing or at the wrong time. The reviewer's finding:\n${input.reviewNote}\nWrite the test so that each expectation checks what its description says, at the moment it is true.`,
     );
   }
   if (input.callers && input.callers.length > 0) {

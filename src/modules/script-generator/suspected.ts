@@ -35,6 +35,7 @@ export function suspectedDefects(manifest: ScriptManifest, testCases: TestCases,
       expected: expectation?.value === undefined ? messageValue(message, 'Expected') : JSON.stringify(expectation.value),
       received: messageValue(message, 'Received'),
       message: message.split('\n').slice(0, 12).join('\n'),
+      review: entry.review ? { verdict: entry.review.verdict, explanation: entry.review.explanation } : null,
     });
   }
   return out;
@@ -58,7 +59,8 @@ export function describeSuspectedDefects(list: readonly SuspectedDefect[]): stri
     ...list.map((d) => {
       const reqs = d.requirements.map((r) => r.id).join(', ');
       const what = d.expectation ? ` "${d.expectation}"` : '';
-      return `  ${d.testCaseId} ${d.expectationId ?? '?'} (${reqs})${what}: expected ${d.expected ?? 'unknown'}, got ${d.received ?? 'unknown'}`;
+      const review = d.review ? `; review: ${d.review.verdict} (${d.review.explanation.length > 120 ? `${d.review.explanation.slice(0, 119)}…` : d.review.explanation})` : '';
+      return `  ${d.testCaseId} ${d.expectationId ?? '?'} (${reqs})${what}: expected ${d.expected ?? 'unknown'}, got ${d.received ?? 'unknown'}${review}`;
     }),
   ];
 }

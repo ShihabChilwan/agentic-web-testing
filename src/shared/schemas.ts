@@ -383,6 +383,21 @@ export const Expectation = z.object({
   afterAction: z.boolean().optional(),
 });
 
+/**
+ * A test case's expectation revised after review (SPEC §6.2): the correct version showed something else, and the
+ * reviewer cited the code that produces it on purpose. Absent in cases never revised and in older files.
+ */
+export const TestCaseRevision = z.object({
+  expectationId: ExpectationId,
+  change: z.enum(['value', 'remove']),
+  from: z.object({ description: z.string(), value: z.union([z.string(), z.number(), z.boolean()]).optional() }),
+  /** Null when the expectation was removed. */
+  to: z.object({ description: z.string(), value: z.union([z.string(), z.number(), z.boolean()]).optional() }).nullable(),
+  citation: Evidence,
+  explanation: z.string().min(1),
+  revisedAt: Timestamp,
+});
+
 export const TestCase = z.object({
   id: TestCaseId,
   requirementIds: z.array(RequirementId).min(1),
@@ -394,6 +409,7 @@ export const TestCase = z.object({
   fixturesUsed: z.array(z.string()),
   steps: z.array(z.string().min(1)).min(1),
   expected: z.array(Expectation).min(1),
+  revision: TestCaseRevision.optional(),
 });
 
 export const UncoveredReasonKind = z.enum(['third-party-disabled', 'data-not-reachable', 'out-of-scope', 'other']);
@@ -542,6 +558,15 @@ const withFailureCategory = (value: unknown) => {
   return { ...entry, failureCategory: last ?? 'no-submit' };
 };
 
+/** keep: the app may be wrong or it is unclear; test_case_wrong: the expectation was revised; script_wrong: the script was written again. */
+export const ReviewVerdict = z.enum(['keep', 'test_case_wrong', 'script_wrong', 'failed']);
+export const ScriptReview = z.object({
+  verdict: ReviewVerdict,
+  explanation: z.string(),
+  citation: Evidence.optional(),
+  reviewedAt: Timestamp,
+});
+
 export const ScriptManifestEntry = z.preprocess(withFailureCategory, z
   .object({
     testCaseId: ScriptTestId,
@@ -558,6 +583,8 @@ export const ScriptManifestEntry = z.preprocess(withFailureCategory, z
     repairs: z.number().int().min(1).optional(),
     /** A passed script whose earlier dry run timed out or hit a browser or network error: it was not stable on the generation version (SPEC §6.2). */
     unstable: z.literal(true).optional(),
+    /** The review of a script whose locked value differed on the generation version (SPEC §6.2); absent when not reviewed. */
+    review: ScriptReview.optional(),
   })
   .refine((s) => (s.status === 'validated') === (s.validationOutcome !== null), {
     message: 'validationOutcome must be set for validated scripts and null for invalid ones',
@@ -581,6 +608,8 @@ export const ScriptManifest = z.object({
 
 export type ScriptManifest = z.infer<typeof ScriptManifest>;
 export type ScriptManifestEntry = z.infer<typeof ScriptManifestEntry>;
+export type ScriptReview = z.infer<typeof ScriptReview>;
+export type TestCaseRevision = z.infer<typeof TestCaseRevision>;
 export type ScriptAttempt = z.infer<typeof ScriptAttempt>;
 export type FailureCategory = z.infer<typeof FailureCategory>;
 
@@ -897,6 +926,10 @@ export const StageScriptsSummary = z.object({
   repaired: z.object({ cases: count, passed: count }).default({ cases: 0, passed: 0 }),
   /** Passed scripts that passed only after an earlier dry run timed out or hit a browser or network error (SPEC §6.2). */
   unstable: count.default(0),
+  /** Reviews of scripts whose locked value differed (SPEC §6.2), by verdict, and how many scripts then passed. */
+  reviewed: z
+    .object({ cases: count, keep: count, testCaseWrong: count, scriptWrong: count, failed: count, passedAfter: count })
+    .default({ cases: 0, keep: 0, testCaseWrong: 0, scriptWrong: 0, failed: 0, passedAfter: 0 }),
   /** Data restores (reset + seed + backend restart) after dry runs, and their total time. */
   restores: count.default(0),
   restoreMs: DurationMs.default(0),
@@ -1309,6 +1342,8 @@ export const SuspectedDefect = z.object({
   received: z.string().nullable(),
   /** The first lines of the dry run's error. */
   message: z.string(),
+  /** The review's verdict and reason (SPEC §6.2); null when not reviewed. */
+  review: z.object({ verdict: ReviewVerdict, explanation: z.string() }).nullable().default(null),
 });
 
 export const ViewTestStatus = z.enum(['passed', 'failed', 'errored', 'skipped']);
@@ -1382,6 +1417,8 @@ export const RunView = z.object({
     pages: z.object({ total: z.number().int().nonnegative(), opened: z.number().int().nonnegative() }).nullable(),
     /** PRD endpoints a passing script reached on the generation version (coverage/coverage.json); null when not measured. */
     endpoints: z.object({ total: z.number().int().nonnegative(), reached: z.number().int().nonnegative() }).nullable().default(null),
+    /** Reviews of scripts whose locked value differed (SPEC §6.2): test cases revised, scripts written again, kept as suspected defects. */
+    reviewed: z.object({ testCaseWrong: z.number().int().nonnegative(), scriptWrong: z.number().int().nonnegative(), keep: z.number().int().nonnegative() }).nullable().default(null),
     testCases: z.number().int().nonnegative(),
     scripts: z.object({
       passed: z.number().int().nonnegative(),

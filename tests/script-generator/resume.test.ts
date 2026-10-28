@@ -123,6 +123,8 @@ describe('generateScripts: progress, interruption and resume', () => {
     const respond = async (req: ChatRequest): Promise<ChatResponse> => {
       const first = req.messages[0];
       const task = first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '';
+      // A review (S3) of a script whose locked value differed: keep, so the outcomes stay as they are.
+      if (/^Review TC-\d+/.test(task)) return FakeLLMClient.toolCall('submit_review', { verdict: 'keep', explanation: 'unclear' });
       const id = /test for (TC-\d+)/.exec(task)?.[1] ?? '?';
       asked.push(id);
       if (slow?.id === id) await slow.until;

@@ -17,7 +17,7 @@ export { templateMatches };
  * session has finished), the expectation ids E1, E2, ... in order, and a missing title (from the first
  * expectation; the model often leaves it out). Empty lists may be left out.
  */
-export const TestCaseDraft = TestCase.omit({ id: true, title: true, expected: true, preconditions: true, fixturesUsed: true }).extend({
+export const TestCaseDraft = TestCase.omit({ id: true, title: true, expected: true, preconditions: true, fixturesUsed: true, revision: true }).extend({
   title: z.string().min(1).optional(),
   preconditions: z.array(z.string()).default([]),
   fixturesUsed: z.array(z.string()).default([]),

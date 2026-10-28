@@ -200,6 +200,8 @@ function fakeModel() {
   const respond = (req: ChatRequest): ChatResponse => {
     const first = req.messages[0];
     const task = first?.role === 'user' && first.content[0]?.type === 'text' ? first.content[0].text : '';
+    // The review of a script whose locked value differed (S3): keep, so the outcomes below stay as they are.
+    if (/^Review TC-\d+/.test(task)) return FakeLLMClient.toolCall('submit_review', { verdict: 'keep', explanation: 'The app may be wrong.' });
     const id = /test for (TC-\d+)/.exec(task)?.[1] ?? '?';
     tasks[id] = task;
     feedback[id] = structuredClone(req); // the runtime appends the reply to the same list afterwards
@@ -258,6 +260,8 @@ describe('generateScripts with real Playwright', () => {
     expect(byId['TC-009']?.unstable).toBeUndefined();
     expect(JSON.stringify(feedback['TC-009']?.messages)).toContain('is locked to the number 200, but the test compared it with the string \\"Hat\\"');
     expect(byId['TC-010']).toMatchObject({ status: 'validated', validationOutcome: 'assertion_failed', attempts: 3, repairs: 1, keptAttempt: 1 });
+    expect(byId['TC-010']?.review).toMatchObject({ verdict: 'keep', explanation: 'The app may be wrong.' });
+    expect(byId['TC-002']?.review?.verdict).toBe('keep');
     expect(byId['TC-010']?.attemptLog.map((a) => a.stage)).toEqual(['dry-run', 'typecheck', 'typecheck']);
     expect(await readFile(path.join(paths.scriptsDir, 'TC-010.spec.ts'), 'utf8')).toContain("expect(res.status(), 'E1').toBe(EXPECTED.E1.value);");
     expect(byId['TC-007']).toMatchObject({ status: 'validated', validationOutcome: 'passed', attempts: 1 });
@@ -274,6 +278,7 @@ describe('generateScripts with real Playwright', () => {
       failuresByStage: { typecheck: 3, 'lock-check': 2, 'dry-run': 7 },
       attemptsHistogram: { '1': 3, '2': 4, '3': 2, '4': 0, '5': 1 },
       repaired: { cases: 2, passed: 1 },
+      reviewed: { cases: 2, keep: 2, testCaseWrong: 0, scriptWrong: 0, failed: 0, passedAfter: 0 },
       unstable: 0,
       playwrightVersion: '1.64.0',
     });

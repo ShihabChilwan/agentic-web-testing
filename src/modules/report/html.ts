@@ -95,6 +95,8 @@ function overview() {
       c.pages ? tile(c.pages.opened + ' / ' + c.pages.total, 'pages opened by a test case') : null,
       tile(c.afterAction, 'ui expectations marked afterAction'),
       c.endpoints ? tile(c.endpoints.reached + ' / ' + c.endpoints.total, 'API endpoints reached by a test') : null,
+      c.reviewed ? tile(c.reviewed.testCaseWrong, 'test cases revised after review') : null,
+      c.reviewed ? tile(c.reviewed.scriptWrong, 'scripts rewritten after review') : null,
       tile(c.testCases, 'test cases'),
       tile(s.passed, 'scripts passed on ' + V.run.generationRef),
       tile(s.assertionFailed, 'scripts disagree with ' + V.run.generationRef),
@@ -122,13 +124,14 @@ function suspected() {
   return [
     section('Suspected defects in ' + V.run.generationRef + ' (' + list.length + ')'),
     h('p', { class: 'muted' }, 'The app contradicts these locked expectations: either the test case or the app is wrong. They are not executed; review each one.'),
-    table(['Test', 'Requirement', 'Expectation', 'Expected', 'Actual'], list.map(function (d) {
+    table(['Test', 'Requirement', 'Expectation', 'Expected', 'Actual', 'Review'], list.map(function (d) {
       return h('tr', null,
         h('td', null, d.testCaseId + ': ' + d.title),
         h('td', null, d.requirements.map(function (r) { return h('div', null, r.id + (r.statement ? ': ' + r.statement : '')); })),
         h('td', null, (d.expectationId || '?') + (d.expectation ? ' ' + d.expectation : '')),
         h('td', null, d.expected === null ? '' : d.expected),
-        h('td', { class: 'failed' }, d.received === null ? '' : d.received));
+        h('td', { class: 'failed' }, d.received === null ? '' : d.received),
+        h('td', null, d.review ? d.review.verdict + ': ' + d.review.explanation : 'not reviewed'));
     })),
   ];
 }

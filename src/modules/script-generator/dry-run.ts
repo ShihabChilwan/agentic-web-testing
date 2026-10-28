@@ -154,6 +154,14 @@ export async function runSpec(
   return out;
 }
 
+/** A recorded dry run's page snapshot, trimmed DOM and last API response (its attempt folder), for the review. */
+export async function failureContext(outputDir: string): Promise<Pick<DryRunResult, 'pageSnapshot' | 'dom' | 'lastResponse'>> {
+  const out: DryRunResult = { status: 'failed', message: '', durationMs: 0 };
+  await addFailureContext(out, outputDir);
+  const { status: _s, message: _m, durationMs: _d, ...context } = out;
+  return context;
+}
+
 /** The failure's page snapshot, trimmed DOM and last API response, from the files the test left in its output folder. */
 async function addFailureContext(out: DryRunResult, outputDir: string): Promise<void> {
   const context = await findFile(outputDir, 'error-context.md');

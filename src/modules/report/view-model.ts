@@ -220,6 +220,13 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
       partial: testCases?.coverage.partial.length ?? 0,
       afterAction: (testCases?.testCases ?? []).flatMap((c) => c.expected).filter((e) => e.afterAction === true).length,
       pages: testCases?.coverage.pages ? { total: testCases.coverage.pages.total, opened: testCases.coverage.pages.opened } : null,
+      reviewed: scripts?.scripts.some((s) => s.review)
+        ? {
+            testCaseWrong: scripts.scripts.filter((s) => s.review?.verdict === 'test_case_wrong').length,
+            scriptWrong: scripts.scripts.filter((s) => s.review?.verdict === 'script_wrong').length,
+            keep: scripts.scripts.filter((s) => s.review?.verdict === 'keep').length,
+          }
+        : null,
       endpoints: measured ? { total: measured.endpoints.length, reached: measured.endpoints.filter((e) => e.reached).length } : null,
       testCases: cases.size,
       scripts: {
