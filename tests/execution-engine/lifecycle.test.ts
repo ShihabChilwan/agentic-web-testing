@@ -13,6 +13,7 @@ import {
 } from '../../src/modules/execution-engine/lifecycle.js';
 import { isPortInUse } from '../../src/modules/execution-engine/ports.js';
 import { stopProcessGroup } from '../../src/modules/execution-engine/processes.js';
+import { PROJECT_ROOT } from '../../src/shared/paths.js';
 import { TargetConfig } from '../../src/shared/schemas.js';
 
 // A fake two-service app in a temporary git repo: each service is a tiny Node HTTP server
@@ -84,7 +85,7 @@ function makeConfig(changes: (c: Record<string, any>) => void = () => {}): Targe
     lifecycle: {
       reset: 'echo reset >> resets.txt',
       resetCwd: '.',
-      seedCommand: 'echo "$MONGO_URI {{targetDir}}" > seed.txt',
+      seedCommand: 'echo "$MONGO_URI {{targetDir}} {{projectDir}}" > seed.txt',
       seedCwd: 'api',
       startupTimeoutMs: 5000,
     },
@@ -157,7 +158,7 @@ describe('startTarget', () => {
       ]);
       expect(target.seed).toEqual([{ request: 'POST /api/auth/register', status: 200, ok: true }]);
       expect(await read('api/requests.log')).toBe('{"email":"alice@x.test"}\n');
-      expect((await read('api/seed.txt')).trim()).toBe(`mongodb://db/test ${targetDir}`);
+      expect((await read('api/seed.txt')).trim()).toBe(`mongodb://db/test ${targetDir} ${PROJECT_ROOT}`);
       expect(await read('web/.env')).toBe(`PORT=${frontendPort}\nAPI_URL=http://127.0.0.1:${backendPort}/api\n`);
 
       const backendKeys: string[] = JSON.parse(await read('api/env-keys.json'));

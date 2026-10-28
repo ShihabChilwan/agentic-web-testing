@@ -1,16 +1,16 @@
 // Seed data for the lifecycle's seedCommand (target.config.json lifecycle.seedCommand): runs in the repo root right
-// after `npm run migrate` and writes users, links and visits straight into the SQLite file, so the data is identical
+// after `npm run migrate` and writes users, links and visits straight into the database, so the data is identical
 // after every reset: fixed ids, uuids, addresses and dates, and fixed password salts (no clock, no randomness).
+// It goes through the repo's own knex and knexfile, so the same file seeds SQLite and PostgreSQL (DB_CLIENT).
 // Kutt validates what the API accepts (a link may not point at its own domain, passwords of 8-64 characters), which
 // a seed through the API would have to respect; writing the rows directly does not.
 const path = require('node:path');
 const { createRequire } = require('node:module');
 
 const requireFromRepo = createRequire(path.join(process.cwd(), 'package.json'));
-const Database = requireFromRepo('better-sqlite3');
+const knex = requireFromRepo('knex');
 const bcrypt = requireFromRepo('bcryptjs');
 
-const FILE = process.env.DB_FILENAME || 'db/data';
 const CREATED = '2026-01-15 09:00:00';
 
 // Must match the fixtures of target.config.json. The salts are fixed so a hash is the same on every seed.
@@ -29,7 +29,7 @@ const LINKS = [
   { id: 4, uuid: '44444444-4444-4444-8444-444444444444', address: 'soon00', target: 'https://example.com/expiring', user_id: 2, expire_in: FAR_FUTURE },
   { id: 5, uuid: '55555555-5555-4555-8555-555555555555', address: 'bob001', target: 'https://example.org/bob', user_id: 3 },
   { id: 6, uuid: '66666666-6666-4666-8666-666666666666', address: 'adm001', target: 'https://example.net/admin', user_id: 1 },
-  { id: 7, uuid: '77777777-7777-4777-8777-777777777777', address: 'banned', target: 'https://example.com/banned', user_id: 3, banned: 1, banned_by_id: 1 },
+  { id: 7, uuid: '77777777-7777-4777-8777-777777777777', address: 'banned', target: 'https://example.com/banned', user_id: 3, banned: true, banned_by_id: 1 },
 ];
 
 // Visits are counted per link and day-like bucket: totals by browser and system, countries and referrers as JSON.
@@ -39,21 +39,34 @@ const VISITS = [
   { link_id: 2, user_id: 2, created_at: '2026-01-21 12:00:00', total: 3, br_chrome: 3, os_linux: 3, countries: { FR: 3 }, referrers: { 'news.example.org': 3 } },
 ];
 
-function insert(db, table, rows) {
-  for (const row of rows) {
-    const keys = Object.keys(row);
-    db.prepare(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).run(...keys.map((k) => row[k]));
+// Ids are written explicitly, so PostgreSQL's sequences must be moved past them or the app's first new row would
+// get id 1 again. SQLite counts up from the highest id by itself.
+async function moveSequences(db, tables) {
+  if (db.client.config.client !== 'pg') return;
+  for (const table of tables) {
+    await db.raw(`SELECT setval(pg_get_serial_sequence('${table}', 'id'), (SELECT COALESCE(MAX(id), 1) FROM ${table}))`);
   }
 }
 
-const db = new Database(FILE);
-try {
-  db.transaction(() => {
-    insert(db, 'users', USERS.map(({ id, email, password, salt, role, apikey }) => ({ id, email, password: hash(password, salt), role, apikey, verified: 1, created_at: CREATED, updated_at: CREATED })));
-    insert(db, 'links', LINKS.map((l) => ({ visit_count: 0, banned: 0, ...l, created_at: CREATED, updated_at: CREATED })));
-    insert(db, 'visits', VISITS.map(({ countries, referrers, ...v }) => ({ ...v, countries: JSON.stringify(countries), referrers: JSON.stringify(referrers), updated_at: v.created_at })));
-  })();
-  console.log(`Seeded ${USERS.length} users, ${LINKS.length} links and ${VISITS.length} visits into ${FILE}`);
-} finally {
-  db.close();
+async function main() {
+  const db = knex(requireFromRepo('./knexfile.js'));
+  try {
+    await db.transaction(async (trx) => {
+      await trx('users').insert(USERS.map(({ id, email, password, salt, role, apikey }) => ({ id, email, password: hash(password, salt), role, apikey, verified: true, created_at: CREATED, updated_at: CREATED })));
+      await trx('links').insert(LINKS.map((l) => ({ visit_count: 0, banned: false, ...l, created_at: CREATED, updated_at: CREATED })));
+      // Visits come without ids: the database numbers them 1, 2, 3 in this order.
+      for (const { countries, referrers, ...v } of VISITS) {
+        await trx('visits').insert({ ...v, countries: JSON.stringify(countries), referrers: JSON.stringify(referrers), updated_at: v.created_at });
+      }
+      await moveSequences(trx, ['users', 'links', 'visits']);
+    });
+    console.log(`Seeded ${USERS.length} users, ${LINKS.length} links and ${VISITS.length} visits (${db.client.config.client})`);
+  } finally {
+    await db.destroy();
+  }
 }
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

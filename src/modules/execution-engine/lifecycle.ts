@@ -10,6 +10,7 @@ import type {
   SeedResult,
   TargetConfig,
 } from '../../shared/schemas.js';
+import { PROJECT_ROOT } from '../../shared/paths.js';
 import { childEnv, formatEnvFile, serviceEnv, type ServiceName } from './env.js';
 import { waitForHealthy } from './health.js';
 import { installIfNeeded } from './install.js';
@@ -33,7 +34,7 @@ export interface StartOptions {
    * install. A patched tree is never a clean start.
    */
   prepared?: { commit: string; patched: boolean };
-  /** Absolute path of targets/<name>/, available to commands as {{targetDir}}. */
+  /** Absolute path of targets/<name>/, available to commands as {{targetDir}} (and the project root as {{projectDir}}, for shared tools/). */
   targetDir: string;
   /** Where backend.log, frontend.log and setup.log are written (an execution's server/ folder). */
   logsDir: string;
@@ -139,7 +140,7 @@ export async function startTarget(config: TargetConfig, options: StartOptions): 
     })());
   const startupTimeoutMs = configOverride?.lifecycle?.startupTimeoutMs ?? config.lifecycle.startupTimeoutMs;
   const dir = (cwd: string) => path.resolve(repoDir, cwd);
-  const fill = (command: string) => fillPlaceholders(command, { targetDir: options.targetDir });
+  const fill = (command: string) => fillPlaceholders(command, { targetDir: options.targetDir, projectDir: PROJECT_ROOT });
 
   try {
     // A one-process app (no `frontend`, SPEC §1.2) has one service; its backend serves the pages.

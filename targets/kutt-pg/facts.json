@@ -1,0 +1,452 @@
+{
+  "schemaVersion": "1.0",
+  "target": "kutt-pg",
+  "goldenCommit": "6ca803373a3c95f1a92674e9066175aff96cb772",
+  "observedAt": "2026-10-28T23:11:12.011Z",
+  "facts": [
+    {
+      "name": "health",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/health",
+        "as": null
+      },
+      "status": 200,
+      "body": "OK",
+      "truncated": false
+    },
+    {
+      "name": "wrongPassword",
+      "request": {
+        "method": "POST",
+        "path": "/api/v2/auth/login",
+        "as": null
+      },
+      "status": 401,
+      "body": {
+        "error": "Login credentials are wrong."
+      },
+      "truncated": false
+    },
+    {
+      "name": "linksAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/links",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "total": 4,
+        "limit": 10,
+        "skip": 0,
+        "data": [
+          {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "address": "soon00",
+            "banned": false,
+            "created_at": "2026-01-15T09:00:00.000Z",
+            "updated_at": "2026-01-15T09:00:00.000Z",
+            "password": false,
+            "description": null,
+            "expire_in": "2099-01-01T00:00:00.000Z",
+            "target": "https://example.com/expiring",
+            "visit_count": 0,
+            "domain": null,
+            "link": "https://localhost:3000/soon00"
+          },
+          {
+            "id": "33333333-3333-4333-8333-333333333333",
+            "address": "alice3",
+            "banned": false,
+            "created_at": "2026-01-15T09:00:00.000Z",
+            "updated_at": "2026-01-15T09:00:00.000Z",
+            "password": true,
+            "description": null,
+            "expire_in": null,
+            "target": "https://example.com/secret",
+            "visit_count": 0,
+            "domain": null,
+            "link": "https://localhost:3000/alice3"
+          },
+          {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "address": "alice2",
+            "banned": false,
+            "created_at": "2026-01-15T09:00:00.000Z",
+            "updated_at": "2026-01-15T09:00:00.000Z",
+            "password": false,
+            "description": "Beta page",
+            "expire_in": null,
+            "target": "https://example.com/beta",
+            "visit_count": 3,
+            "domain": null,
+            "link": "https://localhost:3000/alice2"
+          },
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "address": "alice1",
+            "banned": false,
+            "created_at": "2026-01-15T09:00:00.000Z",
+            "updated_at": "2026-01-15T09:00:00.000Z",
+            "password": false,
+            "description": null,
+            "expire_in": null,
+            "target": "https://example.com/alpha",
+            "visit_count": 7,
+            "domain": null,
+            "link": "https://localhost:3000/alice1"
+          }
+        ]
+      },
+      "truncated": false
+    },
+    {
+      "name": "linksNoToken",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/links",
+        "as": null
+      },
+      "status": 401,
+      "body": {
+        "error": "Unauthorized."
+      },
+      "truncated": false
+    },
+    {
+      "name": "linkStatsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/links/11111111-1111-4111-8111-111111111111/stats",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "lastYear": {
+          "stats": {
+            "browser": [
+              {
+                "name": "chrome",
+                "value": 3
+              },
+              {
+                "name": "firefox",
+                "value": 2
+              },
+              {
+                "name": "safari",
+                "value": 2
+              },
+              {
+                "name": "edge",
+                "value": 0
+              },
+              {
+                "name": "ie",
+                "value": 0
+              }
+            ],
+            "os": [
+              {
+                "name": "linux",
+                "value": 3
+              },
+              {
+                "name": "macos",
+                "value": 2
+              },
+              {
+                "name": "windows",
+                "value": 2
+              },
+              {
+                "name": "android",
+                "value": 0
+              },
+              {
+                "name": "ios",
+                "value": 0
+              }
+            ],
+            "country": [
+              {
+                "name": "US",
+                "value": 5
+              },
+              {
+                "name": "DE",
+                "value": 2
+              }
+            ],
+            "referrer": [
+              {
+                "name": "Direct",
+                "value": 5
+              },
+              {
+                "name": "google.com",
+                "value": 2
+              }
+            ]
+          },
+          "views": [
+            0,
+            0,
+            7,
+            0,
+            0
+          ],
+          "total": 7
+        },
+        "lastDay": {
+          "stats": {
+            "browser": [
+              {
+                "name": "chrome",
+                "value": 0
+              },
+              {
+                "name": "edge",
+                "value": 0
+              },
+              {
+                "name": "firefox",
+                "value": 0
+              },
+              {
+                "name": "ie",
+                "value": 0
+              },
+              {
+                "name": "opera",
+                "value": 0
+              }
+            ],
+            "os": [
+              {
+                "name": "android",
+                "value": 0
+              },
+              {
+                "name": "ios",
+                "value": 0
+              },
+              {
+                "name": "linux",
+                "value": 0
+              },
+              {
+                "name": "macos",
+                "value": 0
+              },
+              {
+                "name": "other",
+                "value": 0
+              }
+            ],
+            "country": [],
+            "referrer": []
+          },
+          "views": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "total": 0
+        },
+        "lastMonth": {
+          "stats": {
+            "browser": [
+              {
+                "name": "chrome",
+                "value": 0
+              },
+              {
+                "name": "edge",
+                "value": 0
+              },
+              {
+                "name": "firefox",
+                "value": 0
+              },
+              {
+                "name": "ie",
+                "value": 0
+              },
+              {
+                "name": "opera",
+                "value": 0
+              }
+            ],
+            "os": [
+              {
+                "name": "android",
+                "value": 0
+              },
+              {
+                "name": "ios",
+                "value": 0
+              },
+              {
+                "name": "linux",
+                "value": 0
+              },
+              {
+                "name": "macos",
+                "value": 0
+              },
+              {
+                "name": "other",
+                "value": 0
+              }
+            ],
+            "country": [],
+            "referrer": []
+          },
+          "views": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "total": 0
+        },
+        "lastWeek": {
+          "stats": {
+            "browser": [
+              {
+                "name": "chrome",
+                "value": 0
+              },
+              {
+                "name": "edge",
+                "value": 0
+              },
+              {
+                "name": "firefox",
+                "value": 0
+              },
+              {
+                "name": "ie",
+                "value": 0
+              },
+              {
+                "name": "opera",
+                "value": 0
+              }
+            ],
+            "os": [
+              {
+                "name": "android",
+                "value": 0
+              },
+              {
+                "name": "ios",
+                "value": 0
+              },
+              {
+                "name": "linux",
+                "value": 0
+              },
+              {
+                "name": "macos",
+                "value": 0
+              },
+              {
+                "name": "other",
+                "value": 0
+              }
+            ],
+            "country": [],
+            "referrer": []
+          },
+          "views": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "total": 0
+        },
+        "updatedAt": "2026-10-28T23:11:11.949Z",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "address": "alice1",
+        "banned": false,
+        "created_at": "2026-01-15T09:00:00.000Z",
+        "updated_at": "2026-01-15T09:00:00.000Z",
+        "password": false,
+        "description": null,
+        "expire_in": null,
+        "target": "https://example.com/alpha",
+        "visit_count": 7,
+        "domain": null,
+        "link": "https://localhost:3000/alice1"
+      },
+      "truncated": true
+    },
+    {
+      "name": "meAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/users",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "email": "alice@kutt.test"
+      },
+      "truncated": false
+    },
+    {
+      "name": "usersAdmin",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/users/admin",
+        "as": "users.admin"
+      },
+      "status": 200,
+      "body": {
+        "total": 3,
+        "data": [
+          {
+            "email": "bob@kutt.test",
+            "role": "USER",
+            "verified": true,
+            "banned": false
+          },
+          {
+            "email": "alice@kutt.test",
+            "role": "USER",
+            "verified": true,
+            "banned": false
+          },
+          {
+            "email": "admin@kutt.test",
+            "role": "ADMIN",
+            "verified": true,
+            "banned": false
+          }
+        ]
+      },
+      "truncated": false
+    },
+    {
+      "name": "usersAdminAsMember",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/users/admin",
+        "as": "users.alice"
+      },
+      "status": 401,
+      "body": {
+        "error": "Unauthorized"
+      },
+      "truncated": false
+    }
+  ]
+}

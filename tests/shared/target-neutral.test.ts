@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
 
-// The pipeline in src/ (code, prompts and their examples, the script helpers) must stay general: nothing may name a
+// The pipeline in src/ (code, prompts and their examples, the script helpers) and the shared tools in tools/ must stay general: nothing may name a
 // target app's entities, routes, files, fixtures or seed data. Every term comes from the targets themselves (their
 // target.config.json and facts.json) plus a hand-made list of each target's domain words.
 
@@ -16,6 +16,8 @@ const DOMAIN_WORDS: Record<string, string[]> = {
   ],
   // Not 'htmx' or 'handlebars': technologies that adapters are meant to recognise are not the app's own words.
   kutt: ['kutt', 'shortener', 'shortened', 'short link', 'short links', 'customurl'],
+  // The same app on PostgreSQL; PostgreSQL itself is a technology the shared tools are meant to support.
+  'kutt-pg': ['kutt', 'shortener', 'shortened', 'short link', 'short links', 'customurl'],
 };
 
 /**
@@ -36,7 +38,7 @@ const GENERIC: Record<string, string> = {
   admin: 'the generic role name in examples of fixture users',
 };
 
-const TEXT_FILES = /\.(ts|js|cjs|mjs|json|md|txt|html|css)$/;
+const TEXT_FILES = /\.(ts|js|cjs|mjs|json|md|txt|html|css|sh|sql)$/;
 
 function filesUnder(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -81,7 +83,7 @@ function targetTerms(target: string): Array<{ term: string; from: string }> {
 /** Every place in src/ a target's term appears (words by word boundary, case-insensitive; paths and phrases as text). */
 function hits(target: string): string[] {
   const out: string[] = [];
-  const sources = filesUnder(path.join(PROJECT_ROOT, 'src')).map((file) => ({ file: path.relative(PROJECT_ROOT, file), lines: readFileSync(file, 'utf8').split('\n') }));
+  const sources = [...filesUnder(path.join(PROJECT_ROOT, 'src')), ...filesUnder(path.join(PROJECT_ROOT, 'tools'))].map((file) => ({ file: path.relative(PROJECT_ROOT, file), lines: readFileSync(file, 'utf8').split('\n') }));
   for (const { term, from } of targetTerms(target)) {
     if (GENERIC[term] !== undefined) continue;
     const pattern = /^\w+$/.test(term) ? new RegExp(`\\b${escape(term)}\\b`, 'i') : new RegExp(escape(term));
@@ -96,17 +98,22 @@ function hits(target: string): string[] {
 
 const targets = readdirSync(path.join(PROJECT_ROOT, 'targets')).filter((name) => existsSync(path.join(PROJECT_ROOT, 'targets', name, 'target.config.json')));
 
-describe('src/ names nothing of a target app', () => {
+describe('src/ and tools/ name nothing of a target app', () => {
   it('knows which targets to check', () => {
     expect(targets).toContain('mern-ecommerce');
     for (const t of targets) expect(DOMAIN_WORDS[t], `add the domain words of ${t} to DOMAIN_WORDS`).toBeDefined();
   });
 
   for (const target of targets) {
-    it(`${target}: no entity, route, file, fixture or seed data of it in src/`, () => {
+    it(`${target}: no entity, route, file, fixture or seed data of it in src/ or tools/`, () => {
       expect(hits(target)).toEqual([]);
     });
   }
+
+  it('also reads the shared tools (the scan covers tools/ as well as src/)', () => {
+    const scanned = [...filesUnder(path.join(PROJECT_ROOT, 'src')), ...filesUnder(path.join(PROJECT_ROOT, 'tools'))].map((f) => path.relative(PROJECT_ROOT, f));
+    expect(scanned).toEqual(expect.arrayContaining(['src/cli.ts', 'tools/postgres/snapshot.sh', 'tools/postgres/snapshot-restore.sql']));
+  });
 
   it('finds a term the way it would appear (the check works)', () => {
     const terms = targetTerms('mern-ecommerce').map((t) => t.term);
