@@ -216,6 +216,8 @@ export interface ReviewTaskInput {
   received: string | null;
   context: { pageSnapshot?: string; dom?: string; lastResponse?: string };
   script: string;
+  /** The settings the application runs with (renderSettings), or null. */
+  settings?: string | null;
 }
 
 export function buildReviewTask(input: ReviewTaskInput): string {
@@ -228,6 +230,7 @@ export function buildReviewTask(input: ReviewTaskInput): string {
     `## The failure\n${input.expectationId} "${expectation?.description ?? ''}" is locked to ${JSON.stringify(expectation?.value)}; the correct version gave ${input.received ?? '(not a single value, see the message)'}.\n\`\`\`\n${stripAnsi(input.message).split('\n').slice(0, 30).join('\n')}\n\`\`\``,
     `## The script\n\`\`\`ts\n${input.script}\n\`\`\``,
   ];
+  if (input.settings) parts.push(`## Settings\n${input.settings} A requirement or test written from the code's default may not hold under them.`);
   if (input.context.lastResponse) parts.push(`## Last API response\n${input.context.lastResponse}`);
   if (input.context.pageSnapshot) parts.push(`## The page when the check failed (accessibility tree)\n\`\`\`yaml\n${input.context.pageSnapshot.slice(0, 6_000)}\n\`\`\``);
   parts.push('Investigate the code, then call submit_review.');
@@ -243,6 +246,8 @@ export interface ReviewDeps {
   runDir: string;
   requirements: (tc: TestCase) => PrdRequirement[];
   readScript: (tc: TestCase) => Promise<string>;
+  /** The settings the application runs with (renderSettings), shown to the reviewer. */
+  settings?: string | null;
 }
 
 export interface ReviewOutcome {
@@ -269,7 +274,7 @@ export async function reviewSuspected(tc: TestCase, entry: ScriptManifestEntry, 
       {
         purpose: 'review',
         system: buildReviewSystemPrompt(),
-        task: buildReviewTask({ tc, requirements: deps.requirements(tc), expectationId, message, received: rawReceived, context, script: await deps.readScript(tc) }),
+        task: buildReviewTask({ tc, requirements: deps.requirements(tc), expectationId, message, received: rawReceived, context, script: await deps.readScript(tc), settings: deps.settings ?? null }),
         tools: createRepoTools(deps.scope),
         submit: {
           name: 'submit_review',

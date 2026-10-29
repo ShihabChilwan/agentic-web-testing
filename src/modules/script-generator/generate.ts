@@ -24,6 +24,7 @@ import type {
   TestCase,
 } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
+import { renderSettings } from '../../shared/target-settings.js';
 import { uiBaseUrl, uiSourceRoots } from '../../shared/target-ui.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { checkFixtureLogins } from '../execution-engine/guard.js';
@@ -599,6 +600,7 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
         runDir: paths.dir,
         requirements: (tc) => prd.requirements.filter((r) => tc.requirementIds.includes(r.id)),
         readScript: (tc) => readFile(path.join(paths.scriptsDir, `${tc.id}.spec.ts`), 'utf8'),
+        settings: renderSettings(config),
       };
       for (let round = 1; round <= MAX_REVIEWS && !options.signal?.aborted; round++) {
         const toReview = reviewable();

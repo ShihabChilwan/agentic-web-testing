@@ -1,4 +1,5 @@
 import type { TargetConfig } from '../../shared/schemas.js';
+import { renderSettings } from '../../shared/target-settings.js';
 import { hasFrontend, uiSourceRoots } from '../../shared/target-ui.js';
 
 export const MAX_BATCH_ITEMS = 25;
@@ -39,6 +40,9 @@ Live third-party services are disabled where the tests run: typically email, pay
   Good: requirements "Requesting an invitation for an unknown address returns an error" and "Joining with an invalid invitation code is rejected"; assumption "Receiving the invitation email and joining with its link cannot be tested: email is disabled."
 Performance, security testing and visual design are out of scope.
 
+## Settings
+The task may list settings the application runs with here. Write each requirement for the behaviour under those settings, not for the default in the code when they differ; when a setting switches a behaviour on or off, say in the requirement which setting it depends on.
+
 ## Assumptions and open questions
 Assumptions are things you inferred but could not confirm, plus untestable behaviour. Open questions are places where the intended behaviour is unclear, or the code looks unintended or disagrees with its names or documentation.
 
@@ -71,6 +75,8 @@ export function buildTask(config: TargetConfig): string {
       ? `Third-party services are disabled here; these configuration keys are left empty or turned off: ${disabled.join(', ')}.`
       : 'Third-party services (email, payments, OAuth, external storage) are disabled here.',
   );
+  const settings = renderSettings(config);
+  if (settings) lines.push(settings);
   if (config.sourceHints.include.length > 0) {
     lines.push(`Places to look first (hints, not limits): ${config.sourceHints.include.join(', ')}.`);
   }

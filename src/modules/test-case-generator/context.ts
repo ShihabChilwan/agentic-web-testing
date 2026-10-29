@@ -3,6 +3,7 @@ import { isHidden, splitLines } from '../../agent/tools/repo-tools.js';
 import type { RepoScope } from '../../agent/tools/repo-tools.js';
 import { showFile } from '../../shared/git.js';
 import type { Prd, PrdRequirement, TargetConfig, TargetFacts } from '../../shared/schemas.js';
+import { renderSettings } from '../../shared/target-settings.js';
 import { hasFrontend, uiBaseUrl } from '../../shared/target-ui.js';
 import type { Grounding } from './checks.js';
 
@@ -303,6 +304,7 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
       `- Backend base URL: ${config.backend.baseUrl}`,
       `- API path prefix: ${config.backend.apiPrefix || '(none)'}`,
       `- Disabled third-party services (configuration keys): ${disabled.length > 0 ? disabled.join(', ') : 'email, payments, OAuth, external storage'}`,
+      ...(renderSettings(config) ? [`- ${renderSettings(config)}`] : []),
       '- Fixture data that exists before every test. Use only these; refer to them by path in fixturesUsed (e.g. users.<name>):',
       '```json',
       JSON.stringify(config.fixtures, null, 2),

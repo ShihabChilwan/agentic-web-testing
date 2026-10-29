@@ -23,6 +23,14 @@
       "DB_FILENAME": "db/data",
       "DISALLOW_ANONYMOUS_LINKS": "false"
     },
+    "visibleEnv": [
+      "DEFAULT_DOMAIN",
+      "DISALLOW_ANONYMOUS_LINKS",
+      "DB_CLIENT",
+      "MAIL_ENABLED",
+      "REDIS_ENABLED",
+      "OIDC_ENABLED"
+    ],
     "disabledServices": {
       "MAIL_ENABLED": "false",
       "REDIS_ENABLED": "false",

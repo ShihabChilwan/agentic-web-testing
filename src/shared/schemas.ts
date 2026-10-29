@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibleEnvProblems } from './target-settings.js';
 
 // ---------------------------------------------------------------------------
 // Shared building blocks
@@ -69,6 +70,12 @@ const ServiceConfig = z.strictObject({
   env: EnvMap,
   /** Also write the env to this file (relative to `cwd`) before start, for apps that read a .env file. */
   envFile: RelPath.optional(),
+  /**
+   * Names of `env` entries (for the backend also of `disabledServices`) that the agents are shown with their values:
+   * settings that change how the app behaves (a feature switch, a default domain). Only what is listed is shown, and
+   * a name that looks like a secret, or a value with credentials, is refused (§1.2).
+   */
+  visibleEnv: z.array(z.string().min(1)).optional(),
 });
 
 export const FixtureUser = z.looseObject({
@@ -226,6 +233,8 @@ export const TargetConfig = z.strictObject({
    * coverage when NODE_V8_COVERAGE is set. Without it the gaps stage is skipped.
    */
   coverage: z.strictObject({ kind: z.literal('node-v8') }).optional(),
+}).superRefine((config, ctx) => {
+  for (const message of visibleEnvProblems(config)) ctx.addIssue({ code: 'custom', message, path: ['backend', 'visibleEnv'] });
 });
 
 export type TargetConfig = z.infer<typeof TargetConfig>;

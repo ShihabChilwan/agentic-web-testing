@@ -18,6 +18,10 @@
       "CLIENT_URL": "http://localhost:8080",
       "BASE_API_URL": "api"
     },
+    "visibleEnv": [
+      "CLIENT_URL",
+      "BASE_API_URL"
+    ],
     "disabledServices": {
       "MAILCHIMP_KEY": "",
       "MAILCHIMP_LIST_KEY": "",
