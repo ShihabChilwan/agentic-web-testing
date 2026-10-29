@@ -514,8 +514,10 @@ export const CoverageReport = z.object({
       method: HttpMethod,
       path: z.string().startsWith('/'),
       reached: z.boolean(),
-      /** An unreached endpoint whose code names this disabled setting (a key of `disabledServices`): not asked for, counted apart (§5.1). */
+      /** An unreached endpoint whose code names this disabled setting (a key of `disabledServices`) while a passing script sends it: turned away before the handler; not asked for, counted apart (§5.1). */
       gatedBy: z.string().min(1).optional(),
+      /** Counted as reached because a passing script sends the request: the endpoint's evidence holds no code coverage can see (only the route declaration) (§5.1). */
+      observed: z.boolean().optional(),
     }),
   ),
 });
@@ -1013,8 +1015,10 @@ export const StageGapsSummary = z.object({
   unreached: z.array(z.string()),
   /** Unreached endpoints given to a session (a requirement describes them). */
   asked: z.array(z.string()),
-  /** Unreached endpoints not asked for because their code names a disabled setting: "METHOD /path (SETTING)". Absent in older files. */
+  /** Unreached endpoints not asked for because they are turned away behind a disabled setting: "METHOD /path (SETTING)". Absent in older files. */
   gated: z.array(z.string()).default([]),
+  /** Endpoints counted as reached by request (their evidence has no measurable code): "METHOD /path". Absent in older files. */
+  observed: z.array(z.string()).default([]),
   casesAdded: count,
   sessions: count,
   calls: count,

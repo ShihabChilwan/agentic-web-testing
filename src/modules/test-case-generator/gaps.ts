@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { readCallLog } from '../../llm/call-log.js';
 import { createLLMClient } from '../../llm/client.js';
 import type { LLMClient } from '../../llm/types.js';
@@ -6,15 +7,16 @@ import { loadLLMConfig } from '../../shared/config.js';
 import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
-import { CoverageReport, MAX_TEST_CASES, Prd, SCHEMA_VERSION, TestCases } from '../../shared/schemas.js';
+import { CoverageReport, MAX_TEST_CASES, Prd, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
 import type { PartlyCoveredRequirement, StageGapsSummary, TestCase } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { Transcript } from '../../agent/transcript.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { measureCoverage, type MeasureCoverageOptions, type MeasuredCoverage } from '../execution-engine/coverage.js';
 import { toTestCase } from './checks.js';
-import { linesAtCommit, type ReadLines } from './context.js';
+import { linesAtCommit } from './context.js';
 import { pageCoverage, relatesToEndpoint, runSession, type SessionInput } from './generate.js';
+import { classifyUnreached } from './reach.js';
 
 type Endpoint = Prd['apiEndpoints'][number];
 
@@ -52,31 +54,6 @@ export function endpointReach(endpoints: readonly Endpoint[], files: Record<stri
 }
 
 /**
- * For each unreached endpoint, the disabled setting (a key of `disabledServices`) its code names, if any: the lines of
- * its evidence at the generation commit are searched for the key. Such an endpoint is behind a feature switched off
- * here (mail, OAuth), so no test can reach its handler; asking for tests would only repeat rejections. A mention that
- * is not a gate (an optional cache) hides a reachable endpoint from the round, which is why the result is reported.
- */
-export async function gatedByDisabledSetting(
-  endpoints: readonly Endpoint[],
-  reached: ReadonlyArray<{ reached: boolean }>,
-  disabledKeys: readonly string[],
-  read: ReadLines,
-): Promise<Array<string | undefined>> {
-  return Promise.all(
-    endpoints.map(async (e, i) => {
-      if (reached[i]!.reached || disabledKeys.length === 0) return undefined;
-      for (const ev of e.evidence) {
-        const lines = (await read(ev.file))?.slice(ev.lines[0] - 1, ev.lines[1]).join('\n');
-        const key = lines === undefined ? undefined : disabledKeys.find((k) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(lines));
-        if (key) return key;
-      }
-      return undefined;
-    }),
-  );
-}
-
-/**
  * The gaps stage (SPEC §5.1): measures which backend code the passing scripts run on the generation version, finds the
  * PRD endpoints none of them reached, and runs one test case session per feature for the api requirements describing
  * them, within what is left of the 150 test cases. New cases get the next ids and are appended to testcases.json; the
@@ -97,7 +74,8 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     const unreached = prd.apiEndpoints.filter((_, i) => !reach[i]!.reached);
     const gated = prd.apiEndpoints.filter((_, i) => reach[i]!.gatedBy !== undefined);
     const gatedLabels = prd.apiEndpoints.flatMap((e, i) => (reach[i]!.gatedBy ? [`${label(e)} (${reach[i]!.gatedBy})`] : []));
-    log(`Endpoints reached by a passing script: ${reach.length - unreached.length} of ${reach.length}${gated.length > 0 ? `; ${gated.length} more name a disabled setting in their code and are not asked for` : ''}`);
+    const observedLabels = prd.apiEndpoints.flatMap((e, i) => (reach[i]!.observed ? [label(e)] : []));
+    log(`Endpoints reached by a passing script: ${reach.length - unreached.length} of ${reach.length}${observedLabels.length > 0 ? ` (${observedLabels.length} counted by request: their evidence has no code coverage can see)` : ''}${gated.length > 0 ? `; ${gated.length} more are turned away behind a disabled setting and are not asked for` : ''}`);
 
     // One session per feature, for its api requirements that describe an unreached endpoint.
     const llmConfig = options.llmConfig ?? (await loadLLMConfig());
@@ -166,6 +144,7 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
       unreached: unreached.map(label),
       asked: [...asked].map(label),
       gated: gatedLabels,
+      observed: observedLabels,
       casesAdded: added.length,
       sessions: outcomes.length,
       calls: outcomes.reduce((n, o) => n + o.turns, 0),
@@ -205,10 +184,26 @@ async function gapsContext(options: Pick<GenerateGapsOptions, 'runId' | 'runsDir
   return { runId, paths, manifest, config, repoDir, targetDir, prd, coverageKind: config.coverage.kind };
 }
 
-async function withGates(ctx: Awaited<ReturnType<typeof gapsContext>>, reach: CoverageReport['endpoints']): Promise<CoverageReport['endpoints']> {
+/** The source of every script that passed its dry run: what the passing suite sends, for the observations of classifyUnreached. */
+async function passingScriptSources(ctx: Awaited<ReturnType<typeof gapsContext>>): Promise<string[]> {
+  const manifest = ScriptManifest.parse(JSON.parse(await readFile(ctx.paths.scriptsManifest, 'utf8')));
+  const passed = manifest.scripts.filter((s) => s.status === 'validated' && s.validationOutcome === 'passed');
+  return Promise.all(passed.map((s) => readFile(path.join(ctx.paths.dir, s.file), 'utf8')));
+}
+
+/** Adds what coverage alone cannot tell (SPEC §5.1): `gatedBy` on endpoints behind a disabled setting, `observed` on route-only ones. */
+async function withClasses(ctx: Awaited<ReturnType<typeof gapsContext>>, reach: CoverageReport['endpoints']): Promise<CoverageReport['endpoints']> {
   const read = linesAtCommit({ root: ctx.repoDir, forbiddenPaths: ctx.config.forbiddenPaths }, ctx.manifest.generationCommit);
-  const gates = await gatedByDisabledSetting(ctx.prd.apiEndpoints, reach, Object.keys(ctx.config.backend.disabledServices), read);
-  return reach.map((r, i) => (gates[i] ? { ...r, gatedBy: gates[i]! } : r));
+  const classes = await classifyUnreached(ctx.prd.apiEndpoints, reach, {
+    disabledKeys: Object.keys(ctx.config.backend.disabledServices),
+    read,
+    scriptSources: await passingScriptSources(ctx),
+    ...(ctx.config.auth ? { login: ctx.config.auth } : {}),
+  });
+  return reach.map((r, i) => {
+    const c = classes[i]!;
+    return c.gatedBy ? { ...r, gatedBy: c.gatedBy } : c.observed ? { ...r, reached: true, observed: true } : r;
+  });
 }
 
 /** Measures backend coverage of the passing scripts and writes coverage/coverage.json (§5.1 steps 1–3). */
@@ -232,7 +227,7 @@ async function measureAndWrite(ctx: Awaited<ReturnType<typeof gapsContext>>, opt
     scripts: { run: measured.results.summary.total, passed: measured.results.summary.passed },
     processes: measured.processes,
     files: Object.fromEntries(Object.entries(measured.files).map(([file, lines]) => [file, { lines }])),
-    endpoints: await withGates(ctx, endpointReach(ctx.prd.apiEndpoints, measured.files)),
+    endpoints: await withClasses(ctx, endpointReach(ctx.prd.apiEndpoints, measured.files)),
   });
   await mkdir(ctx.paths.coverageDir, { recursive: true });
   await writeFile(ctx.paths.coverage, `${JSON.stringify(coverage, null, 2)}\n`, 'utf8');
@@ -259,10 +254,12 @@ export function describeMeasurement(result: MeasureEndpointsResult): string[] {
   const { coverage: c } = result;
   const missed = c.endpoints.filter((e) => !e.reached && !e.gatedBy).map((e) => `${e.method} ${e.path}`);
   const gated = c.endpoints.filter((e) => e.gatedBy).map((e) => `${e.method} ${e.path} (${e.gatedBy})`);
+  const observed = c.endpoints.filter((e) => e.observed).map((e) => `${e.method} ${e.path}`);
   return [
     `API endpoints reached by a passing script: ${c.endpoints.filter((e) => e.reached).length} of ${c.endpoints.length} (scripts run ${c.scripts.run}, passed ${c.scripts.passed})`,
+    ...(observed.length > 0 ? [`counted as reached by request (evidence has no code coverage can see): ${observed.join(', ')}`] : []),
     ...(missed.length > 0 ? [`not reached: ${missed.join(', ')}`] : []),
-    ...(gated.length > 0 ? [`not reached, their code names a disabled setting: ${gated.join(', ')}`] : []),
+    ...(gated.length > 0 ? [`not reached, turned away behind a disabled setting: ${gated.join(', ')}`] : []),
     `written: runs/${result.runId}/coverage/coverage.json (no test cases added)`,
   ];
 }
@@ -273,7 +270,8 @@ export function describeGaps(result: GenerateGapsResult): string[] {
   return [
     `API endpoints reached by a passing script: ${s.endpoints.reached} of ${s.endpoints.total} (scripts run ${result.coverage.scripts.run}, passed ${result.coverage.scripts.passed})`,
     ...(s.unreached.length > 0 ? [`not reached: ${s.unreached.join(', ')}`] : []),
-    ...(s.gated.length > 0 ? [`not asked for, their code names a disabled setting: ${s.gated.join(', ')}`] : []),
+    ...(s.observed.length > 0 ? [`counted as reached by request (evidence has no code coverage can see): ${s.observed.join(', ')}`] : []),
+    ...(s.gated.length > 0 ? [`not asked for, turned away behind a disabled setting: ${s.gated.join(', ')}`] : []),
     `endpoint round: ${s.asked.length} endpoints asked in ${s.sessions} sessions; ${s.casesAdded} test cases added${result.added.length > 0 ? ` (${result.added[0]}..${result.added.at(-1)})` : ''}`,
     `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}; rejected submits: ${s.rejected.invalidInput} invalid input, ${s.rejected.checkFailed} failed checks`,
     ...s.warnings.map((w) => `Warning: ${w}`),

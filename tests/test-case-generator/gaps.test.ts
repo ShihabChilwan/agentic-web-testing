@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import { describesEndpoint, endpointRoundProblems, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
-import { describeGaps, describeMeasurement, endpointReach, gatedByDisabledSetting, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
+import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
 import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { createRun, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
@@ -89,13 +89,22 @@ afterAll(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+/** The scripts manifest of a run: TC-001 passed its dry run, its source is `source`. */
+async function writeScripts(paths: { dir: string; scriptsDir: string; scriptsManifest: string }, source = '// a script that sends nothing\n') {
+  await mkdir(paths.scriptsDir, { recursive: true });
+  await writeFile(path.join(paths.scriptsDir, 'TC-001.spec.ts'), source);
+  const entry = { testCaseId: 'TC-001', file: 'scripts/TC-001.spec.ts', status: 'validated', validationOutcome: 'passed', attempts: 1, attemptLog: [{ attempt: 1, stage: 'dry-run', error: null, durationMs: 10 }] };
+  await writeFile(paths.scriptsManifest, JSON.stringify({ schemaVersion: '1.0', generationRef: 'golden', scripts: [entry] }));
+}
+
 /** A run whose scripts stage is done, with one test case for REQ-001. */
-async function makeRun(scripts: 'done' | 'failed' = 'done') {
+async function makeRun(scripts: 'done' | 'failed' = 'done', source?: string) {
   const runsDir = await mkdtemp(path.join(root, 'runs-'));
   const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });
   await writeFile(paths.prd, JSON.stringify(prd()));
   await writeFile(paths.testCases, JSON.stringify(existing));
   await setStage(paths.dir, 'scripts', { status: scripts, startedAt: '2026-10-25T10:00:00.000Z', finishedAt: '2026-10-25T10:30:00.000Z' });
+  await writeScripts(paths, source);
   return { runId, runsDir, paths };
 }
 
@@ -266,20 +275,10 @@ describe('endpoints of one resource, and endpoints behind a disabled setting (re
     expect(problems(['REQ-033'])).toEqual([]);
   });
 
-  it('finds the disabled setting an unreached endpoint names in its code, and nothing for a reached one or a longer name', async () => {
-    const lines = ["router.post('/notify',", '  auth.featureAccess([env.MAILGUN_KEY]),', '  notify);', '', 'const other = env.MAILGUN_KEY_EXTRA;'];
-    const read = async (file: string) => (file === 'server/mail.js' ? lines : null);
-    const at = (range: [number, number]) => ({ ...endpoints[0]!, evidence: [{ file: 'server/mail.js', lines: range }] });
-    const keys = ['MAILGUN_KEY', 'GOOGLE_CLIENT_ID'];
-    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: false }], keys, read)).toEqual(['MAILGUN_KEY']);
-    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: true }], keys, read)).toEqual([undefined]);
-    expect(await gatedByDisabledSetting([at([4, 5])], [{ reached: false }], ['MAILGUN_KEY'], read)).toEqual([undefined]); // MAILGUN_KEY_EXTRA is another name
-    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: false }], [], read)).toEqual([undefined]);
-  });
 });
 
 describe('generateGaps with an endpoint behind a disabled setting', () => {
-  it('does not ask for it, counts it apart and says which setting its code names', async () => {
+  async function run(scriptSource: string) {
     const runsDir = await mkdtemp(path.join(root, 'runs-'));
     const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });
     const gatedEndpoint = { ...endpoints[0]!, method: 'POST' as const, path: '/api/items/notify', evidence: [{ file: 'server/mail.js', lines: [1, 3] as [number, number] }] };
@@ -288,14 +287,50 @@ describe('generateGaps with an endpoint behind a disabled setting', () => {
     await writeFile(paths.prd, JSON.stringify({ ...withGated, requirements: [...requirements, notifyReq] }));
     await writeFile(paths.testCases, JSON.stringify(existing));
     await setStage(paths.dir, 'scripts', { status: 'done', startedAt: '2026-10-25T10:00:00.000Z', finishedAt: '2026-10-25T10:30:00.000Z' });
-    const { llm, tasks } = fakeModel([submit([draft({ requirementIds: ['REQ-002'], title: 'One item is read', steps: ['Send GET /api/items/42'] })])]);
+    await writeScripts(paths, scriptSource);
+    const readOne = draft({ requirementIds: ['REQ-002'], title: 'One item is read', steps: ['Send GET /api/items/42'] });
+    const notify = draft({ requirementIds: ['REQ-003'], title: 'Notify', steps: ['Send POST /api/items/notify', 'Send GET /api/items'], expected: [{ description: 'Status 200', value: 200 }, { description: 'The list still has the item', value: 'Hat', readBack: true }] });
+    // The session asked for both endpoints needs a case for each; the other asks for one.
+    const { llm, tasks } = fakeModel([submit(scriptSource.includes('notify') ? [readOne] : [readOne, notify])]);
     const result = await generateGaps({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, llmConfig, createLlm: async () => llm, measure });
+    return { result, tasks, paths };
+  }
+
+  it('does not ask for it when a passing script already sends it and it was turned away; counts it apart and names the setting', async () => {
+    const { result, tasks, paths } = await run("await api.post('/api/items/notify', { data: {} });\n");
+    expect(tasks).toHaveLength(1);
     expect(tasks[0]).toContain('no test reaches these endpoints yet: GET /api/items/:id.'); // the round lists only this one
     expect(result.summary).toMatchObject({ endpoints: { total: 3, reached: 1 }, asked: ['GET /api/items/:id'], gated: ['POST /api/items/notify (MAILGUN_KEY)'] });
     expect(result.summary.unreached).toContain('POST /api/items/notify');
     expect(result.summary.warnings.join('\n')).not.toContain('notify');
     expect(CoverageReport.parse(JSON.parse(await readFile(paths.coverage, 'utf8'))).endpoints.map((e) => e.gatedBy)).toEqual([undefined, undefined, 'MAILGUN_KEY']);
-    expect(describeGaps(result)).toContain('not asked for, their code names a disabled setting: POST /api/items/notify (MAILGUN_KEY)');
+    expect(describeGaps(result)).toContain('not asked for, turned away behind a disabled setting: POST /api/items/notify (MAILGUN_KEY)');
+  });
+
+  it('still asks for it when no passing script sends it: a mention of the setting alone proves nothing', async () => {
+    const { result, tasks } = await run('// nothing is sent\n');
+    expect(result.summary.gated).toEqual([]);
+    expect(result.summary.asked).toEqual(['GET /api/items/:id', 'POST /api/items/notify']);
+    expect(tasks.join('\n')).toContain('POST /api/items/notify');
   });
 });
 
+describe('an endpoint whose evidence is only its route declaration', () => {
+  it('is counted as reached when a passing script sends it, and asked for when none does', async () => {
+    const asRoute = (source: string) => makeRun('done', source);
+    const routeOnly = { ...endpoints[1]!, evidence: [{ file: 'server/mail.js', lines: [1, 1] as [number, number] }] }; // "router.post('/notify'," : no function body
+    const measureRoute = async () => {
+      const { runId, runsDir, paths } = await asRoute("await api.get('/api/items/42');\n");
+      await writeFile(paths.prd, JSON.stringify({ ...prd(), apiEndpoints: [endpoints[0]!, routeOnly] }));
+      const result = await measureEndpoints({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, measure });
+      return result;
+    };
+    const sent = await measureRoute();
+    expect(sent.coverage.endpoints.map((e) => [e.reached, e.observed])).toEqual([[true, undefined], [true, true]]);
+    expect(describeMeasurement(sent)).toContain('counted as reached by request (evidence has no code coverage can see): GET /api/items/:id');
+    const { runId, runsDir, paths } = await asRoute('// nothing is sent\n');
+    await writeFile(paths.prd, JSON.stringify({ ...prd(), apiEndpoints: [endpoints[0]!, routeOnly] }));
+    const notSent = await measureEndpoints({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, measure });
+    expect(notSent.coverage.endpoints.map((e) => e.reached)).toEqual([true, false]);
+  });
+});
