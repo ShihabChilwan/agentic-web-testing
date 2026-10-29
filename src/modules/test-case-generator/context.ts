@@ -289,7 +289,7 @@ export function buildFeatureTask(input: FeatureTaskInput): string {
   const disabled = Object.keys(config.backend.disabledServices);
   const parts = [
     input.endpointRound
-      ? `Measured with code coverage, no test reaches these endpoints yet: ${input.endpointRound.join(', ')}. Write api test cases for the requirements below that call them (send the request in a step, e.g. "Send ${input.endpointRound[0]}", with real values for path parameters, creating the data first when none exists) and check what they return, or decline a requirement whose endpoint cannot be tested.`
+      ? `Measured with code coverage, no test reaches these endpoints yet: ${input.endpointRound.join(', ')}. Write api test cases that call them (send the request in a step, e.g. "Send ${input.endpointRound[0]}", with real values for path parameters, creating the data first when none exists) and check what they return. Link each case to the listed requirement closest in meaning: it may describe a related endpoint of the same resource instead of this one. Decline a requirement whose endpoint cannot be tested.`
       : input.pageRound
       ? `No test case opens these pages yet: ${input.pageRound.join(', ')}. Write ui test cases for the requirements below that open them (name the page by its path in a step, e.g. "Open ${input.pageRound[0]}") and check what the page shows, or decline a requirement whose page cannot be tested.`
       : input.gapRound

@@ -244,7 +244,7 @@ function gapsDetail(manifest: RunManifest): string {
   const g = manifest.stages.gaps?.gaps;
   if (!g) return manifest.stages.gaps?.status ?? '';
   const scripts = manifest.stages.scripts?.scripts;
-  return `endpoints reached ${g.endpoints.reached}/${g.endpoints.total}; +${g.casesAdded} test cases${g.casesAdded > 0 && scripts ? `; scripts now ${scripts.validated.passed} passed, ${scripts.validated.assertionFailed} assertion_failed, ${scripts.invalid} invalid` : ''}`;
+  return `endpoints reached ${g.endpoints.reached}/${g.endpoints.total}${g.gated.length > 0 ? ` (${g.gated.length} more behind disabled settings)` : ''}; +${g.casesAdded} test cases${g.casesAdded > 0 && scripts ? `; scripts now ${scripts.validated.passed} passed, ${scripts.validated.assertionFailed} assertion_failed, ${scripts.invalid} invalid` : ''}`;
 }
 
 function describeResults(execId: string, r: ExecutionResults): string {

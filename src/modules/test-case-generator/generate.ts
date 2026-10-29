@@ -148,7 +148,7 @@ export async function runSession(input: SessionInput, deps: SessionDeps): Promis
               pages: deps.pages.map((p) => p.path),
             }),
             ...(input.pageRound ? pageRoundProblems(sub, input.pageRound, input.requirements) : []),
-            ...(endpointRound ? endpointRoundProblems(sub, endpointRound, input.requirements, deps.endpoints) : []),
+            ...(endpointRound ? endpointRoundProblems(sub, endpointRound, input.requirements, deps.endpoints, deps.config.backend.apiPrefix) : []),
             // Boundary values for text: in the first and gap sessions (page and endpoint rounds have their own task).
             ...(input.pageRound || endpointRound ? [] : blankInputProblems(sub, evidence.blocks)),
             ...snapshotProblems(sub, deps.pageSnapshots),
@@ -201,19 +201,48 @@ export function describesEndpoint(r: PrdRequirement, endpoint: Prd['apiEndpoints
   );
 }
 
+/** Leading path segments that are not parameters (`:id`, `{id}`, `<id>`), after the API prefix. */
+function literalSegments(endpointPath: string, apiPrefix: string): string[] {
+  const prefix = apiPrefix.split('/').filter(Boolean).length;
+  const segments = endpointPath.split('/').filter(Boolean).slice(prefix);
+  const end = segments.findIndex((s) => /^[:{<]/.test(s));
+  return end < 0 ? segments : segments.slice(0, end);
+}
+
+/**
+ * Whether two endpoints belong to one resource: their paths share at least two leading literal segments after the API
+ * prefix (`/links/admin/{id}` and `/links/admin/ban/{id}`; not `/links/{id}` and `/links/{id}/stats`).
+ */
+export function sharesResource(a: Prd['apiEndpoints'][number], b: Prd['apiEndpoints'][number], apiPrefix: string): boolean {
+  const x = literalSegments(a.path, apiPrefix);
+  const y = literalSegments(b.path, apiPrefix);
+  let shared = 0;
+  while (shared < x.length && shared < y.length && x[shared] === y[shared]) shared++;
+  return shared >= 2;
+}
+
+/**
+ * Whether a requirement describes an endpoint or another endpoint of the same resource (the second tier of the
+ * endpoint round: a requirement about adding a domain as an admin is the closest requirement for deleting one).
+ */
+export function relatesToEndpoint(r: PrdRequirement, endpoint: Prd['apiEndpoints'][number], endpoints: Prd['apiEndpoints'], apiPrefix: string): boolean {
+  return describesEndpoint(r, endpoint, endpoints) || endpoints.some((s) => s !== endpoint && sharesResource(s, endpoint, apiPrefix) && describesEndpoint(r, s, endpoints));
+}
+
 /** Endpoint round: every endpoint asked for is called by a submitted api case, or a requirement describing it is declined. */
 export function endpointRoundProblems(
   sub: SubmitTestCases,
   asked: ReadonlyArray<Prd['apiEndpoints'][number]>,
   requirements: readonly PrdRequirement[],
   endpoints: Prd['apiEndpoints'],
+  apiPrefix = '',
 ): string[] {
   const called = new Set(
     sub.testCases.filter((c) => c.layer === 'api').flatMap((c) => stepRequests(c.steps).map((q) => matchEndpoint(q.method, q.path, endpoints))),
   );
   const declined = new Set(sub.declined.map((d) => d.requirementId));
   return asked
-    .filter((e) => !called.has(e) && !requirements.some((r) => declined.has(r.id) && describesEndpoint(r, e, endpoints)))
+    .filter((e) => !called.has(e) && !requirements.some((r) => declined.has(r.id) && relatesToEndpoint(r, e, endpoints, apiPrefix)))
     .map(
       (e) =>
         `No api test case calls ${e.method} ${e.path}; add one with a step that sends it (e.g. "Send ${e.method} ${e.path}" with real values for its parameters) and checks what it returns, or decline the requirement that describes it with the reason`,

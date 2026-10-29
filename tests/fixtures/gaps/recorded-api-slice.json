@@ -1,0 +1,2442 @@
+{
+ "note": "Slice of a recorded PRD (api layer) and its measured reach; used to test the endpoint round matching against real data.",
+ "apiEndpoints": [
+  {
+   "method": "GET",
+   "path": "/api/v2/links/",
+   "authRequired": true,
+   "summary": "List the authenticated user's links; supports limit (max 50), skip, search query params; with Accept: text/html renders the links table partial instead.",
+   "request": {
+    "query": {
+     "limit": "number (max 50, default 10)",
+     "skip": "number",
+     "search": "string"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "JSON { total, limit, skip, data: [links] } for the authenticated user"
+    },
+    {
+     "status": 401,
+     "description": "No or invalid JWT/API key"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      14,
+      21
+     ]
+    },
+    {
+     "file": "server/handlers/helpers.handler.js",
+     "lines": [
+      54,
+      86
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/links/admin",
+   "authRequired": true,
+   "summary": "Admin: list all links with filters banned, anonymous, has_domain, domain, user, search.",
+   "request": {
+    "query": {
+     "limit": "number",
+     "skip": "number",
+     "search": "string",
+     "user": "user id",
+     "domain": "domain address",
+     "banned": "boolean-ish string",
+     "anonymous": "boolean-ish",
+     "has_domain": "boolean-ish"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "JSON { total, limit, skip, data }"
+    },
+    {
+     "status": 401,
+     "description": "Not an admin"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      23,
+      32
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      51,
+      97
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/links/",
+   "authRequired": false,
+   "summary": "Create a short link. Body: target (required), optional customurl, password, description, expire_in, reuse, domain; customurl/password/domain/reuse require login; anonymous access only when DISALLOW_ANONYMOUS_LINKS is false.",
+   "request": {
+    "body": {
+     "target": "URL string, max 2040",
+     "customurl": "string 1-64 (users only)",
+     "password": "3-64 chars (users only)",
+     "description": "string max 2040",
+     "expire_in": "duration string e.g. 1m (min 1 minute)",
+     "reuse": "boolean (users only)",
+     "domain": "owned domain address (users only)"
+    }
+   },
+   "responses": [
+    {
+     "status": 201,
+     "description": "Created link (sanitized)"
+    },
+    {
+     "status": 400,
+     "description": "Validation errors, e.g. target missing, custom URL in use"
+    },
+    {
+     "status": 401,
+     "description": "Anonymous links disallowed"
+    },
+    {
+     "status": 200,
+     "description": "Existing link returned when reuse=true matched"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      34,
+      44
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      99,
+      161
+     ]
+    }
+   ]
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v2/links/{id}",
+   "authRequired": true,
+   "summary": "Edit own link's address, target, description, expire_in, password (id is the 36-char uuid). Empty body field clears password if set.",
+   "request": {
+    "body": {
+     "address": "string",
+     "target": "URL",
+     "description": "string",
+     "expire_in": "duration string",
+     "password": "string"
+    },
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "Updated link"
+    },
+    {
+     "status": 400,
+     "description": "Invalid id or 'Should at least update one field.'"
+    },
+    {
+     "status": 400,
+     "description": "'Custom URL is already in use.'"
+    },
+    {
+     "status": 404,
+     "description": "'Link was not found.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      46,
+      55
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      163,
+      253
+     ]
+    }
+   ]
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v2/links/admin/{id}",
+   "authRequired": true,
+   "summary": "Admin: edit any link with the same fields as user edit.",
+   "request": {
+    "body": {
+     "address": "string",
+     "target": "URL",
+     "description": "string",
+     "expire_in": "duration",
+     "password": "string"
+    },
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "Updated link"
+    },
+    {
+     "status": 401,
+     "description": "Not an admin"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      57,
+      67
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      256,
+      346
+     ]
+    }
+   ]
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v2/links/{id}",
+   "authRequired": true,
+   "summary": "Delete own link (admins can technically delete any link via the same handler).",
+   "request": {
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Link has been deleted successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "Invalid id or deletion failed"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      69,
+      77
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      349,
+      371
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/links/admin/ban/{id}",
+   "authRequired": true,
+   "summary": "Admin: ban a link; optional body flags domain, host, user, userLinks cascade bans.",
+   "request": {
+    "body": {
+     "domain": "boolean",
+     "host": "boolean",
+     "user": "boolean",
+     "userLinks": "boolean"
+    },
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Banned link successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "Link not found or already banned; 'Couldn't fetch DNS info.' for host ban"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      79,
+      88
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      391,
+      456
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/links/{id}/stats",
+   "authRequired": true,
+   "summary": "Visit statistics for a link (owner or admin).",
+   "request": {
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "Stats object plus sanitized link fields"
+    },
+    {
+     "status": 400,
+     "description": "'Link could not be found.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      90,
+      97
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      610,
+      646
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/links/{id}/protected",
+   "authRequired": false,
+   "summary": "Unlock a password-protected link with body { password }; returns the target URL.",
+   "request": {
+    "body": {
+     "password": "string 3-64"
+    },
+    "params": {
+     "id": "uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "{ target } (HTML flow redirects via HX-Redirect)"
+    },
+    {
+     "status": 400,
+     "description": "'Couldn't find the link.' or invalid password/id"
+    },
+    {
+     "status": 401,
+     "description": "'Password is not correct.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      100,
+      107
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      547,
+      584
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/links/report",
+   "authRequired": false,
+   "summary": "Report abuse for a link on the default domain; disabled when MAIL_ENABLED is off.",
+   "request": {
+    "body": {
+     "link": "short link URL on the default domain"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Thanks for the report, we'll take actions shortly.'"
+    },
+    {
+     "status": 400,
+     "description": "Feature disabled or link not on default domain"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/link.routes.js",
+     "lines": [
+      109,
+      116
+     ]
+    },
+    {
+     "file": "server/handlers/links.handler.js",
+     "lines": [
+      374,
+      388
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      252,
+      262
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/login",
+   "authRequired": false,
+   "summary": "Log in with email and password; returns a JWT (also set as token cookie for HTML requests). Disabled if DISALLOW_LOGIN_FORM.",
+   "request": {
+    "body": {
+     "email": "email",
+     "password": "8-64 chars"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "{ token }"
+    },
+    {
+     "status": 400,
+     "description": "Validation error"
+    },
+    {
+     "status": 401,
+     "description": "'Login credentials are wrong.'"
+    },
+    {
+     "status": 403,
+     "description": "'You're banned from using this website.'"
+    },
+    {
+     "status": 400,
+     "description": "Unverified user when strict auth applies"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      13,
+      22
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      84,
+      84
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      143,
+      152
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/signup",
+   "authRequired": false,
+   "summary": "Sign up; requires MAIL_ENABLED and !DISALLOW_REGISTRATION, both currently disabled. Sends verification email.",
+   "request": {
+    "body": {
+     "email": "email",
+     "password": "8-64 chars"
+    }
+   },
+   "responses": [
+    {
+     "status": 201,
+     "description": "'A verification email has been sent.' (untestable: mail disabled)"
+    },
+    {
+     "status": 400,
+     "description": "'Request is not allowed.' when registration or mail is disabled; validation errors; 'You can't use this email address.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      24,
+      34
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      97,
+      113
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      363,
+      375
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/create-admin",
+   "authRequired": false,
+   "summary": "Create the first admin user; only works when no user exists.",
+   "request": {
+    "body": {
+     "email": "email",
+     "password": "8-64 chars"
+    }
+   },
+   "responses": [
+    {
+     "status": 201,
+     "description": "{ token }"
+    },
+    {
+     "status": 400,
+     "description": "'Can not create the admin user because a user already exists.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      36,
+      43
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      116,
+      141
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/change-password",
+   "authRequired": true,
+   "summary": "Change own password; body: currentpassword, newpassword (each 8-64 chars).",
+   "request": {
+    "body": {
+     "currentpassword": "string",
+     "newpassword": "string 8-64"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Your password has been changed successfully.'"
+    },
+    {
+     "status": 401,
+     "description": "'Current password is not correct.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      45,
+      53
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      181,
+      208
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/change-email",
+   "authRequired": true,
+   "summary": "Request email change; requires MAIL_ENABLED (currently disabled).",
+   "request": {
+    "body": {
+     "password": "string",
+     "email": "email"
+    }
+   },
+   "responses": [
+    {
+     "status": 400,
+     "description": "'Request is not allowed.' because MAIL_ENABLED is off"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      55,
+      64
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      286,
+      328
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/apikey",
+   "authRequired": true,
+   "summary": "Generate (replace) the account's API key.",
+   "request": {},
+   "responses": [
+    {
+     "status": 201,
+     "description": "{ apikey }"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      66,
+      72
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      211,
+      232
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/reset-password",
+   "authRequired": false,
+   "summary": "Request password reset email; requires MAIL_ENABLED (currently disabled).",
+   "request": {
+    "body": {
+     "email": "email"
+    }
+   },
+   "responses": [
+    {
+     "status": 400,
+     "description": "'Request is not allowed.' because MAIL_ENABLED is off"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      74,
+      82
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/auth/new-password",
+   "authRequired": false,
+   "summary": "Set a new password with reset_password_token (token present in body); token must be valid and unexpired.",
+   "request": {
+    "body": {
+     "reset_password_token": "36-char uuid",
+     "new_password": "8-64",
+     "repeat_password": "same"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "Success page (HTML-rendering handler; always renders partial)"
+    },
+    {
+     "status": 400,
+     "description": "'Could not set the password. Please try again later.'; 'Passwords don't match.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/auth.routes.js",
+     "lines": [
+      84,
+      92
+     ]
+    },
+    {
+     "file": "server/handlers/auth.handler.js",
+     "lines": [
+      261,
+      284
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      472,
+      485
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/users/",
+   "authRequired": true,
+   "summary": "Current user's profile: apikey, email and owned domains.",
+   "responses": [
+    {
+     "status": 200,
+     "description": "JSON { apikey, email, domains }"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      12,
+      17
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      8,
+      18
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/users/admin",
+   "authRequired": true,
+   "summary": "Admin: list users with filters role, verified, banned, search, domains, links counts.",
+   "request": {
+    "query": {
+     "limit": "number",
+     "skip": "number",
+     "search": "string",
+     "role": "user|admin",
+     "verified": "boolean-ish",
+     "banned": "boolean-ish",
+     "domains": "boolean-ish",
+     "links": "boolean-ish"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "JSON { total, limit, skip, data }"
+    },
+    {
+     "status": 401,
+     "description": "Not an admin"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      19,
+      28
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      64,
+      103
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/users/admin",
+   "authRequired": true,
+   "summary": "Admin: create a user with email, password (8-64), optional role (user|admin), verified, banned, verification_email flags.",
+   "request": {
+    "body": {
+     "email": "email",
+     "password": "8-64",
+     "role": "user|admin",
+     "verified": "boolean",
+     "banned": "boolean",
+     "verification_email": "boolean"
+    }
+   },
+   "responses": [
+    {
+     "status": 201,
+     "description": "'The user has been created successfully.'"
+    },
+    {
+     "status": 401,
+     "description": "Not an admin"
+    },
+    {
+     "status": 400,
+     "description": "Validation errors, 'User already exists.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      30,
+      39
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      157,
+      175
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      340,
+      373
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/users/delete",
+   "authRequired": true,
+   "summary": "Delete own account; requires correct password in body.",
+   "request": {
+    "body": {
+     "password": "string"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'OK'"
+    },
+    {
+     "status": 400,
+     "description": "'Password is not correct.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      41,
+      49
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      20,
+      33
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      487,
+      496
+     ]
+    }
+   ]
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v2/users/admin/{id}",
+   "authRequired": true,
+   "summary": "Admin: delete a user by numeric id.",
+   "request": {
+    "params": {
+     "id": "numeric user id"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'User has been deleted successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "'Could not find the user.'"
+    },
+    {
+     "status": 401,
+     "description": "Not an admin"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      51,
+      60
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      35,
+      61
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/users/admin/ban/{id}",
+   "authRequired": true,
+   "summary": "Admin: ban a user; optional body flags links and domains cascade bans.",
+   "request": {
+    "body": {
+     "links": "boolean",
+     "domains": "boolean"
+    },
+    "params": {
+     "id": "numeric id"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Banned user successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "'No user has been found.' or 'User has been banned already.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/user.routes.js",
+     "lines": [
+      62,
+      71
+     ]
+    },
+    {
+     "file": "server/handlers/users.handler.js",
+     "lines": [
+      105,
+      154
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/domains/admin",
+   "authRequired": true,
+   "summary": "Admin: list all domains with filters banned, owner, links, user, search.",
+   "request": {
+    "query": {
+     "limit": "number",
+     "skip": "number",
+     "search": "string",
+     "banned": "boolean-ish",
+     "owner": "boolean-ish",
+     "links": "boolean-ish",
+     "user": "user id"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "JSON { total, limit, skip, data }"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      12,
+      21
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      115,
+      152
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/domains/",
+   "authRequired": true,
+   "summary": "Register a custom domain for own account; body: address (3-64 chars), optional homepage URL. Cannot be default domain, owned or banned domain.",
+   "request": {
+    "body": {
+     "address": "domain string",
+     "homepage": "optional URL"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "Sanitized domain object"
+    },
+    {
+     "status": 400,
+     "description": "'Domain is not valid.', 'You can't use the default domain.', 'You can't add this domain.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      23,
+      31
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      9,
+      28
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      165,
+      189
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/domains/admin",
+   "authRequired": true,
+   "summary": "Admin: add any domain; body: address, optional homepage and banned flag.",
+   "request": {
+    "body": {
+     "address": "domain",
+     "homepage": "optional URL",
+     "banned": "boolean"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'The domain has been added successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "'Domain already exists.' or validation errors"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      33,
+      42
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      30,
+      49
+     ]
+    },
+    {
+     "file": "server/handlers/validators.handler.js",
+     "lines": [
+      191,
+      219
+     ]
+    }
+   ]
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v2/domains/{id}",
+   "authRequired": true,
+   "summary": "Release own custom domain (unassigns user_id; does not remove links).",
+   "request": {
+    "params": {
+     "id": "36-char uuid"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Domain deleted successfully'"
+    },
+    {
+     "status": 400,
+     "description": "'Could not delete the domain.' for another user's domain"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      44,
+      52
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      51,
+      85
+     ]
+    }
+   ]
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v2/domains/admin/{id}",
+   "authRequired": true,
+   "summary": "Admin: permanently remove a domain; query links=true also removes its links.",
+   "request": {
+    "query": {
+     "links": "boolean-ish string"
+    },
+    "params": {
+     "id": "numeric id"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Domain deleted successfully'"
+    },
+    {
+     "status": 400,
+     "description": "'Could not find the domain.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      54,
+      63
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      87,
+      113
+     ]
+    }
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/api/v2/domains/admin/ban/{id}",
+   "authRequired": true,
+   "summary": "Admin: ban a domain; optional body flags user and links cascade bans.",
+   "request": {
+    "body": {
+     "user": "boolean",
+     "links": "boolean"
+    },
+    "params": {
+     "id": "numeric id"
+    }
+   },
+   "responses": [
+    {
+     "status": 200,
+     "description": "'Banned domain successfully.'"
+    },
+    {
+     "status": 400,
+     "description": "'No domain has been found.' or 'Domain has been banned already.'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/domain.routes.js",
+     "lines": [
+      65,
+      74
+     ]
+    },
+    {
+     "file": "server/handlers/domains.handler.js",
+     "lines": [
+      154,
+      204
+     ]
+    }
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/api/v2/health/",
+   "authRequired": false,
+   "summary": "Health check returning plain 'OK'.",
+   "responses": [
+    {
+     "status": 200,
+     "description": "Body 'OK'"
+    }
+   ],
+   "evidence": [
+    {
+     "file": "server/routes/health.routes.js",
+     "lines": [
+      1,
+      7
+     ]
+    }
+   ]
+  }
+ ],
+ "requirements": [
+  {
+   "id": "REQ-001",
+   "featureId": "F-01",
+   "layer": "api",
+   "statement": "An authenticated user can create a short link by POSTing a target URL to /api/v2/links.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/links with body { target: 'https://example.com' } and a valid token returns 201 with id, address and link (short URL) in the response",
+     "evidence": [
+      {
+       "file": "server/routes/link.routes.js",
+       "lines": [
+        34,
+        44
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Response password field is a boolean and user_id, banned_by_id, uuid are absent",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        137,
+        161
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-002",
+   "featureId": "F-01",
+   "layer": "api",
+   "statement": "Creating a link with missing or invalid fields returns a 400 error with a field message.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/links without target returns 400 with error 'Target is missing.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        20,
+        32
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/links with an invalid target returns 400 with error 'URL is not valid.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        26,
+        31
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/links with expire_in 'x' returns 400 with error 'Expire format is invalid. Valid examples: 1m, 8h, 42 days.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        68,
+        75
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/links with expire_in '30s' returns 400 with error 'Expire time should be more than 1 minute.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        76,
+        79
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-003",
+   "featureId": "F-01",
+   "layer": "api",
+   "statement": "Anonymous link creation is rejected when DISALLOW_ANONYMOUS_LINKS is enabled (default), and reserved addresses cannot be taken as custom URLs.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/links without a token or API key returns 401 with error 'Unauthorized.'",
+     "evidence": [
+      {
+       "file": "server/routes/link.routes.js",
+       "lines": [
+        35,
+        39
+       ]
+      }
+     ]
+    },
+    {
+     "text": "A custom address matching a reserved path is rejected with 400 'You can't use this custom URL.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        48,
+        51
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-004",
+   "featureId": "F-01",
+   "layer": "api",
+   "statement": "An authenticated user creating a link with a custom address already in use gets an error.",
+   "acceptanceCriteria": [
+    {
+     "text": "Creating a link twice with the same customurl returns 400 with error 'Custom URL is already in use.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        128,
+        133
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-006",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "Visiting a created short address redirects to its target.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /<short address> for a created link returns a redirect to the target URL",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        543,
+        544
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-007",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "Visiting a short address with a trailing '+' returns the link's target information instead of redirecting.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /<address>+ returns JSON { target }",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        491,
+        503
+       ]
+      }
+     ]
+    },
+    {
+     "text": "With Accept: text/html it renders the URL info page showing the target",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        494,
+        499
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-008",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "A password-protected link shows a password page and can be unlocked with the correct credential.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /<address> for a password-protected link renders the protected password page (200 HTML, no redirect) unless a correct Basic auth password is given",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        506,
+        529
+       ]
+      }
+     ]
+    },
+    {
+     "text": "With header Authorization: Basic base64(:correctpassword) the request redirects to the target",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        513,
+        520
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-009",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "Unlocking a protected link with the wrong password returns 401; with the correct password the target is returned.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/links/{id}/protected with a wrong password returns 401 with error 'Password is not correct.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        154,
+        159
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/links/{id}/protected with the correct password returns 200 with { target }",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        558,
+        584
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-010",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "A banned link redirects visitors to the /banned page.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /<address> for a banned link redirects to /banned",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        486,
+        489
+       ]
+      }
+     ]
+    },
+    {
+     "text": "GET /banned renders the banned page with 200",
+     "evidence": [
+      {
+       "file": "server/handlers/renders.handler.js",
+       "lines": [
+        74,
+        78
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-011",
+   "featureId": "F-02",
+   "layer": "api",
+   "statement": "An unknown short address redirects to the /404 page.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /doesnotexist redirects to /404",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        480,
+        484
+       ]
+      }
+     ]
+    },
+    {
+     "text": "GET /404 returns 404 status",
+     "evidence": [
+      {
+       "file": "server/handlers/renders.handler.js",
+       "lines": [
+        50,
+        54
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-013",
+   "featureId": "F-03",
+   "layer": "api",
+   "statement": "An authenticated user can list their own links with limit, skip and search query parameters.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/links?limit=5&search=x returns 200 JSON with total, limit, skip and data array of sanitized links",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        19,
+        48
+       ]
+      }
+     ]
+    },
+    {
+     "text": "A limit above 50 is capped at 50 in results",
+     "evidence": [
+      {
+       "file": "server/handlers/helpers.handler.js",
+       "lines": [
+        78,
+        83
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-014",
+   "featureId": "F-03",
+   "layer": "api",
+   "statement": "A user can edit their own link's address, target, description, expiry and password.",
+   "acceptanceCriteria": [
+    {
+     "text": "PATCH /api/v2/links/{id} with a new target returns 200 with the updated link; a link owned by another user returns 400 'Link was not found.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        163,
+        171
+       ]
+      }
+     ]
+    },
+    {
+     "text": "PATCH with no changed field returns 400 'Should at least update one field.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        204,
+        206
+       ]
+      }
+     ]
+    },
+    {
+     "text": "PATCH with an address already in use returns 400 'Custom URL is already in use.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        224,
+        228
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-015",
+   "featureId": "F-03",
+   "layer": "api",
+   "statement": "A user can delete their own link by its UUID.",
+   "acceptanceCriteria": [
+    {
+     "text": "DELETE /api/v2/links/{uuid} for own link returns 200 'Link has been deleted successfully.' and the link no longer resolves",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        349,
+        371
+       ]
+      }
+     ]
+    },
+    {
+     "text": "DELETE for a link not owned by the caller fails with an error unless the caller is admin",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        349,
+        353
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-016",
+   "featureId": "F-03",
+   "layer": "api",
+   "statement": "Only admins can list all links via /api/v2/links/admin; non-admins receive 401.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/links/admin without admin role returns 401 'Unauthorized'",
+     "evidence": [
+      {
+       "file": "server/routes/link.routes.js",
+       "lines": [
+        23,
+        32
+       ]
+      }
+     ]
+    },
+    {
+     "text": "GET /api/v2/links/admin as admin returns 200 with all links including other users'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        73,
+        96
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-017",
+   "featureId": "F-03",
+   "layer": "api",
+   "statement": "An admin can ban a link, optionally banning its domain, host, owner and owner's links.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/links/admin/ban/{uuid} as admin returns 200 'Banned link successfully.' and the link then redirects to /banned",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        418,
+        456
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Banning an already banned link returns 400 'Link has been banned already.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        406,
+        408
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Non-admin calling the ban endpoint returns 401",
+     "evidence": [
+      {
+       "file": "server/routes/link.routes.js",
+       "lines": [
+        80,
+        87
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-018",
+   "featureId": "F-04",
+   "layer": "api",
+   "statement": "A user can view visit statistics of their own link; other users' links are not accessible.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/links/{uuid}/stats for own link returns 200 with a stats object including the link's visit data",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        610,
+        646
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Requesting stats for another user's link as non-admin returns 400 'Link could not be found.'",
+     "evidence": [
+      {
+       "file": "server/handlers/links.handler.js",
+       "lines": [
+        614,
+        626
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-019",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "A user can log in with email and password and receives a JWT token.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/auth/login with valid credentials returns 200 { token }",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        84,
+        84
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/auth/login with wrong password returns 401 'Login credentials are wrong.'",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        48,
+        58
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-020",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "The first admin account can be created only when no user exists yet.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/auth/create-admin with valid email and password on an empty instance returns 201 { token }",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        116,
+        141
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/auth/create-admin when any user exists returns 400 'Can not create the admin user because a user already exists.'",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        117,
+        120
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-021",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "A logged-in user can change their password with the current password.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/auth/change-password with wrong currentpassword returns 401 'Current password is not correct.'",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        181,
+        208
+       ]
+      }
+     ]
+    },
+    {
+     "text": "With correct current password returns 200 'Your password has been changed successfully.' and the new password then works for login",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        189,
+        208
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-022",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "A logged-in user can generate a new API key which replaces the previous one.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/auth/apikey returns 201 { apikey }",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        211,
+        231
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Generating a new key replaces the stored key so the old key no longer authenticates",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        214,
+        218
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-023",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "Signup, email change and password reset requests are rejected while email is disabled.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/auth/signup returns 400 'Request is not allowed.' because MAIL_ENABLED is off",
+     "evidence": [
+      {
+       "file": "server/routes/auth.routes.js",
+       "lines": [
+        24,
+        34
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/auth/change-email and /api/v2/auth/reset-password return the same 400 'Request is not allowed.'",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        363,
+        375
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-025",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "A logged-in user can fetch their own profile (apikey, email and owned domains).",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/users with a valid token returns 200 { apikey, email, domains }",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        8,
+        18
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-026",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "A user can delete their own account by confirming their password.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/users/delete with a wrong password returns 400 'Password is not correct.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        487,
+        496
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/users/delete with the correct password returns 200 and removes the account (the account can no longer log in)",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        20,
+        33
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-027",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "An admin can create a new user directly, without email verification.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/users/admin as admin with email/password creates the user and returns 201 'The user has been created successfully.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        340,
+        373
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Creating a user with an already used email returns 400 'User already exists.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        351,
+        356
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Passwords shorter than 8 characters are rejected with 400",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        341,
+        344
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-028",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "Only admins can list all users via /api/v2/users/admin, with role, verified and banned filters.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/users/admin as non-admin returns 401",
+     "evidence": [
+      {
+       "file": "server/routes/user.routes.js",
+       "lines": [
+        19,
+        28
+       ]
+      }
+     ]
+    },
+    {
+     "text": "GET /api/v2/users/admin as admin returns 200 with total, limit, skip and data of users",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        64,
+        103
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-029",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "An admin can ban a user, optionally banning their links and domains; a banned user cannot log in.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/users/admin/ban/{id} as admin returns 200 'Banned user successfully.' and the banned user can no longer log in (403 'You're banned from using this website.')",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        105,
+        154
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Banning an already banned user returns 400 'User has been banned already.'",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        116,
+        122
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-030",
+   "featureId": "F-06",
+   "layer": "api",
+   "statement": "An admin can delete a user by numeric id.",
+   "acceptanceCriteria": [
+    {
+     "text": "DELETE /api/v2/users/admin/{id} as admin returns 200 'User has been deleted successfully.'",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        35,
+        61
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Deleting a nonexistent user id returns 400 'Could not find the user.'",
+     "evidence": [
+      {
+       "file": "server/handlers/users.handler.js",
+       "lines": [
+        36,
+        48
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-031",
+   "featureId": "F-07",
+   "layer": "api",
+   "statement": "A user can register a custom domain for their account.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/domains as user with a valid address returns the sanitized domain object with id and homepage",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        165,
+        183
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Adding the default domain returns 400 'You can't use the default domain.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        177,
+        183
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Adding a domain already owned or banned returns 400 'You can't add this domain.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        179,
+        183
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-032",
+   "featureId": "F-07",
+   "layer": "api",
+   "statement": "A user can release their own custom domain; other users' domains cannot be released.",
+   "acceptanceCriteria": [
+    {
+     "text": "DELETE /api/v2/domains/{uuid} for own domain returns 200 'Domain deleted successfully'",
+     "evidence": [
+      {
+       "file": "server/handlers/domains.handler.js",
+       "lines": [
+        51,
+        84
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Trying to release another user's domain returns 400 'Could not delete the domain.'",
+     "evidence": [
+      {
+       "file": "server/handlers/domains.handler.js",
+       "lines": [
+        52,
+        59
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-033",
+   "featureId": "F-07",
+   "layer": "api",
+   "statement": "An admin can add any domain and delete or ban domains via the admin endpoints.",
+   "acceptanceCriteria": [
+    {
+     "text": "POST /api/v2/domains/admin as admin returns 200 'The domain has been added successfully.'",
+     "evidence": [
+      {
+       "file": "server/handlers/domains.handler.js",
+       "lines": [
+        30,
+        49
+       ]
+      }
+     ]
+    },
+    {
+     "text": "Adding a domain the admin already exists as returns 400 'Domain already exists.'",
+     "evidence": [
+      {
+       "file": "server/handlers/validators.handler.js",
+       "lines": [
+        205,
+        209
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  },
+  {
+   "id": "REQ-036",
+   "featureId": "F-09",
+   "layer": "api",
+   "statement": "Abuse reporting is disabled without configuration: the report page requires REPORT_EMAIL and report submission requires mail to be enabled.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /report when REPORT_EMAIL is not set redirects to /",
+     "evidence": [
+      {
+       "file": "server/routes/renders.routes.js",
+       "lines": [
+        83,
+        88
+       ]
+      }
+     ]
+    },
+    {
+     "text": "POST /api/v2/links/report returns 400 'Request is not allowed.' while MAIL_ENABLED is off",
+     "evidence": [
+      {
+       "file": "server/routes/link.routes.js",
+       "lines": [
+        109,
+        116
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "low"
+  },
+  {
+   "id": "REQ-040",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "The first-run /create-admin page shows an admin creation form and is only available before any account exists.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /create-admin shows the admin creation form when no user exists",
+     "evidence": [
+      {
+       "file": "server/handlers/renders.handler.js",
+       "lines": [
+        39,
+        48
+       ]
+      }
+     ]
+    },
+    {
+     "text": "GET /create-admin redirects to /login once any user exists",
+     "evidence": [
+      {
+       "file": "server/handlers/renders.handler.js",
+       "lines": [
+        40,
+        43
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "high"
+  },
+  {
+   "id": "REQ-041",
+   "featureId": "F-11",
+   "layer": "api",
+   "statement": "The health endpoint responds OK without authentication.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/health returns 200 with body 'OK'",
+     "evidence": [
+      {
+       "file": "server/routes/health.routes.js",
+       "lines": [
+        1,
+        7
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "low"
+  },
+  {
+   "id": "REQ-042",
+   "featureId": "F-05",
+   "layer": "api",
+   "statement": "API requests can authenticate with an API key instead of a JWT.",
+   "acceptanceCriteria": [
+    {
+     "text": "GET /api/v2/links with the API key authenticates the request and returns the user's links",
+     "evidence": [
+      {
+       "file": "server/handlers/auth.handler.js",
+       "lines": [
+        89,
+        89
+       ]
+      }
+     ]
+    }
+   ],
+   "priority": "medium"
+  }
+ ],
+ "reached": [
+  true,
+  true,
+  true,
+  true,
+  false,
+  true,
+  true,
+  true,
+  true,
+  false,
+  true,
+  true,
+  true,
+  true,
+  false,
+  true,
+  false,
+  false,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  false,
+  false,
+  true
+ ]
+}

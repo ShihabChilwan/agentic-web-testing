@@ -2,11 +2,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
-import { describesEndpoint, endpointRoundProblems } from '../../src/modules/test-case-generator/generate.js';
-import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
+import { describesEndpoint, endpointRoundProblems, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
+import { describeGaps, describeMeasurement, endpointReach, gatedByDisabledSetting, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
 import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { createRun, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
@@ -28,6 +29,9 @@ const ITEMS_JS = [
   "  res.status(200).json({ item: { name: 'Hat' } });",
   '});',
 ].join('\n');
+
+// A route behind a disabled feature: the switch is named in the route's own lines.
+const MAIL_JS = ["router.post('/notify',", '  auth.featureAccess([env.MAILGUN_KEY]),', '  notify);'].join('\n');
 
 const llmConfig = parseLLMConfig({ LLM_BASE_URL: 'http://model.test/v1' });
 const config = (coverage = true) => {
@@ -72,6 +76,7 @@ beforeAll(async () => {
   const repoDir = path.join(root, 'targets', 'fake', 'repo');
   await mkdir(path.join(repoDir, 'server'), { recursive: true });
   await writeFile(path.join(repoDir, 'server', 'items.js'), ITEMS_JS);
+  await writeFile(path.join(repoDir, 'server', 'mail.js'), MAIL_JS);
   await writeFile(path.join(root, 'targets', 'fake', 'target.config.json'), JSON.stringify(config()));
   const git = (...args: string[]) => execFileSync('git', ['-C', repoDir, '-c', 'user.name=t', '-c', 'user.email=t@x.test', ...args], { encoding: 'utf8' });
   git('init', '--quiet');
@@ -156,6 +161,7 @@ describe('generateGaps', () => {
 
     expect(measured.at(-1)).toMatchObject({ generationRef: 'golden', runDir: paths.dir });
     expect(tasks[0]).toContain('Measured with code coverage, no test reaches these endpoints yet: GET /api/items/:id.');
+    expect(tasks[0]).toContain('Link each case to the listed requirement closest in meaning');
     expect(tasks[0]).toContain('- REQ-002');
     expect(tasks[0]).not.toContain('- REQ-001 ');
     const coverage = CoverageReport.parse(JSON.parse(await readFile(paths.coverage, 'utf8')));
@@ -223,3 +229,73 @@ describe('generateGaps', () => {
     }
   });
 });
+
+describe('endpoints of one resource, and endpoints behind a disabled setting (replayed on a recorded PRD)', () => {
+  const slice = JSON.parse(readFileSync(new URL('../fixtures/gaps/recorded-api-slice.json', import.meta.url), 'utf8')) as {
+    apiEndpoints: Prd['apiEndpoints'];
+    requirements: PrdRequirement[];
+    reached: boolean[];
+  };
+  const find = (method: string, p: string) => slice.apiEndpoints.find((e) => e.method === method && e.path === p)!;
+  const relatedIds = (e: Prd['apiEndpoints'][number]) => slice.requirements.filter((r) => relatesToEndpoint(r, e, slice.apiEndpoints, '/api/v2')).map((r) => r.id);
+
+  it('two endpoints share a resource when two leading literal segments after the prefix match', () => {
+    const e = (p: string) => ({ ...endpoints[0]!, path: p });
+    expect(sharesResource(e('/api/v2/links/admin/{id}'), e('/api/v2/links/admin/ban/{id}'), '/api/v2')).toBe(true);
+    expect(sharesResource(e('/api/v2/domains/admin/{id}'), e('/api/v2/domains/admin'), '/api/v2')).toBe(true);
+    expect(sharesResource(e('/api/v2/links/{id}'), e('/api/v2/links/{id}/stats'), '/api/v2')).toBe(false); // one literal segment
+    expect(sharesResource(e('/api/v2/auth/new-password'), e('/api/v2/auth/reset-password'), '/api/v2')).toBe(false);
+    expect(sharesResource(e('/api/v2/domains/{id}'), e('/api/v2/domains/admin/{id}'), '/api/v2')).toBe(false);
+  });
+
+  it('the three endpoints no requirement named now get the requirement of a sibling; the others are unchanged', () => {
+    expect(slice.requirements.filter((r) => describesEndpoint(r, find('DELETE', '/api/v2/domains/admin/{id}'), slice.apiEndpoints))).toEqual([]); // before
+    expect(relatedIds(find('DELETE', '/api/v2/domains/admin/{id}'))).toEqual(['REQ-033']);
+    expect(relatedIds(find('POST', '/api/v2/domains/admin/ban/{id}'))).toEqual(['REQ-033']);
+    expect(relatedIds(find('PATCH', '/api/v2/links/admin/{id}'))).toEqual(['REQ-016', 'REQ-017']);
+    // Nothing shares a resource with this one, so it stays unasked and is reported as such.
+    expect(relatedIds(find('POST', '/api/v2/auth/new-password'))).toEqual([]);
+    // An endpoint a requirement already named keeps exactly that requirement.
+    expect(relatedIds(find('POST', '/api/v2/links/report'))).toEqual(['REQ-036']);
+  });
+
+  it('a decline of a sibling requirement settles the endpoint round for the endpoints it covers', () => {
+    const asked = [find('DELETE', '/api/v2/domains/admin/{id}')];
+    const problems = (declined: string[]) => endpointRoundProblems({ testCases: [], declined: declined.map((requirementId) => ({ requirementId, reasonKind: 'other', reason: 'x' })) } as never, asked, slice.requirements, slice.apiEndpoints, '/api/v2');
+    expect(problems([])).toHaveLength(1);
+    expect(problems(['REQ-033'])).toEqual([]);
+  });
+
+  it('finds the disabled setting an unreached endpoint names in its code, and nothing for a reached one or a longer name', async () => {
+    const lines = ["router.post('/notify',", '  auth.featureAccess([env.MAILGUN_KEY]),', '  notify);', '', 'const other = env.MAILGUN_KEY_EXTRA;'];
+    const read = async (file: string) => (file === 'server/mail.js' ? lines : null);
+    const at = (range: [number, number]) => ({ ...endpoints[0]!, evidence: [{ file: 'server/mail.js', lines: range }] });
+    const keys = ['MAILGUN_KEY', 'GOOGLE_CLIENT_ID'];
+    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: false }], keys, read)).toEqual(['MAILGUN_KEY']);
+    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: true }], keys, read)).toEqual([undefined]);
+    expect(await gatedByDisabledSetting([at([4, 5])], [{ reached: false }], ['MAILGUN_KEY'], read)).toEqual([undefined]); // MAILGUN_KEY_EXTRA is another name
+    expect(await gatedByDisabledSetting([at([1, 3])], [{ reached: false }], [], read)).toEqual([undefined]);
+  });
+});
+
+describe('generateGaps with an endpoint behind a disabled setting', () => {
+  it('does not ask for it, counts it apart and says which setting its code names', async () => {
+    const runsDir = await mkdtemp(path.join(root, 'runs-'));
+    const { runId, paths } = await createRun({ target: 'fake', generationRef: 'golden', generationCommit: commit, llm: llmSettings(llmConfig), runsDir });
+    const gatedEndpoint = { ...endpoints[0]!, method: 'POST' as const, path: '/api/items/notify', evidence: [{ file: 'server/mail.js', lines: [1, 3] as [number, number] }] };
+    const withGated: Prd = { ...prd(), apiEndpoints: [...endpoints, gatedEndpoint] };
+    const notifyReq: PrdRequirement = { id: 'REQ-003', featureId: 'F-01', layer: 'api', priority: 'low', statement: 'POST /api/items/notify sends a notification.', acceptanceCriteria: [{ text: 'Status 200', evidence: [{ file: 'server/mail.js', lines: [1, 3] }] }] };
+    await writeFile(paths.prd, JSON.stringify({ ...withGated, requirements: [...requirements, notifyReq] }));
+    await writeFile(paths.testCases, JSON.stringify(existing));
+    await setStage(paths.dir, 'scripts', { status: 'done', startedAt: '2026-10-25T10:00:00.000Z', finishedAt: '2026-10-25T10:30:00.000Z' });
+    const { llm, tasks } = fakeModel([submit([draft({ requirementIds: ['REQ-002'], title: 'One item is read', steps: ['Send GET /api/items/42'] })])]);
+    const result = await generateGaps({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, llmConfig, createLlm: async () => llm, measure });
+    expect(tasks[0]).toContain('no test reaches these endpoints yet: GET /api/items/:id.'); // the round lists only this one
+    expect(result.summary).toMatchObject({ endpoints: { total: 3, reached: 1 }, asked: ['GET /api/items/:id'], gated: ['POST /api/items/notify (MAILGUN_KEY)'] });
+    expect(result.summary.unreached).toContain('POST /api/items/notify');
+    expect(result.summary.warnings.join('\n')).not.toContain('notify');
+    expect(CoverageReport.parse(JSON.parse(await readFile(paths.coverage, 'utf8'))).endpoints.map((e) => e.gatedBy)).toEqual([undefined, undefined, 'MAILGUN_KEY']);
+    expect(describeGaps(result)).toContain('not asked for, their code names a disabled setting: POST /api/items/notify (MAILGUN_KEY)');
+  });
+});
+

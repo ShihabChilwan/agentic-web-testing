@@ -238,7 +238,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
             keep: scripts.scripts.filter((s) => s.review?.verdict === 'keep').length,
           }
         : null,
-      endpoints: measured ? { total: measured.endpoints.length, reached: measured.endpoints.filter((e) => e.reached).length } : null,
+      endpoints: measured ? { total: measured.endpoints.length, reached: measured.endpoints.filter((e) => e.reached).length, gated: measured.endpoints.filter((e) => e.gatedBy).length } : null,
       testCases: cases.size,
       scripts: {
         passed: outcomes.filter((o) => o === 'passed').length,

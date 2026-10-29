@@ -67,7 +67,7 @@ function fakes(fail?: string, gaps: { configured: boolean; added: number } = { c
     coverageConfigured: async () => gaps.configured,
     generateGaps: (async (o: { runId: string }) => {
       step('gaps');
-      const summary = { endpoints: { total: 10, reached: 7 }, unreached: [], asked: [], casesAdded: gaps.added, sessions: 1, calls: 1, rejected: { invalidInput: 0, checkFailed: 0 }, costUsd: null, warnings: [] };
+      const summary = { endpoints: { total: 10, reached: 7 }, unreached: [], asked: [], gated: [], casesAdded: gaps.added, sessions: 1, calls: 1, rejected: { invalidInput: 0, checkFailed: 0 }, costUsd: null, warnings: [] };
       await setStage(dirOf(o.runId), 'gaps', { status: 'done', startedAt: tick(), finishedAt: tick(), gaps: summary });
       if (gaps.added > 0) await setStage(dirOf(o.runId), 'scripts', { status: 'pending' });
       return { added: Array.from({ length: gaps.added }, (_, i) => `TC-10${i}`) };

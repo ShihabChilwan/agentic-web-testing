@@ -94,7 +94,7 @@ function overview() {
       tile(c.partial, 'partly untestable'),
       c.pages ? tile(c.pages.opened + ' / ' + c.pages.total, 'pages opened by a test case') : null,
       tile(c.afterAction, 'ui expectations marked afterAction'),
-      c.endpoints ? tile(c.endpoints.reached + ' / ' + c.endpoints.total, 'API endpoints reached by a test') : null,
+      c.endpoints ? tile(c.endpoints.reached + ' / ' + c.endpoints.total, 'API endpoints reached by a test' + (c.endpoints.gated > 0 ? ' (' + c.endpoints.gated + ' more behind disabled settings)' : '')) : null,
       c.reviewed ? tile(c.reviewed.testCaseWrong, 'test cases revised after review') : null,
       c.reviewed ? tile(c.reviewed.scriptWrong, 'scripts rewritten after review') : null,
       tile(c.testCases, 'test cases'),
