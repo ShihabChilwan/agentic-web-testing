@@ -15,7 +15,7 @@ import { readFacts } from '../execution-engine/facts.js';
 import { measureCoverage, type MeasureCoverageOptions, type MeasuredCoverage } from '../execution-engine/coverage.js';
 import { toTestCase } from './checks.js';
 import { linesAtCommit } from './context.js';
-import { pageCoverage, relatesToEndpoint, runSession, type SessionInput } from './generate.js';
+import { fallbackLink, pageCoverage, relatesToEndpoint, type FallbackLink, runSession, type SessionInput } from './generate.js';
 import { classifyUnreached } from './reach.js';
 
 type Endpoint = Prd['apiEndpoints'][number];
@@ -88,11 +88,23 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     let remaining = MAX_TEST_CASES - before.testCases.length;
     const inputs: SessionInput[] = [];
     const asked = new Set<Endpoint>();
+    const allApi = prd.requirements.filter((r) => r.layer === 'api');
+    // Last tier: an endpoint no requirement relates to is asked anyway, linked by route file or by feature.
+    const related = (r: (typeof allApi)[number], e: Endpoint) => relatesToEndpoint(r, e, prd.apiEndpoints, config.backend.apiPrefix, allApi);
+    const fallbacks = new Map<Endpoint, FallbackLink>();
+    for (const e of unreached.filter((e) => !gated.includes(e) && !allApi.some((r) => related(r, e)))) {
+      const link = fallbackLink(e, allApi);
+      if (link) fallbacks.set(e, link);
+    }
     for (const feature of prd.features) {
       const apiRequirements = prd.requirements.filter((r) => r.featureId === feature.id && r.layer === 'api');
-      const related = (r: (typeof apiRequirements)[number], e: Endpoint) => relatesToEndpoint(r, e, prd.apiEndpoints, config.backend.apiPrefix);
-      const endpoints = unreached.filter((e) => !gated.includes(e) && !asked.has(e) && apiRequirements.some((r) => related(r, e)));
-      const requirements = apiRequirements.filter((r) => endpoints.some((e) => related(r, e)));
+      const mine = [...fallbacks].filter(([, link]) => link.featureId === feature.id);
+      const endpoints = [
+        ...unreached.filter((e) => !gated.includes(e) && !asked.has(e) && apiRequirements.some((r) => related(r, e))),
+        ...mine.map(([e]) => e).filter((e) => !asked.has(e)),
+      ];
+      const linked = new Set(mine.flatMap(([, link]) => link.requirementIds));
+      const requirements = apiRequirements.filter((r) => linked.has(r.id) || endpoints.some((e) => related(r, e)));
       // Two per endpoint: a found case may need its not-found partner (§5 API rules).
       const quota = Math.min(remaining, 2 * endpoints.length);
       if (requirements.length === 0 || quota <= 0) continue;
@@ -136,7 +148,7 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     const notPassed = measured.results.summary.total - measured.results.summary.passed;
     const warnings = [
       ...(notPassed > 0 ? [`${notPassed} of ${measured.results.summary.total} scripts did not pass during the coverage run; coverage may be lower than the suite's`] : []),
-      ...unreached.filter((e) => !asked.has(e) && !gated.includes(e)).map((e) => `${label(e)} was not reached and no api requirement describes it or another endpoint of its resource`),
+      ...unreached.filter((e) => !asked.has(e) && !gated.includes(e)).map((e) => `${label(e)} was not reached and the PRD has no api requirement to link a case to`),
       ...inputs.flatMap((input, i) => (outcomes[i]!.failure ? [`${input.feature.id}: endpoint-round session failed (${outcomes[i]!.failure})`] : [])),
     ];
     const summary: StageGapsSummary = {
@@ -145,6 +157,7 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
       asked: [...asked].map(label),
       gated: gatedLabels,
       observed: observedLabels,
+      fallbacks: [...fallbacks].filter(([e]) => asked.has(e)).map(([e, link]) => `${label(e)} (${link.kind}: ${link.kind === 'feature' ? link.featureId : link.requirementIds.join(', ')})`),
       casesAdded: added.length,
       sessions: outcomes.length,
       calls: outcomes.reduce((n, o) => n + o.turns, 0),
@@ -271,6 +284,7 @@ export function describeGaps(result: GenerateGapsResult): string[] {
     `API endpoints reached by a passing script: ${s.endpoints.reached} of ${s.endpoints.total} (scripts run ${result.coverage.scripts.run}, passed ${result.coverage.scripts.passed})`,
     ...(s.unreached.length > 0 ? [`not reached: ${s.unreached.join(', ')}`] : []),
     ...(s.observed.length > 0 ? [`counted as reached by request (evidence has no code coverage can see): ${s.observed.join(', ')}`] : []),
+    ...(s.fallbacks.length > 0 ? [`asked although no requirement relates to them (linked by route file or feature): ${s.fallbacks.join(', ')}`] : []),
     ...(s.gated.length > 0 ? [`not asked for, turned away behind a disabled setting: ${s.gated.join(', ')}`] : []),
     `endpoint round: ${s.asked.length} endpoints asked in ${s.sessions} sessions; ${s.casesAdded} test cases added${result.added.length > 0 ? ` (${result.added[0]}..${result.added.at(-1)})` : ''}`,
     `${s.calls} model calls, cost ${s.costUsd === null ? 'unknown' : `$${s.costUsd.toFixed(4)}`}; rejected submits: ${s.rejected.invalidInput} invalid input, ${s.rejected.checkFailed} failed checks`,

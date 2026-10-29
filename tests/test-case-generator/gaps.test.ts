@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
-import { describesEndpoint, endpointRoundProblems, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
+import { describesEndpoint, endpointRoundProblems, fallbackLink, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
 import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
 import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
@@ -246,15 +246,20 @@ describe('endpoints of one resource, and endpoints behind a disabled setting (re
     reached: boolean[];
   };
   const find = (method: string, p: string) => slice.apiEndpoints.find((e) => e.method === method && e.path === p)!;
-  const relatedIds = (e: Prd['apiEndpoints'][number]) => slice.requirements.filter((r) => relatesToEndpoint(r, e, slice.apiEndpoints, '/api/v2')).map((r) => r.id);
+  const relatedIds = (e: Prd['apiEndpoints'][number]) => slice.requirements.filter((r) => relatesToEndpoint(r, e, slice.apiEndpoints, '/api/v2', slice.requirements)).map((r) => r.id);
 
   it('two endpoints share a resource when two leading literal segments after the prefix match', () => {
     const e = (p: string) => ({ ...endpoints[0]!, path: p });
     expect(sharesResource(e('/api/v2/links/admin/{id}'), e('/api/v2/links/admin/ban/{id}'), '/api/v2')).toBe(true);
     expect(sharesResource(e('/api/v2/domains/admin/{id}'), e('/api/v2/domains/admin'), '/api/v2')).toBe(true);
     expect(sharesResource(e('/api/v2/links/{id}'), e('/api/v2/links/{id}/stats'), '/api/v2')).toBe(false); // one literal segment
+    expect(sharesResource(e('/api/v2/links/{id}'), e('/api/v2/links/{id}/stats'), '/api/v2', true)).toBe(true); // loose: it is the whole resource
+    expect(sharesResource(e('/api/brand/:id'), e('/api/brand/add'), '/api', true)).toBe(true);
+    expect(sharesResource(e('/api/review/:id'), e('/api/review/delete/:id'), '/api', true)).toBe(true);
+    expect(sharesResource(e('/api/brand/:id'), e('/api/category/add'), '/api', true)).toBe(false);
     expect(sharesResource(e('/api/v2/auth/new-password'), e('/api/v2/auth/reset-password'), '/api/v2')).toBe(false);
     expect(sharesResource(e('/api/v2/domains/{id}'), e('/api/v2/domains/admin/{id}'), '/api/v2')).toBe(false);
+    expect(sharesResource(e('/api/v2/health'), e('/api/v2/domains/admin/{id}'), '/api/v2', true)).toBe(false);
   });
 
   it('the three endpoints no requirement named now get the requirement of a sibling; the others are unchanged', () => {
@@ -266,6 +271,28 @@ describe('endpoints of one resource, and endpoints behind a disabled setting (re
     expect(relatedIds(find('POST', '/api/v2/auth/new-password'))).toEqual([]);
     // An endpoint a requirement already named keeps exactly that requirement.
     expect(relatedIds(find('POST', '/api/v2/links/report'))).toEqual(['REQ-036']);
+  });
+
+  it('the last tier links an endpoint nothing relates to by its route file, else by the closest feature', () => {
+    const api = slice.requirements.filter((r) => r.layer === 'api');
+    const e = find('POST', '/api/v2/auth/new-password');
+    expect(relatedIds(e)).toEqual([]);
+    const link = fallbackLink(e, api)!;
+    expect(link.requirementIds.length).toBeGreaterThan(0);
+    const sameFile = api.filter((r) => r.acceptanceCriteria.some((c) => c.evidence.some((ev) => ev.file === e.evidence[0]!.file))).map((r) => r.id);
+    expect(link.kind).toBe(sameFile.length > 0 ? 'route file' : 'feature');
+    // A file no requirement cites falls back to the feature with evidence in the closest folder.
+    const elsewhere = { ...e, evidence: [{ file: 'server/handlers/never-cited.js', lines: [1, 2] as [number, number] }] };
+    expect(fallbackLink(elsewhere, api)?.kind).toBe('feature');
+    expect(fallbackLink(e, [])).toBeUndefined();
+  });
+
+  it('declining any listed requirement settles an endpoint that no listed requirement relates to', () => {
+    const e = find('POST', '/api/v2/auth/new-password');
+    const reqs = slice.requirements.filter((r) => r.layer === 'api').slice(0, 2);
+    const problems = (declined: string[]) => endpointRoundProblems({ testCases: [], declined: declined.map((requirementId) => ({ requirementId, reasonKind: 'other', reason: 'x' })) } as never, [e], reqs, slice.apiEndpoints, '/api/v2');
+    expect(problems([])).toHaveLength(1);
+    expect(problems([reqs[0]!.id])).toEqual([]);
   });
 
   it('a decline of a sibling requirement settles the endpoint round for the endpoints it covers', () => {

@@ -1019,6 +1019,7 @@ export const StageGapsSummary = z.object({
   gated: z.array(z.string()).default([]),
   /** Endpoints counted as reached by request (their evidence has no measurable code): "METHOD /path". Absent in older files. */
   observed: z.array(z.string()).default([]),
+  fallbacks: z.array(z.string()).default([]),
   casesAdded: count,
   sessions: count,
   calls: count,

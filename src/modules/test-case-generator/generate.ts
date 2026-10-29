@@ -211,22 +211,69 @@ function literalSegments(endpointPath: string, apiPrefix: string): string[] {
 
 /**
  * Whether two endpoints belong to one resource: their paths share at least two leading literal segments after the API
- * prefix (`/links/admin/{id}` and `/links/admin/ban/{id}`; not `/links/{id}` and `/links/{id}/stats`).
+ * prefix (`/links/admin/{id}` and `/links/admin/ban/{id}`; not `/auth/login` and `/auth/reset-password`). With `loose`,
+ * a path with a single literal segment (`/thing/:id`) belongs to the resource of that segment, so one shared segment
+ * is enough for it (`/thing/add`).
  */
-export function sharesResource(a: Prd['apiEndpoints'][number], b: Prd['apiEndpoints'][number], apiPrefix: string): boolean {
+export function sharesResource(a: Prd['apiEndpoints'][number], b: Prd['apiEndpoints'][number], apiPrefix: string, loose = false): boolean {
   const x = literalSegments(a.path, apiPrefix);
   const y = literalSegments(b.path, apiPrefix);
   let shared = 0;
   while (shared < x.length && shared < y.length && x[shared] === y[shared]) shared++;
-  return shared >= 2;
+  return shared >= (loose ? Math.max(1, Math.min(2, x.length, y.length)) : 2);
 }
 
 /**
  * Whether a requirement describes an endpoint or another endpoint of the same resource (the second tier of the
- * endpoint round: a requirement about adding a domain as an admin is the closest requirement for deleting one).
+ * endpoint round: a requirement about adding a domain as an admin is the closest requirement for deleting one). Flat
+ * paths (`/thing/:id`, `/thing/add`) share only one literal segment, so a third tier uses the loose resource test, and
+ * only for an endpoint that no requirement relates to by the stricter tiers (otherwise `/links/{id}` would pull in
+ * every requirement about `/links/admin/{id}`).
  */
-export function relatesToEndpoint(r: PrdRequirement, endpoint: Prd['apiEndpoints'][number], endpoints: Prd['apiEndpoints'], apiPrefix: string): boolean {
-  return describesEndpoint(r, endpoint, endpoints) || endpoints.some((s) => s !== endpoint && sharesResource(s, endpoint, apiPrefix) && describesEndpoint(r, s, endpoints));
+export function relatesToEndpoint(
+  r: PrdRequirement,
+  endpoint: Prd['apiEndpoints'][number],
+  endpoints: Prd['apiEndpoints'],
+  apiPrefix: string,
+  requirements: readonly PrdRequirement[],
+): boolean {
+  const relates = (q: PrdRequirement, loose: boolean) =>
+    describesEndpoint(q, endpoint, endpoints) || endpoints.some((s) => s !== endpoint && sharesResource(s, endpoint, apiPrefix, loose) && describesEndpoint(q, s, endpoints));
+  return relates(r, false) || (relates(r, true) && !requirements.some((q) => relates(q, false)));
+}
+
+/** Where the last tier links an endpoint no requirement relates to. */
+export interface FallbackLink {
+  kind: 'route file' | 'feature';
+  featureId: string;
+  requirementIds: string[];
+}
+
+/**
+ * Last tier of the endpoint round: the tiers above only decide which requirement a case links to, never whether an
+ * endpoint is asked. For an endpoint no requirement relates to, the api requirements whose evidence is in the same
+ * route file; else the feature whose api requirements have evidence in the closest folder (the first one on a tie),
+ * with all its api requirements. Undefined when the PRD has no api requirement at all.
+ */
+export function fallbackLink(endpoint: Prd['apiEndpoints'][number], apiRequirements: readonly PrdRequirement[]): FallbackLink | undefined {
+  const file = endpoint.evidence[0]?.file ?? '';
+  const sameFile = apiRequirements.filter((r) => r.acceptanceCriteria.some((c) => c.evidence.some((ev) => ev.file === file)));
+  if (sameFile.length > 0) {
+    const featureId = sameFile[0]!.featureId;
+    return { kind: 'route file', featureId, requirementIds: sameFile.filter((r) => r.featureId === featureId).map((r) => r.id) };
+  }
+  const folder = file.split('/').slice(0, -1);
+  const closeness = (r: PrdRequirement) =>
+    Math.max(0, ...r.acceptanceCriteria.flatMap((c) => c.evidence.map((ev) => {
+      const other = ev.file.split('/').slice(0, -1);
+      let n = 0;
+      while (n < folder.length && n < other.length && folder[n] === other[n]) n++;
+      return n;
+    })));
+  let best: PrdRequirement | undefined;
+  for (const r of apiRequirements) if (!best || closeness(r) > closeness(best)) best = r;
+  if (!best) return undefined;
+  return { kind: 'feature', featureId: best.featureId, requirementIds: apiRequirements.filter((r) => r.featureId === best!.featureId).map((r) => r.id) };
 }
 
 /** Endpoint round: every endpoint asked for is called by a submitted api case, or a requirement describing it is declined. */
@@ -241,8 +288,13 @@ export function endpointRoundProblems(
     sub.testCases.filter((c) => c.layer === 'api').flatMap((c) => stepRequests(c.steps).map((q) => matchEndpoint(q.method, q.path, endpoints))),
   );
   const declined = new Set(sub.declined.map((d) => d.requirementId));
+  // An endpoint no listed requirement relates to was asked by the last tier: declining a listed requirement settles it.
+  const settledBy = (e: Prd['apiEndpoints'][number]) => {
+    const related = requirements.filter((r) => relatesToEndpoint(r, e, endpoints, apiPrefix, requirements));
+    return (related.length > 0 ? related : requirements).some((r) => declined.has(r.id));
+  };
   return asked
-    .filter((e) => !called.has(e) && !requirements.some((r) => declined.has(r.id) && relatesToEndpoint(r, e, endpoints, apiPrefix)))
+    .filter((e) => !called.has(e) && !settledBy(e))
     .map(
       (e) =>
         `No api test case calls ${e.method} ${e.path}; add one with a step that sends it (e.g. "Send ${e.method} ${e.path}" with real values for its parameters) and checks what it returns, or decline the requirement that describes it with the reason`,
