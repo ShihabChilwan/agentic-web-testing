@@ -230,7 +230,7 @@ export async function buildRunView(runDir: string, now: Date = new Date()): Prom
       covered: (prd?.requirements ?? []).filter((r) => covered.has(r.id)).length,
       partial: testCases?.coverage.partial.length ?? 0,
       afterAction: (testCases?.testCases ?? []).flatMap((c) => c.expected).filter((e) => e.afterAction === true).length,
-      pages: testCases?.coverage.pages ? { total: testCases.coverage.pages.total, opened: testCases.coverage.pages.opened } : null,
+      pages: testCases?.coverage.pages ? { total: testCases.coverage.pages.total, opened: testCases.coverage.pages.opened, fragments: testCases.coverage.pages.fragments ? { total: testCases.coverage.pages.fragments.total, opened: testCases.coverage.pages.fragments.opened } : null } : null,
       reviewed: scripts?.scripts.some((s) => s.review)
         ? {
             testCaseWrong: scripts.scripts.filter((s) => s.review?.verdict === 'test_case_wrong').length,

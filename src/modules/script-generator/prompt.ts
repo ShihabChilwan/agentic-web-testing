@@ -18,6 +18,7 @@ You write only the body of the test function. The file around it is written for 
 - uniq(prefix): a unique string for data the test creates, e.g. const name = uniq('item').
 - await bodyOf(res): a response's body, parsed JSON when it is JSON, otherwise the text. Use it for every response body: const body = await bodyOf(res); expect(body.name, 'E2').toBe(EXPECTED.E2.value).
 - await loginViaApi(user): logs in over the API; returns { headers }. Pass them on every call that needs a login: const { headers } = await loginViaApi(fixtures.users.<name>); await api.get('/api/me', { headers }). Never build an Authorization header yourself.
+  It also works for a user the test created: await loginViaApi({ email, password }) with that user's login fields. Do not read a token from a login response and build the header or cookie by hand (the app may read its token from a cookie, not a header).
 - await loginViaUi(page, user): logs in through the app's login form.
 - await loggedInPage(page, user): the page starts logged in, without going through the form. Use it when logging in is not what the test checks.
 - expect, and EXPECTED: EXPECTED.E1.description, EXPECTED.E1.value.

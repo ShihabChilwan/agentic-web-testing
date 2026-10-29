@@ -451,17 +451,26 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
  * names them, or the requirements naming them got no case that opens them. A catch-all route is not counted.
  */
 export function pageCoverage(prd: Prd, testCases: readonly TestCase[]): PageCoverage {
-  const pages = openablePages(prd.uiRoutes.map((p) => p.path));
-  const opened = new Set(testCases.filter((c) => c.layer === 'ui').flatMap((c) => pagesOpened(c.steps, pages)));
-  const unopened = pages
-    .filter((page) => !opened.has(page))
-    .map((path) => ({
-      path,
-      reason: prd.requirements.some((r) => r.layer !== 'api' && namesPage(r, path))
-        ? 'The ui or e2e requirements that describe it got no test case that opens it.'
-        : 'No ui or e2e requirement describes this page.',
-    }));
-  return { total: pages.length, opened: opened.size, unopened };
+  const routes = openablePages(prd.uiRoutes.map((p) => p.path));
+  const opened = new Set(testCases.filter((c) => c.layer === 'ui').flatMap((c) => pagesOpened(c.steps, routes)));
+  const fragmentPaths = new Set(prd.uiRoutes.filter((r) => r.kind === 'fragment').map((r) => r.path));
+  const unopenedOf = (paths: readonly string[]) =>
+    paths
+      .filter((page) => !opened.has(page))
+      .map((path) => ({
+        path,
+        reason: prd.requirements.some((r) => r.layer !== 'api' && namesPage(r, path))
+          ? 'The ui or e2e requirements that describe it got no test case that opens it.'
+          : 'No ui or e2e requirement describes this page.',
+      }));
+  const pages = routes.filter((p) => !fragmentPaths.has(p));
+  const fragments = routes.filter((p) => fragmentPaths.has(p));
+  return {
+    total: pages.length,
+    opened: pages.filter((p) => opened.has(p)).length,
+    unopened: unopenedOf(pages),
+    ...(fragments.length > 0 ? { fragments: { total: fragments.length, opened: fragments.filter((p) => opened.has(p)).length, unopened: unopenedOf(fragments) } } : {}),
+  };
 }
 
 /** Lines for a person: totals, coverage, rejections and warnings. */
@@ -475,6 +484,7 @@ export function describeCasesSummary(result: GenerateTestCasesResult): string[] 
     ...(t.coverage.pages && t.coverage.pages.total > 0
       ? [
           `pages opened by a ui test case: ${t.coverage.pages.opened} of ${t.coverage.pages.total}${t.coverage.pages.unopened.length > 0 ? `; not opened: ${t.coverage.pages.unopened.map((u) => u.path).join(', ')}` : ''}`,
+          ...(t.coverage.pages.fragments ? [`fragments (parts of pages) opened by a ui test case: ${t.coverage.pages.fragments.opened} of ${t.coverage.pages.fragments.total}${t.coverage.pages.fragments.unopened.length > 0 ? `; not opened: ${t.coverage.pages.fragments.unopened.map((u) => u.path).join(', ')}` : ''}`] : []),
         ]
       : []),
     `ui expectations marked afterAction (text that appears only after a step acts on the page): ${t.testCases.flatMap((c) => c.expected).filter((e) => e.afterAction === true).length}`,

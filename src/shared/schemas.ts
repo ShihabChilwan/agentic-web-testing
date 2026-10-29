@@ -347,6 +347,11 @@ export const PrdUiRoute = z.object({
   path: z.string().startsWith('/'),
   summary: z.string().min(1),
   authRequired: z.boolean(),
+  /**
+   * "fragment": a route that returns part of a page for the page's own script (an htmx partial, a dialog or modal), not
+   * a page opened on its own. Absent means a page. Fragments are counted apart from pages in the page coverage (§5).
+   */
+  kind: z.enum(['page', 'fragment']).optional(),
   evidence: z.array(Evidence).min(1),
 });
 
@@ -517,11 +522,14 @@ export const CoverageReport = z.object({
 export type CoverageReport = z.infer<typeof CoverageReport>;
 
 /** Which of the PRD's page routes a ui test case opens (named by path in its steps), and why the others are not. */
+const UnopenedPage = z.object({ path: z.string().min(1), reason: z.string().min(1) });
 export const PageCoverage = z.object({
-  /** Page routes that can be opened (a catch-all route is not counted). */
+  /** Page routes that can be opened (a catch-all route and a fragment are not counted). */
   total: z.number().int().nonnegative(),
   opened: z.number().int().nonnegative(),
-  unopened: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1) })),
+  unopened: z.array(UnopenedPage),
+  /** Routes marked `kind: "fragment"`, counted apart. Absent when the PRD has none (and in older files). */
+  fragments: z.object({ total: z.number().int().nonnegative(), opened: z.number().int().nonnegative(), unopened: z.array(UnopenedPage) }).optional(),
 });
 
 export const TestCaseCoverage = z.object({

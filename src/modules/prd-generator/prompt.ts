@@ -50,7 +50,7 @@ Assumptions are things you inferred but could not confirm, plus untestable behav
 Record the document in parts as you go, with these tools:
 - add_features: the main areas of functionality.
 - add_api_endpoints: every API endpoint you found.
-- add_ui_routes: every page route of the frontend.
+- add_ui_routes: every page route of the frontend. A route that returns only part of a page for the page's own script (an htmx partial, a dialog or modal fragment) is recorded with kind "fragment"; a page that is opened on its own has no kind.
 - add_requirements: the requirements, each linked to a feature.
 Each call checks its whole batch and stores it only if every item is valid. If a batch is rejected, nothing from it is stored: fix the problems listed and send the batch again. Add a feature before the requirements that refer to it. IDs continue across calls without gaps (F-01, F-02, ...; REQ-001, REQ-002, ...); each reply tells you the next free id. Send at most ${MAX_BATCH_ITEMS} items per call.
 When everything is recorded, call submit_prd with the assumptions and open questions. That finishes the document.
