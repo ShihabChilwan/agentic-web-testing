@@ -11,6 +11,7 @@ import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
 import {
+  FIRST_PASS_TEST_CASES,
   MAX_TEST_CASES,
   Prd,
   TestCases,
@@ -66,8 +67,8 @@ export interface GenerateTestCasesResult {
   summary: StageGenerationSummary;
 }
 
-/** Test cases each feature may submit: its share of the 150 total, never fewer than one per requirement. */
-export function featureQuotas(requirementCounts: number[], total: number = MAX_TEST_CASES): number[] {
+/** Test cases each feature may submit in the first pass: its share of the first-pass total, never fewer than one per requirement. */
+export function featureQuotas(requirementCounts: number[], total: number = FIRST_PASS_TEST_CASES): number[] {
   const all = requirementCounts.reduce((a, b) => a + b, 0);
   return requirementCounts.map((n) => Math.max(n, Math.floor((total * n) / all)));
 }
@@ -242,6 +243,40 @@ export function relatesToEndpoint(
   return relates(r, false) || (relates(r, true) && !requirements.some((q) => relates(q, false)));
 }
 
+/**
+ * Shares the case slots left for the endpoint round across features in turns (one endpoint per feature per turn), not in
+ * feature order, so a late feature is not starved. `counts` is the number of endpoints each feature wants asked. First
+ * every asked endpoint gets one slot; slots still left give endpoints a second one (a found case may need its
+ * not-found partner), again one feature at a time. Returns, per feature, how many of its endpoints are asked (the
+ * first ones in its list) and its quota.
+ */
+export function shareEndpointSlots(counts: readonly number[], available: number): { asked: number[]; quota: number[] } {
+  const asked = counts.map(() => 0);
+  let left = Math.max(0, available);
+  for (let moved = true; left > 0 && moved; ) {
+    moved = false;
+    counts.forEach((n, i) => {
+      if (left > 0 && asked[i]! < n) {
+        asked[i]!++;
+        left--;
+        moved = true;
+      }
+    });
+  }
+  const quota = [...asked];
+  for (let moved = true; left > 0 && moved; ) {
+    moved = false;
+    asked.forEach((n, i) => {
+      if (left > 0 && quota[i]! < 2 * n) {
+        quota[i]!++;
+        left--;
+        moved = true;
+      }
+    });
+  }
+  return { asked, quota };
+}
+
 /** Where the last tier links an endpoint no requirement relates to. */
 export interface FallbackLink {
   kind: 'route file' | 'feature';
@@ -326,8 +361,8 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     );
   }
   const prd = parsed.data;
-  if (prd.requirements.length > MAX_TEST_CASES) {
-    throw new Error(`prd.json has ${prd.requirements.length} requirements; at most ${MAX_TEST_CASES} can each get a test case`);
+  if (prd.requirements.length > FIRST_PASS_TEST_CASES) {
+    throw new Error(`prd.json has ${prd.requirements.length} requirements; at most ${FIRST_PASS_TEST_CASES} can each get a test case`);
   }
 
   const { config, repoDir, targetDir } = await loadTargetConfig(manifest.target, {
@@ -392,7 +427,7 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
       const done = handled(first[i]!);
       const gap = f.requirements.filter((r) => !done.has(r.id));
       if (gap.length === 0) return;
-      // Its unused share, or at least one per open requirement, but never past the 150 total.
+      // Its unused share, or at least one per open requirement, but never past the total cap.
       const unused = quotas[i]! - first[i]!.cases.length;
       const quota = Math.min(remaining, Math.max(unused, gap.length));
       remaining -= quota;

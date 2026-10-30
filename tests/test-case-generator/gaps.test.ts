@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
-import { describesEndpoint, endpointRoundProblems, fallbackLink, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
-import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints } from '../../src/modules/test-case-generator/gaps.js';
+import { describesEndpoint, endpointRoundProblems, fallbackLink, shareEndpointSlots, relatesToEndpoint, sharesResource } from '../../src/modules/test-case-generator/generate.js';
+import { describeGaps, describeMeasurement, endpointReach, generateGaps, measureEndpoints, planEndpointRound } from '../../src/modules/test-case-generator/gaps.js';
 import type { MeasureCoverageOptions } from '../../src/modules/execution-engine/coverage.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
 import { createRun, llmSettings, readRunManifest, setStage } from '../../src/shared/run-manifest.js';
@@ -359,5 +359,33 @@ describe('an endpoint whose evidence is only its route declaration', () => {
     await writeFile(paths.prd, JSON.stringify({ ...prd(), apiEndpoints: [endpoints[0]!, routeOnly] }));
     const notSent = await measureEndpoints({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, measure });
     expect(notSent.coverage.endpoints.map((e) => e.reached)).toEqual([true, false]);
+  });
+});
+
+describe('sharing the case slots left for the endpoint round', () => {
+  it('gives every feature a slot in turns before anyone gets a second one', () => {
+    expect(shareEndpointSlots([3, 3, 3], 3)).toEqual({ asked: [1, 1, 1], quota: [1, 1, 1] });
+    expect(shareEndpointSlots([3, 1, 2], 4)).toEqual({ asked: [2, 1, 1], quota: [2, 1, 1] });
+    expect(shareEndpointSlots([2, 1], 5)).toEqual({ asked: [2, 1], quota: [3, 2] });
+    expect(shareEndpointSlots([2, 1], 100)).toEqual({ asked: [2, 1], quota: [4, 2] });
+    expect(shareEndpointSlots([2, 2], 0)).toEqual({ asked: [0, 0], quota: [0, 0] });
+  });
+
+  it('plans the sessions: the last feature gets slots even when the early ones want them all', () => {
+    const slice = JSON.parse(readFileSync(new URL('../fixtures/gaps/recorded-api-slice.json', import.meta.url), 'utf8')) as {
+      apiEndpoints: Prd['apiEndpoints'];
+      requirements: PrdRequirement[];
+    };
+    const featureIds = [...new Set(slice.requirements.filter((r) => r.layer === 'api').map((r) => r.featureId))];
+    const prd = { ...slice, features: featureIds.map((id) => ({ id, name: id, description: id })) } as unknown as Prd;
+    const all = planEndpointRound(prd, slice.apiEndpoints, [], '/api/v2', 1000);
+    const wantedCount = all.sessions.reduce((n, s) => n + s.endpoints.length, 0);
+    expect(all.capped).toEqual([]);
+    expect(all.sessions.length).toBeGreaterThan(1);
+    // As many slots as features with something to ask: every one of them is asked, none is starved.
+    const tight = planEndpointRound(prd, slice.apiEndpoints, [], '/api/v2', all.sessions.length);
+    expect(tight.sessions.map((s) => s.feature.id).sort()).toEqual(all.sessions.map((s) => s.feature.id).sort());
+    expect(tight.sessions.every((s) => s.endpoints.length === 1 && s.quota === 1)).toBe(true);
+    expect(tight.capped.length).toBe(wantedCount - tight.sessions.length);
   });
 });

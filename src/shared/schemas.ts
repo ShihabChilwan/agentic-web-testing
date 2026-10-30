@@ -408,7 +408,10 @@ export function requirementEvidence(requirement: PrdRequirement): Evidence[] {
 // Module 2 — testcases.json
 // ---------------------------------------------------------------------------
 
-export const MAX_TEST_CASES = 150;
+/** Most test cases a run may hold in total (first pass, gap round, endpoint round, page round). */
+export const MAX_TEST_CASES = 250;
+/** The total the first pass shares out per feature; the rest of MAX_TEST_CASES is room for the later rounds. */
+export const FIRST_PASS_TEST_CASES = 150;
 export const MAX_TEST_CASES_PER_REQUIREMENT = 4;
 
 export const TestLayer = z.enum(['api', 'ui']);

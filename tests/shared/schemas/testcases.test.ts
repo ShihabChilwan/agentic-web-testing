@@ -39,9 +39,9 @@ describe('testcases.json', () => {
     expect(errorPaths(TestCases, c)).toContain('testCases.0.layer');
   });
 
-  it('rejects more than 150 test cases', () => {
+  it('rejects more than 250 test cases', () => {
     const c = structuredClone(cases);
-    c.testCases = Array.from({ length: 151 }, (_, i) => ({
+    c.testCases = Array.from({ length: 251 }, (_, i) => ({
       ...cases.testCases[0],
       id: `TC-${String(i + 1).padStart(3, '0')}`,
     }));

@@ -8,14 +8,14 @@ import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
 import { CoverageReport, MAX_TEST_CASES, Prd, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
-import type { PartlyCoveredRequirement, StageGapsSummary, TestCase } from '../../shared/schemas.js';
+import type { PartlyCoveredRequirement, PrdRequirement, StageGapsSummary, TestCase } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { Transcript } from '../../agent/transcript.js';
 import { readFacts } from '../execution-engine/facts.js';
 import { measureCoverage, type MeasureCoverageOptions, type MeasuredCoverage } from '../execution-engine/coverage.js';
 import { toTestCase } from './checks.js';
 import { linesAtCommit } from './context.js';
-import { fallbackLink, pageCoverage, relatesToEndpoint, type FallbackLink, runSession, type SessionInput } from './generate.js';
+import { fallbackLink, pageCoverage, relatesToEndpoint, type FallbackLink, runSession, shareEndpointSlots, type SessionInput } from './generate.js';
 import { classifyUnreached } from './reach.js';
 
 type Endpoint = Prd['apiEndpoints'][number];
@@ -53,10 +53,53 @@ export function endpointReach(endpoints: readonly Endpoint[], files: Record<stri
   }));
 }
 
+export interface EndpointRoundPlan {
+  sessions: Array<{ feature: Prd['features'][number]; requirements: PrdRequirement[]; quota: number; endpoints: Endpoint[] }>;
+  /** Unreached endpoints no requirement relates to, with where they are linked instead. */
+  fallbacks: Map<Endpoint, FallbackLink>;
+  /** Endpoints that would have been asked, left out because the case slots ran out. */
+  capped: Endpoint[];
+}
+
+/**
+ * Which endpoints the endpoint round asks, in which session, with what quota: each endpoint once (the first feature
+ * whose requirements relate to it), the tiers only choosing the requirements, and `slots` shared across features in
+ * turns (shareEndpointSlots).
+ */
+export function planEndpointRound(prd: Prd, unreached: readonly Endpoint[], gated: readonly Endpoint[], apiPrefix: string, slots: number): EndpointRoundPlan {
+  const allApi = prd.requirements.filter((r) => r.layer === 'api');
+  const related = (r: PrdRequirement, e: Endpoint) => relatesToEndpoint(r, e, prd.apiEndpoints, apiPrefix, allApi);
+  // Last tier: an endpoint no requirement relates to is asked anyway, linked by route file or by feature.
+  const fallbacks = new Map<Endpoint, FallbackLink>();
+  for (const e of unreached.filter((e) => !gated.includes(e) && !allApi.some((r) => related(r, e)))) {
+    const link = fallbackLink(e, allApi);
+    if (link) fallbacks.set(e, link);
+  }
+  const taken = new Set<Endpoint>();
+  const wanted = prd.features.map((feature) => {
+    const apiRequirements = allApi.filter((r) => r.featureId === feature.id);
+    const mine = [...fallbacks].filter(([, link]) => link.featureId === feature.id).map(([e]) => e);
+    const endpoints = [...unreached.filter((e) => !gated.includes(e) && apiRequirements.some((r) => related(r, e))), ...mine].filter((e) => !taken.has(e));
+    for (const e of endpoints) taken.add(e);
+    return { feature, apiRequirements, endpoints };
+  });
+  const share = shareEndpointSlots(wanted.map((w) => w.endpoints.length), slots);
+  const sessions: EndpointRoundPlan['sessions'] = [];
+  const capped: Endpoint[] = [];
+  wanted.forEach(({ feature, apiRequirements, endpoints: all }, i) => {
+    const endpoints = all.slice(0, share.asked[i]);
+    capped.push(...all.slice(share.asked[i]));
+    const linked = new Set(endpoints.flatMap((e) => fallbacks.get(e)?.requirementIds ?? []));
+    const requirements = apiRequirements.filter((r) => linked.has(r.id) || endpoints.some((e) => related(r, e)));
+    if (requirements.length > 0 && share.quota[i]! > 0) sessions.push({ feature, requirements, quota: share.quota[i]!, endpoints });
+  });
+  return { sessions, fallbacks, capped };
+}
+
 /**
  * The gaps stage (SPEC §5.1): measures which backend code the passing scripts run on the generation version, finds the
  * PRD endpoints none of them reached, and runs one test case session per feature for the api requirements describing
- * them, within what is left of the 150 test cases. New cases get the next ids and are appended to testcases.json; the
+ * them, within what is left of the case cap. New cases get the next ids and are appended to testcases.json; the
  * scripts stage is set to pending, so `agent scripts` writes scripts for the new cases and keeps the others.
  */
 export async function generateGaps(options: GenerateGapsOptions = {}): Promise<GenerateGapsResult> {
@@ -85,33 +128,11 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     const facts = await readFacts(config.name, options.targetsDir);
     const read = linesAtCommit({ root: repoDir, forbiddenPaths: config.forbiddenPaths }, manifest.generationCommit);
     const deps = { purpose: 'gaps', llm, llmConfig, config, read, transcriptsDir: paths.transcriptsDir, facts, endpoints: prd.apiEndpoints, pages: prd.uiRoutes, pageSnapshots: [] };
-    let remaining = MAX_TEST_CASES - before.testCases.length;
-    const inputs: SessionInput[] = [];
-    const asked = new Set<Endpoint>();
-    const allApi = prd.requirements.filter((r) => r.layer === 'api');
-    // Last tier: an endpoint no requirement relates to is asked anyway, linked by route file or by feature.
-    const related = (r: (typeof allApi)[number], e: Endpoint) => relatesToEndpoint(r, e, prd.apiEndpoints, config.backend.apiPrefix, allApi);
-    const fallbacks = new Map<Endpoint, FallbackLink>();
-    for (const e of unreached.filter((e) => !gated.includes(e) && !allApi.some((r) => related(r, e)))) {
-      const link = fallbackLink(e, allApi);
-      if (link) fallbacks.set(e, link);
-    }
-    for (const feature of prd.features) {
-      const apiRequirements = prd.requirements.filter((r) => r.featureId === feature.id && r.layer === 'api');
-      const mine = [...fallbacks].filter(([, link]) => link.featureId === feature.id);
-      const endpoints = [
-        ...unreached.filter((e) => !gated.includes(e) && !asked.has(e) && apiRequirements.some((r) => related(r, e))),
-        ...mine.map(([e]) => e).filter((e) => !asked.has(e)),
-      ];
-      const linked = new Set(mine.flatMap(([, link]) => link.requirementIds));
-      const requirements = apiRequirements.filter((r) => linked.has(r.id) || endpoints.some((e) => related(r, e)));
-      // Two per endpoint: a found case may need its not-found partner (§5 API rules).
-      const quota = Math.min(remaining, 2 * endpoints.length);
-      if (requirements.length === 0 || quota <= 0) continue;
-      remaining -= quota;
-      for (const e of endpoints) asked.add(e);
-      inputs.push({ feature, requirements, quota, gapRound: true, endpointRound: endpoints });
-    }
+    const remaining = MAX_TEST_CASES - before.testCases.length;
+    const plan = planEndpointRound(prd, unreached, gated, config.backend.apiPrefix, remaining);
+    const { fallbacks, capped } = plan;
+    const inputs: SessionInput[] = plan.sessions.map((x) => ({ ...x, gapRound: true, endpointRound: x.endpoints }));
+    const asked = new Set<Endpoint>(plan.sessions.flatMap((x) => x.endpoints));
     if (inputs.length > 0) log(`Endpoint round: ${asked.size} endpoints in ${inputs.length} features`);
     const outcomes = await Promise.all(inputs.map((input) => runSession(input, deps)));
 
@@ -148,7 +169,8 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     const notPassed = measured.results.summary.total - measured.results.summary.passed;
     const warnings = [
       ...(notPassed > 0 ? [`${notPassed} of ${measured.results.summary.total} scripts did not pass during the coverage run; coverage may be lower than the suite's`] : []),
-      ...unreached.filter((e) => !asked.has(e) && !gated.includes(e)).map((e) => `${label(e)} was not reached and the PRD has no api requirement to link a case to`),
+      ...unreached.filter((e) => !asked.has(e) && !gated.includes(e) && capped.includes(e)).map((e) => `${label(e)} was not reached and not asked: the ${MAX_TEST_CASES}-case cap is used up (${before.testCases.length} cases before this round)`),
+      ...unreached.filter((e) => !asked.has(e) && !gated.includes(e) && !capped.includes(e)).map((e) => `${label(e)} was not reached and the PRD has no api requirement to link a case to`),
       ...inputs.flatMap((input, i) => (outcomes[i]!.failure ? [`${input.feature.id}: endpoint-round session failed (${outcomes[i]!.failure})`] : [])),
     ];
     const summary: StageGapsSummary = {
