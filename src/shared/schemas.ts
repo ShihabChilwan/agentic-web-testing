@@ -1063,6 +1063,56 @@ export const RunExecution = z.object({
   error: z.string().optional(),
 });
 
+/**
+ * The state of the framework at the freeze (SPEC §11.8): written to `freeze/freeze.json` by `npm run freeze:record` and
+ * committed; the annotated tag `tag` then points at the commit that adds this file. Holds no key and no header.
+ */
+export const FreezeRecord = z.strictObject({
+  schemaVersion: SchemaVersion,
+  tag: z.string().min(1),
+  recordedAt: Timestamp,
+  /** HEAD when the file was written; the tagged commit differs from it only by this file. */
+  baseCommit: CommitSha,
+  llm: z.strictObject({
+    provider: LLMProvider,
+    /** Host of the base URL only (no path, no credentials). */
+    baseUrlHost: z.string().nullable(),
+    models: z.record(z.string(), z.string().min(1)),
+    temperature: z.number(),
+    topP: z.number(),
+    reasoningEffort: z.record(z.string(), z.string().min(1)),
+    reasoningParam: z.string().min(1),
+    concurrency: z.number().int().positive(),
+    contextTokens: z.number().int().positive(),
+    timeoutMs: z.number().int().positive(),
+    /** LLM_EXTRA_BODY: provider routing only. */
+    extraBody: z.record(z.string(), z.unknown()),
+    maxTokensPerCall: z.number().int().positive(),
+  }),
+  limits: z.strictObject({
+    maxTestCases: z.number().int().positive(),
+    firstPassTestCases: z.number().int().positive(),
+    maxTestCasesPerRequirement: z.number().int().positive(),
+  }),
+  files: z.strictObject({
+    packageLockSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    /** SPEC.md and CLAUDE.md are not in git; their hashes show which text the freeze was made under. */
+    specSha256: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+    claudeSha256: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+  }),
+  playwrightVersion: z.string().min(1),
+});
+export type FreezeRecord = z.infer<typeof FreezeRecord>;
+
+/** What a run records when it was made by the frozen framework (`run.json` `frozen`). */
+export const FrozenInfo = z.strictObject({
+  tag: z.string().min(1),
+  /** The tagged commit (HEAD when the run was made). */
+  commit: CommitSha,
+  freezeSha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
+export type FrozenInfo = z.infer<typeof FrozenInfo>;
+
 export const RunManifest = z.object({
   schemaVersion: SchemaVersion,
   runId: z.string().regex(/^[a-z0-9-]+-\d{8}-\d{6}$/, 'expected a run id like <target>-YYYYMMDD-HHmmss'),
@@ -1082,6 +1132,8 @@ export const RunManifest = z.object({
     /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Wafer"]). */
     upstreamProviders: z.array(z.string().min(1)).optional(),
   }),
+  /** Set when the run was made by the frozen framework (HEAD = the freeze tag, clean tree, settings as recorded). */
+  frozen: FrozenInfo.optional(),
   stages: z.strictObject({
     prd: StageState.optional(),
     cases: StageState.optional(),

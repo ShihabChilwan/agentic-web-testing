@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -33,6 +33,18 @@ describe('llmSettings', () => {
     delete written.llm.reasoningEffort.other;
     await writeFile(paths.runJson, JSON.stringify(written));
     expect((await readRunManifest(paths.runJson)).llm.reasoningEffort.other).toBeUndefined();
+  });
+});
+
+describe('run manifest frozen field', () => {
+  it('is recorded when given and absent otherwise (older files read without it)', async () => {
+    const runsDir = await mkdtemp(path.join(tmpdir(), 'runs-'));
+    const frozen = { tag: 'freeze-v1', commit: 'abc1234', freezeSha256: 'a'.repeat(64) };
+    const withIt = await createRun({ ...input(runsDir), frozen });
+    expect((await readRunManifest(withIt.paths.runJson)).frozen).toEqual(frozen);
+    const without = await createRun(input(runsDir, new Date('2026-10-24T10:00:05Z')));
+    expect((await readRunManifest(without.paths.runJson)).frozen).toBeUndefined();
+    await rm(runsDir, { recursive: true, force: true });
   });
 });
 

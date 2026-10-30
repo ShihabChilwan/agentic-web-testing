@@ -1,3 +1,4 @@
+import { currentFrozen } from '../../shared/freeze.js';
 import { writeFile } from 'node:fs/promises';
 import { DEFAULT_EXPLORATION_CEILING, runAgent } from '../../agent/runtime.js';
 import { createRepoTools } from '../../agent/tools/repo-tools.js';
@@ -158,11 +159,13 @@ export async function generatePrd(options: GeneratePrdOptions): Promise<Generate
 
   // Before the run exists: a bad ref creates no run folder.
   const commit = await checkoutRef(repoDir, ref);
+  const frozen = await currentFrozen({ target: config.name, llmConfig, ...(options.projectRoot ? { projectRoot: options.projectRoot } : {}) });
   const { runId, paths } = await createRun({
     target: config.name,
     generationRef: ref,
     generationCommit: commit,
     llm: llmSettings(llmConfig),
+    ...(frozen ? { frozen } : {}),
     ...(options.runsDir ? { runsDir: options.runsDir } : {}),
   });
   options.onRunCreated?.(paths.dir);

@@ -7,9 +7,11 @@ import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/i
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
 import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
+import { checkFrozen, DEFAULT_FREEZE_TAG, recordFreeze, requireFrozen } from './shared/freeze.js';
 import { describeScriptsSummary, describeSuspectedDefects, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
+import { loadLLMConfig } from './shared/config.js';
 import { runPaths } from './shared/paths.js';
 import path from 'node:path';
 
@@ -294,7 +296,8 @@ evaluation
   .option('--list-only', 'stop after listing the candidate mutants')
   .option('--env-only', 'only check the environment faults (writes nothing to targets/)')
   .option('--force', 'replace an existing variants.json')
-  .action(async (opts: { target: string; seed?: number; listOnly?: boolean; envOnly?: boolean; force?: boolean }) => {
+  .option('--allow-unfrozen', 'development only: run although the framework is not the frozen one')
+  .action(async (opts: { target: string; seed?: number; listOnly?: boolean; envOnly?: boolean; force?: boolean; allowUnfrozen?: boolean }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping the app...');
@@ -303,6 +306,7 @@ evaluation
     process.once('SIGINT', onSignal);
     process.once('SIGTERM', onSignal);
     try {
+      await requireFrozen({ target: opts.target, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const result = await createVariants({
         target: opts.target,
         ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
@@ -325,8 +329,10 @@ evaluation
   .requiredOption('--target <name>', 'target under targets/<name>/')
   .requiredOption('--run <runId>', 'run whose scripts the image executes')
   .option('--variants <file>', 'variant list relative to targets/<name>/ (default variants.json; e.g. dev-bugs/<draw>/variants.json)')
-  .action(async (opts: { target: string; run: string; variants?: string }) => {
+  .option('--allow-unfrozen', 'development only: build although the framework is not the frozen one')
+  .action(async (opts: { target: string; run: string; variants?: string; allowUnfrozen?: boolean }) => {
     try {
+      await requireFrozen({ target: opts.target, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const { outDir, build } = await createCloudContext({
         target: opts.target,
         runId: opts.run,
@@ -359,12 +365,50 @@ evaluation
   .command('import')
   .description('Turn one repeat\'s downloaded task results into a new local run (executions with opaque ids)')
   .requiredOption('--from <dir>', 'the repeat\'s folder, e.g. runs/cloud/<repeat-id>')
-  .action(async (opts: { from: string }) => {
+  .option('--allow-unfrozen', 'development only: import although the framework is not the frozen one')
+  .action(async (opts: { from: string; allowUnfrozen?: boolean }) => {
     try {
-      const { runId, mapping } = await importRepeat({ from: path.resolve(opts.from), log: (m) => console.log(m) });
+      const frozen = await requireFrozen({ allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
+      const { runId, mapping } = await importRepeat({ from: path.resolve(opts.from), ...(frozen ? { frozenCommit: frozen.commit } : {}), log: (m) => console.log(m) });
       console.log(`run: ${runId} (${mapping.versions.length} executions; mapping in runs/${runId}/eval/mapping.json)`);
     } catch (err) {
       console.error(`eval import failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+const freeze = program.command('freeze').description('The freeze before the final evaluation (SPEC §11.8)');
+
+freeze
+  .command('record')
+  .description('Write freeze/freeze.json: the model settings (no key), limits and file hashes at HEAD; the tree must be clean')
+  .option('--tag <name>', 'the tag the freeze will get', DEFAULT_FREEZE_TAG)
+  .action(async (opts: { tag: string }) => {
+    try {
+      const { file, record } = await recordFreeze(await loadLLMConfig(), { tag: opts.tag });
+      console.log(`wrote ${file} (base commit ${record.baseCommit.slice(0, 7)}, model ${record.llm.models.other})`);
+      console.log(`next: git add freeze/freeze.json, commit it, then git tag -a ${opts.tag} -m "..." and push the tag`);
+    } catch (err) {
+      console.error(`freeze record failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
+    }
+  });
+
+freeze
+  .command('check')
+  .description('Say whether HEAD is the frozen framework (tag, clean tree, frozen paths, model settings)')
+  .option('--target <name>', 'also require targets/<name> to be unchanged since the tag')
+  .action(async (opts: { target?: string }) => {
+    try {
+      const status = await checkFrozen({ llmConfig: await loadLLMConfig(), ...(opts.target ? { target: opts.target } : {}) });
+      if (status.state === 'frozen') console.log(`frozen: ${status.frozen.tag} at ${status.frozen.commit.slice(0, 7)}`);
+      else if (status.state === 'not-recorded') console.log('no freeze recorded yet (freeze/freeze.json is missing)');
+      else {
+        console.log(`not frozen:\n  ${status.reasons.join('\n  ')}`);
+        process.exitCode = 1;
+      }
+    } catch (err) {
+      console.error(`freeze check failed: ${errorSummary(err)}`);
       process.exitCode = 1;
     }
   });

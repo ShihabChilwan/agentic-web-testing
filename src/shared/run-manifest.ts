@@ -37,6 +37,7 @@ export interface CreateRunInput {
   generationRef: string;
   generationCommit: string;
   llm: RunManifest['llm'];
+  frozen?: RunManifest['frozen'];
   runsDir?: string;
   now?: Date;
 }
@@ -63,6 +64,7 @@ export async function createRun(input: CreateRunInput) {
     generationCommit: input.generationCommit,
     createdAt: now.toISOString(),
     llm: input.llm,
+    ...(input.frozen ? { frozen: input.frozen } : {}),
     stages: {},
     executions: [],
   };

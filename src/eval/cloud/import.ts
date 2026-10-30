@@ -13,6 +13,8 @@ const execFileAsync = promisify(execFile);
 export interface ImportRepeatOptions {
   /** One repeat's results folder: <from>/<version>/status.json and execution.tar.gz. */
   from: string;
+  /** The frozen commit: every task result must come from an image built at it. */
+  frozenCommit?: string;
   runsDir?: string;
   now?: () => Date;
   log?: (message: string) => void;
@@ -47,6 +49,10 @@ export async function importRepeat(options: ImportRepeatOptions): Promise<Import
     for (const key of ['repeatId', 'sourceRunId', 'suiteHash', 'imageTag'] as const) {
       if (s[key] !== first[key]) throw new Error(`Results mix ${key}s: ${first[key]} (${first.version}) and ${s[key]} (${s.version})`);
     }
+  }
+  if (options.frozenCommit) {
+    const stale = statuses.find((s) => !s.imageTag.startsWith(options.frozenCommit!.slice(0, 7)));
+    if (stale) throw new Error(`The image ${stale.imageTag} was not built at the frozen commit ${options.frozenCommit.slice(0, 7)}; rebuild it from the tagged commit`);
   }
   const execIds = statuses.flatMap((s) => (s.execId === null ? [] : [s.execId]));
   if (new Set(execIds).size !== execIds.length) throw new Error(`Two versions share an execution id: ${execIds.join(', ')}`);

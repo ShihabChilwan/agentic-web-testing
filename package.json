@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "agent": "tsx src/cli.ts agent",
     "eval": "tsx src/cli.ts eval",
+    "freeze:record": "tsx src/cli.ts freeze record",
     "llm:ping": "tsx src/llm/ping.ts",
     "target:up": "tsx src/modules/execution-engine/target-up.ts",
     "target:facts": "tsx src/modules/execution-engine/target-facts.ts"
