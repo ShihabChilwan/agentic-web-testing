@@ -1,0 +1,18 @@
+diff --git a/server/routes/api/user.js b/server/routes/api/user.js
+index c6116e4..a0c01f1 100644
+--- a/server/routes/api/user.js
++++ b/server/routes/api/user.js
+@@ -40,8 +40,11 @@ router.get('/', auth, async (req, res) => {
+   try {
+     const { page = 1, limit = 10 } = req.query;
+ 
+-    const users = await User.find({}, { password: 0, _id: 0, googleId: 0 })
+-      .sort('-created')
++    const users = await User.find({}, {
++  password: 0,
++  _id: 0,
++  googleId: 0
++})
+       .populate('merchant', 'name')
+       .limit(limit * 1)
+       .skip((page - 1) * limit)

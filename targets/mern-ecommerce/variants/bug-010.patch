@@ -1,0 +1,13 @@
+diff --git a/server/utils/queries.js b/server/utils/queries.js
+index fbe4a79..4b7c62c 100644
+--- a/server/utils/queries.js
++++ b/server/utils/queries.js
+@@ -28,7 +28,7 @@ exports.getStoreProductsQuery = (min, max, rating) => {
+     {
+       $unwind: {
+         path: '$brands',
+-        preserveNullAndEmptyArrays: true
++        preserveNullAndEmptyArrays: false
+       }
+     },
+     {

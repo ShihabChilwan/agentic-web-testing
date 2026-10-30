@@ -1,0 +1,385 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "goldenRef": "golden",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
+  "method": "stryker",
+  "seed": 20261101,
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/routes/api/*.js",
+        "server/middleware/*.js",
+        "server/models/*.js",
+        "server/utils/{auth,queries,store}.js"
+      ],
+      "frontend": [
+        "client/app/containers/**/{actions,reducer,index}.js",
+        "client/app/components/**/*.js",
+        "client/app/utils/validation.js"
+      ]
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "BooleanLiteral",
+      "ArithmeticOperator",
+      "UnaryOperator",
+      "OptionalChaining",
+      "MethodExpression"
+    ],
+    "mutants": 6607,
+    "candidates": 1930,
+    "mutationJsonSha256": "acf071cb8ade48aa97f3e55f3d858786e4c587d0364f2c12968b53448025a2a1"
+  },
+  "overlapLines": 5,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "patch": "variants/bug-001.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1150",
+      "file": "client/app/components/Manager/OrderItems/index.js",
+      "lines": [
+        51,
+        51
+      ],
+      "original": "      if (!isAdmin) {",
+      "mutated": "      if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-002",
+      "kind": "code",
+      "patch": "variants/bug-002.patch",
+      "layer": "frontend",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "1517",
+      "file": "client/app/components/Manager/Support/index.js",
+      "lines": [
+        121,
+        121
+      ],
+      "original": "          {users.length > 0 ? (",
+      "mutated": "          {users.length >= 0 ? (",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-003",
+      "kind": "code",
+      "patch": "variants/bug-003.patch",
+      "layer": "frontend",
+      "mutator": "UnaryOperator",
+      "strykerMutantId": "4017",
+      "file": "client/app/containers/Product/actions.js",
+      "lines": [
+        530,
+        530
+      ],
+      "original": "      sortOrder.price = -1;",
+      "mutated": "      sortOrder.price = +1;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-004",
+      "kind": "code",
+      "patch": "variants/bug-004.patch",
+      "layer": "backend",
+      "mutator": "MethodExpression",
+      "strykerMutantId": "6754",
+      "file": "server/routes/api/user.js",
+      "lines": [
+        43,
+        44
+      ],
+      "original": "    const users = await User.find({}, { password: 0, _id: 0, googleId: 0 })\n      .sort('-created')",
+      "mutated": "    const users = await User.find({}, {\n  password: 0,\n  _id: 0,\n  googleId: 0\n})",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-005",
+      "kind": "code",
+      "patch": "variants/bug-005.patch",
+      "layer": "backend",
+      "mutator": "MethodExpression",
+      "strykerMutantId": "6160",
+      "file": "server/routes/api/order.js",
+      "lines": [
+        131,
+        132
+      ],
+      "original": "    const ordersDoc = await Order.find()\n      .sort('-created')",
+      "mutated": "    const ordersDoc = await Order.find()",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-006",
+      "kind": "code",
+      "patch": "variants/bug-006.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "6849",
+      "file": "server/utils/auth.js",
+      "lines": [
+        10,
+        11
+      ],
+      "original": "      (await jwt.decode(req.headers.authorization.split(' ')[1])) ||\n      req.headers.authorization;",
+      "mutated": "      true;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-007",
+      "kind": "code",
+      "patch": "variants/bug-007.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "6815",
+      "file": "server/routes/api/wishlist.js",
+      "lines": [
+        25,
+        25
+      ],
+      "original": "        success: true,",
+      "mutated": "        success: false,",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-008",
+      "kind": "code",
+      "patch": "variants/bug-008.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5639",
+      "file": "server/routes/api/cart.js",
+      "lines": [
+        76,
+        76
+      ],
+      "original": "      success: true",
+      "mutated": "      success: false",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-009",
+      "kind": "code",
+      "patch": "variants/bug-009.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "5582",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+        240,
+        240
+      ],
+      "original": "  if (!brandDoc || !brandDoc.merchant) return;",
+      "mutated": "  if (!brandDoc && !brandDoc.merchant) return;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-010",
+      "kind": "code",
+      "patch": "variants/bug-010.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "6880",
+      "file": "server/utils/queries.js",
+      "lines": [
+        31,
+        31
+      ],
+      "original": "        preserveNullAndEmptyArrays: true",
+      "mutated": "        preserveNullAndEmptyArrays: false",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-011",
+      "kind": "code",
+      "patch": "variants/bug-011.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "4992",
+      "file": "server/models/category.js",
+      "lines": [
+        26,
+        26
+      ],
+      "original": "    unique: true",
+      "mutated": "    unique: false",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-012",
+      "kind": "code",
+      "patch": "variants/bug-012.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5785",
+      "file": "server/routes/api/contact.js",
+      "lines": [
+        14,
+        14
+      ],
+      "original": "    if (!email) {",
+      "mutated": "    if (email) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "env-01",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "MONGO_URI": "mongodb://mongo:27999/mern_ecommerce_test"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's MONGO_URI points to a port where no database listens, so the backend cannot reach the database.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-02",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "JWT_SECRET": null
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's JWT_SECRET is not set, so the backend fails while starting.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-03",
+      "kind": "environment",
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "API_URL": "http://localhost:3999/api"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The frontend's API_URL points to a port where nothing listens, so the browser's API calls are refused.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-04",
+      "kind": "environment",
+      "configOverride": {
+        "backend": {
+          "env": {
+            "BASE_API_URL": "v1"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The backend's BASE_API_URL is wrong, so the API is mounted under /v1 and every /api request is not found.",
+      "expectedClassification": "environment_issue"
+    },
+    {
+      "id": "env-05",
+      "kind": "environment",
+      "configOverride": {
+        "frontend": {
+          "env": {
+            "NODE_OPTIONS": "--max-old-space-size=32"
+          }
+        }
+      },
+      "skipSeed": false,
+      "description": "The frontend's Node.js heap is capped at 32 MB, so the frontend dev server runs out of memory.",
+      "expectedClassification": "environment_issue"
+    }
+  ],
+  "discards": [
+    {
+      "strykerMutantId": "5727",
+      "file": "server/routes/api/category.js",
+      "lines": [
+        111,
+        111
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-012.patch (line 111)"
+    },
+    {
+      "strykerMutantId": "5208",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        40,
+        40
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-006.patch (line 40)"
+    },
+    {
+      "strykerMutantId": "5272",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        113,
+        113
+      ],
+      "mutator": "EqualityOperator",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-007.patch (line 109)"
+    }
+  ]
+}

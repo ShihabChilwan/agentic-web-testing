@@ -1,0 +1,13 @@
+diff --git a/server/models/category.js b/server/models/category.js
+index 8e76674..1aadf7a 100644
+--- a/server/models/category.js
++++ b/server/models/category.js
+@@ -23,7 +23,7 @@ const CategorySchema = new Schema({
+   slug: {
+     type: String,
+     slug: 'name',
+-    unique: true
++    unique: false
+   },
+   image: {
+     data: Buffer,

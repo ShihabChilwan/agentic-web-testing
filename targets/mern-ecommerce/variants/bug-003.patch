@@ -1,0 +1,13 @@
+diff --git a/client/app/containers/Product/actions.js b/client/app/containers/Product/actions.js
+index cc319ba..12dfd6a 100644
+--- a/client/app/containers/Product/actions.js
++++ b/client/app/containers/Product/actions.js
+@@ -527,7 +527,7 @@ const getSortOrder = value => {
+       sortOrder._id = -1;
+       break;
+     case 1:
+-      sortOrder.price = -1;
++      sortOrder.price = +1;
+       break;
+     case 2:
+       sortOrder.price = 1;

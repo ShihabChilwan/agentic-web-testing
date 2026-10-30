@@ -1,0 +1,12 @@
+diff --git a/server/routes/api/order.js b/server/routes/api/order.js
+index 5431be8..2c6ba75 100644
+--- a/server/routes/api/order.js
++++ b/server/routes/api/order.js
+@@ -129,7 +129,6 @@ router.get('/', auth, async (req, res) => {
+   try {
+     const { page = 1, limit = 10 } = req.query;
+     const ordersDoc = await Order.find()
+-      .sort('-created')
+       .populate({
+         path: 'cart',
+         populate: {

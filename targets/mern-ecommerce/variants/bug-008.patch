@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/cart.js b/server/routes/api/cart.js
+index 691ee64..a193faf 100644
+--- a/server/routes/api/cart.js
++++ b/server/routes/api/cart.js
+@@ -73,7 +73,7 @@ router.delete('/delete/:cartId/:productId', auth, async (req, res) => {
+     await Cart.updateOne(query, { $pull: { products: product } }).exec();
+ 
+     res.status(200).json({
+-      success: true
++      success: false
+     });
+   } catch (error) {
+     res.status(400).json({

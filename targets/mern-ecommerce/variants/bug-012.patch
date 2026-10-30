@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/contact.js b/server/routes/api/contact.js
+index 814f32d..b9b5651 100644
+--- a/server/routes/api/contact.js
++++ b/server/routes/api/contact.js
+@@ -11,7 +11,7 @@ router.post('/add', async (req, res) => {
+     const email = req.body.email;
+     const message = req.body.message;
+ 
+-    if (!email) {
++    if (email) {
+       return res
+         .status(400)
+         .json({ error: 'You must enter an email address.' });

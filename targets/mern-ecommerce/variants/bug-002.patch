@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Manager/Support/index.js b/client/app/components/Manager/Support/index.js
+index 3bd45ef..795b647 100644
+--- a/client/app/components/Manager/Support/index.js
++++ b/client/app/components/Manager/Support/index.js
+@@ -118,7 +118,7 @@ const Support = props => {
+     <>
+       {socket ? (
+         <>
+-          {users.length > 0 ? (
++          {users.length >= 0 ? (
+             <Row>
+               <Col xs='12' md='4' xl='3'>
+                 <UserList

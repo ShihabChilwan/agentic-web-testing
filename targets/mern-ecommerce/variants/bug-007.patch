@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/wishlist.js b/server/routes/api/wishlist.js
+index c3bfc98..04a834d 100644
+--- a/server/routes/api/wishlist.js
++++ b/server/routes/api/wishlist.js
+@@ -22,7 +22,7 @@ router.post('/', auth, async (req, res) => {
+ 
+     if (updatedWishlist !== null) {
+       res.status(200).json({
+-        success: true,
++        success: false,
+         message: 'Your Wishlist has been updated successfully!',
+         wishlist: updatedWishlist
+       });

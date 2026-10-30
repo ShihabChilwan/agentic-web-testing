@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Manager/OrderItems/index.js b/client/app/components/Manager/OrderItems/index.js
+index 425abbd..0a48691 100644
+--- a/client/app/components/Manager/OrderItems/index.js
++++ b/client/app/components/Manager/OrderItems/index.js
+@@ -48,7 +48,7 @@ const OrderItems = props => {
+         </Link>
+       );
+     } else if (item.status !== 'Cancelled') {
+-      if (!isAdmin) {
++      if (true) {
+         return (
+           <DropdownConfirm label='Cancel'>
+             <div className='d-flex flex-column align-items-center justify-content-center p-2'>
