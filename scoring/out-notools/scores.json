@@ -1,0 +1,1832 @@
+{
+  "protocolSha256": "554b1969f726ea6617786a7bf9de360862413cacb3612814cd86a040de504142",
+  "codeSha256": "4f305962e4f0097f63a8debce8252a9f4da7a0ef69175e417dfac56cfabc5bff",
+  "suites": [
+    {
+      "repeatId": "eval-9b-gdn7w",
+      "versions": [
+        {
+          "version": "bug-001",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000209536,
+          "analysisMs": 6410,
+          "executionMs": 255144
+        },
+        {
+          "version": "bug-002",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 10,
+          "executionMs": 302593
+        },
+        {
+          "version": "bug-003",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000195592,
+          "analysisMs": 5682,
+          "executionMs": 255449
+        },
+        {
+          "version": "bug-004",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000139392,
+          "analysisMs": 11294,
+          "executionMs": 260700
+        },
+        {
+          "version": "bug-005",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000500136,
+          "analysisMs": 9667,
+          "executionMs": 260911
+        },
+        {
+          "version": "bug-006",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000143392,
+          "analysisMs": 4986,
+          "executionMs": 264304
+        },
+        {
+          "version": "bug-007",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000153392,
+          "analysisMs": 3967,
+          "executionMs": 271567
+        },
+        {
+          "version": "bug-008",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000131792,
+          "analysisMs": 4154,
+          "executionMs": 258609
+        },
+        {
+          "version": "bug-009",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000125218,
+          "analysisMs": 7598,
+          "executionMs": 335091
+        },
+        {
+          "version": "bug-010",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 17,
+          "executionMs": 268945
+        },
+        {
+          "version": "bug-011",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 18,
+          "executionMs": 269399
+        },
+        {
+          "version": "bug-012",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 4,
+          "analyzed": true,
+          "primaryClass": "test_defect",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000753008,
+          "analysisMs": 5501,
+          "executionMs": 264504
+        },
+        {
+          "version": "env-01",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 125,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.001910466,
+          "analysisMs": 12474,
+          "executionMs": 4282849
+        },
+        {
+          "version": "env-02",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 131,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.0026749139999999996,
+          "analysisMs": 18906,
+          "executionMs": 502151
+        },
+        {
+          "version": "env-03",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 36,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.004488328,
+          "analysisMs": 30216,
+          "executionMs": 752502
+        },
+        {
+          "version": "env-04",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 131,
+          "analyzed": true,
+          "primaryClass": "test_defect",
+          "classCorrect": false,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.003962672,
+          "analysisMs": 31119,
+          "executionMs": 948077
+        },
+        {
+          "version": "env-05",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 51,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.004363811999999998,
+          "analysisMs": 31329,
+          "executionMs": 176039
+        }
+      ],
+      "rates": {
+        "mutationScoreRaw": 0.16666666666666666,
+        "mutationScoreAdjusted": 0.16666666666666666,
+        "codeClassification": 0,
+        "codeFile": 0,
+        "codeLine": 0,
+        "codeClassificationAnyGroup": 0,
+        "codeFileAnyGroup": 0,
+        "codeLineAnyGroup": 0,
+        "envDetection": 1,
+        "envClassification": 0.8,
+        "envClassificationAnyGroup": 1,
+        "envClassificationMajority": 0.8
+      },
+      "counts": {
+        "codeVariants": 12,
+        "codeCaught": 2,
+        "equivalents": 0,
+        "envVariants": 5,
+        "envCaught": 5
+      },
+      "confusion": {
+        "app_defect": {
+          "inconclusive": 1,
+          "test_defect": 1
+        },
+        "environment_issue": {
+          "environment_issue": 4,
+          "test_defect": 1
+        }
+      },
+      "golden": {
+        "failures": 1,
+        "diagnosedAppDefect": 0,
+        "falseAlarmRate": 0
+      },
+      "totals": {
+        "analysisCostUsd": 0.01975165,
+        "analysisMs": 183348,
+        "executionMsMean": 584049.0588235294
+      },
+      "warnings": [
+        "/workspaces/agentic-web-testing/runs/mern-ecommerce-20261030-175229-notools: 1 test(s) fail on golden (TC-033); they are excluded from catching; review them by hand"
+      ]
+    },
+    {
+      "repeatId": "eval-9b-kd8w2",
+      "versions": [
+        {
+          "version": "bug-001",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 17,
+          "executionMs": 258746
+        },
+        {
+          "version": "bug-002",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 15,
+          "executionMs": 283969
+        },
+        {
+          "version": "bug-003",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 267543
+        },
+        {
+          "version": "bug-004",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 290900
+        },
+        {
+          "version": "bug-005",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 19,
+          "executionMs": 266245
+        },
+        {
+          "version": "bug-006",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 263559
+        },
+        {
+          "version": "bug-007",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 11,
+          "executionMs": 270712
+        },
+        {
+          "version": "bug-008",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 2,
+          "analyzed": true,
+          "primaryClass": "test_defect",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "test_defect",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.00024956999999999996,
+          "analysisMs": 4792,
+          "executionMs": 259119
+        },
+        {
+          "version": "bug-009",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000125202,
+          "analysisMs": 4302,
+          "executionMs": 290726
+        },
+        {
+          "version": "bug-010",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "test_defect",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "test_defect",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000129484,
+          "analysisMs": 3071,
+          "executionMs": 282363
+        },
+        {
+          "version": "bug-011",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 264781
+        },
+        {
+          "version": "bug-012",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 2,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000775538,
+          "analysisMs": 23111,
+          "executionMs": 280861
+        },
+        {
+          "version": "env-01",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 127,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.00132197,
+          "analysisMs": 17296,
+          "executionMs": 4409963
+        },
+        {
+          "version": "env-02",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 134,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.001753414,
+          "analysisMs": 15430,
+          "executionMs": 359221
+        },
+        {
+          "version": "env-03",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 34,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.003799877999999999,
+          "analysisMs": 31484,
+          "executionMs": 716508
+        },
+        {
+          "version": "env-04",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 133,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.0039391700000000005,
+          "analysisMs": 24191,
+          "executionMs": 916473
+        },
+        {
+          "version": "env-05",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 57,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.0040547840000000005,
+          "analysisMs": 22679,
+          "executionMs": 197746
+        }
+      ],
+      "rates": {
+        "mutationScoreRaw": 0.3333333333333333,
+        "mutationScoreAdjusted": 0.3333333333333333,
+        "codeClassification": 0,
+        "codeFile": 0,
+        "codeLine": 0,
+        "codeClassificationAnyGroup": 0,
+        "codeFileAnyGroup": 0,
+        "codeLineAnyGroup": 0,
+        "envDetection": 1,
+        "envClassification": 1,
+        "envClassificationAnyGroup": 1,
+        "envClassificationMajority": 0.8
+      },
+      "counts": {
+        "codeVariants": 12,
+        "codeCaught": 4,
+        "equivalents": 0,
+        "envVariants": 5,
+        "envCaught": 5
+      },
+      "confusion": {
+        "app_defect": {
+          "test_defect": 2,
+          "inconclusive": 2
+        },
+        "environment_issue": {
+          "environment_issue": 5
+        }
+      },
+      "golden": {
+        "failures": 0,
+        "diagnosedAppDefect": 0,
+        "falseAlarmRate": null
+      },
+      "totals": {
+        "analysisCostUsd": 0.01614901,
+        "analysisMs": 146474,
+        "executionMsMean": 581143.2352941176
+      },
+      "warnings": []
+    },
+    {
+      "repeatId": "eval-9b-52nwg",
+      "versions": [
+        {
+          "version": "bug-001",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 13,
+          "executionMs": 214042
+        },
+        {
+          "version": "bug-002",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 20,
+          "executionMs": 220362
+        },
+        {
+          "version": "bug-003",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 191965
+        },
+        {
+          "version": "bug-004",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 12,
+          "executionMs": 193719
+        },
+        {
+          "version": "bug-005",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 13,
+          "executionMs": 208200
+        },
+        {
+          "version": "bug-006",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.00015777,
+          "analysisMs": 4420,
+          "executionMs": 196836
+        },
+        {
+          "version": "bug-007",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 14,
+          "executionMs": 191267
+        },
+        {
+          "version": "bug-008",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.00014078,
+          "analysisMs": 8450,
+          "executionMs": 194664
+        },
+        {
+          "version": "bug-009",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 1,
+          "analyzed": true,
+          "primaryClass": "inconclusive",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.000146526,
+          "analysisMs": 7292,
+          "executionMs": 195468
+        },
+        {
+          "version": "bug-010",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 13,
+          "executionMs": 195273
+        },
+        {
+          "version": "bug-011",
+          "kind": "code",
+          "ran": true,
+          "caught": false,
+          "caughtTests": 0,
+          "analyzed": true,
+          "primaryClass": null,
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": null,
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": null,
+          "analysisMs": 12,
+          "executionMs": 183997
+        },
+        {
+          "version": "bug-012",
+          "kind": "code",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 3,
+          "analyzed": true,
+          "primaryClass": "test_defect",
+          "classCorrect": false,
+          "classAny": false,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.001005536,
+          "analysisMs": 13170,
+          "executionMs": 200347
+        },
+        {
+          "version": "env-01",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 107,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.0016463559999999999,
+          "analysisMs": 15893,
+          "executionMs": 3720216
+        },
+        {
+          "version": "env-02",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 115,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.002189484,
+          "analysisMs": 13205,
+          "executionMs": 251238
+        },
+        {
+          "version": "env-03",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 22,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "inconclusive",
+          "classMajority": false,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.00293018,
+          "analysisMs": 20427,
+          "executionMs": 433055
+        },
+        {
+          "version": "env-04",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 115,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.003817196,
+          "analysisMs": 30918,
+          "executionMs": 768137
+        },
+        {
+          "version": "env-05",
+          "kind": "environment",
+          "ran": true,
+          "caught": true,
+          "caughtTests": 32,
+          "analyzed": true,
+          "primaryClass": "environment_issue",
+          "classCorrect": true,
+          "classAny": true,
+          "majorityClass": "environment_issue",
+          "classMajority": true,
+          "fileCorrect": false,
+          "lineCorrect": false,
+          "fileAny": false,
+          "lineAny": false,
+          "analysisCostUsd": 0.0029814340000000007,
+          "analysisMs": 18058,
+          "executionMs": 137151
+        }
+      ],
+      "rates": {
+        "mutationScoreRaw": 0.3333333333333333,
+        "mutationScoreAdjusted": 0.3333333333333333,
+        "codeClassification": 0,
+        "codeFile": 0,
+        "codeLine": 0,
+        "codeClassificationAnyGroup": 0,
+        "codeFileAnyGroup": 0,
+        "codeLineAnyGroup": 0,
+        "envDetection": 1,
+        "envClassification": 1,
+        "envClassificationAnyGroup": 1,
+        "envClassificationMajority": 0.8
+      },
+      "counts": {
+        "codeVariants": 12,
+        "codeCaught": 4,
+        "equivalents": 0,
+        "envVariants": 5,
+        "envCaught": 5
+      },
+      "confusion": {
+        "app_defect": {
+          "inconclusive": 3,
+          "test_defect": 1
+        },
+        "environment_issue": {
+          "environment_issue": 5
+        }
+      },
+      "golden": {
+        "failures": 0,
+        "diagnosedAppDefect": 0,
+        "falseAlarmRate": null
+      },
+      "totals": {
+        "analysisCostUsd": 0.015015262000000001,
+        "analysisMs": 131944,
+        "executionMsMean": 452702.17647058825
+      },
+      "warnings": []
+    }
+  ],
+  "aggregate": {
+    "suites": 3,
+    "rates": {
+      "mutationScoreRaw": {
+        "values": [
+          0.16666666666666666,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "n": 3,
+        "mean": 0.27777777777777773,
+        "min": 0.16666666666666666,
+        "max": 0.3333333333333333,
+        "sd": 0.09622504486493763
+      },
+      "mutationScoreAdjusted": {
+        "values": [
+          0.16666666666666666,
+          0.3333333333333333,
+          0.3333333333333333
+        ],
+        "n": 3,
+        "mean": 0.27777777777777773,
+        "min": 0.16666666666666666,
+        "max": 0.3333333333333333,
+        "sd": 0.09622504486493763
+      },
+      "codeClassification": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "codeFile": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "codeLine": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "codeClassificationAnyGroup": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "codeFileAnyGroup": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "codeLineAnyGroup": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "n": 3,
+        "mean": 0,
+        "min": 0,
+        "max": 0,
+        "sd": 0
+      },
+      "envDetection": {
+        "values": [
+          1,
+          1,
+          1
+        ],
+        "n": 3,
+        "mean": 1,
+        "min": 1,
+        "max": 1,
+        "sd": 0
+      },
+      "envClassification": {
+        "values": [
+          0.8,
+          1,
+          1
+        ],
+        "n": 3,
+        "mean": 0.9333333333333332,
+        "min": 0.8,
+        "max": 1,
+        "sd": 0.11547005383792514
+      },
+      "envClassificationAnyGroup": {
+        "values": [
+          1,
+          1,
+          1
+        ],
+        "n": 3,
+        "mean": 1,
+        "min": 1,
+        "max": 1,
+        "sd": 0
+      },
+      "envClassificationMajority": {
+        "values": [
+          0.8,
+          0.8,
+          0.8
+        ],
+        "n": 3,
+        "mean": 0.8000000000000002,
+        "min": 0.8,
+        "max": 0.8,
+        "sd": 1.3597399555105182e-16
+      }
+    },
+    "variants": [
+      {
+        "version": "bug-001",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-002",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-003",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-004",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-005",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-006",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          true
+        ],
+        "caughtInSuites": 1,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-007",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-008",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          true,
+          true
+        ],
+        "caughtInSuites": 2,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-009",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-010",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          true,
+          false
+        ],
+        "caughtInSuites": 1,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-011",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          false,
+          false,
+          false
+        ],
+        "caughtInSuites": 0,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "bug-012",
+        "kind": "code",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          false,
+          false,
+          false
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "env-01",
+        "kind": "environment",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          true,
+          true,
+          true
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "env-02",
+        "kind": "environment",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          true,
+          true,
+          true
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "env-03",
+        "kind": "environment",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          true,
+          true,
+          true
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "env-04",
+        "kind": "environment",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          false,
+          true,
+          true
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "version": "env-05",
+        "kind": "environment",
+        "equivalent": false,
+        "caught": [
+          true,
+          true,
+          true
+        ],
+        "caughtInSuites": 3,
+        "classCorrect": [
+          true,
+          true,
+          true
+        ],
+        "fileCorrect": [
+          false,
+          false,
+          false
+        ],
+        "lineCorrect": [
+          false,
+          false,
+          false
+        ]
+      }
+    ],
+    "cost": {
+      "analysisCostUsd": {
+        "values": [
+          0.01975165,
+          0.01614901,
+          0.015015262000000001
+        ],
+        "n": 3,
+        "mean": 0.016971974,
+        "min": 0.015015262000000001,
+        "max": 0.01975165,
+        "sd": 0.002473114459665787
+      },
+      "analysisMs": {
+        "values": [
+          183348,
+          146474,
+          131944
+        ],
+        "n": 3,
+        "mean": 153922,
+        "min": 131944,
+        "max": 183348,
+        "sd": 26499.00624551796
+      },
+      "executionMsMean": {
+        "values": [
+          584049.0588235294,
+          581143.2352941176,
+          452702.17647058825
+        ],
+        "n": 3,
+        "mean": 539298.1568627451,
+        "min": 452702.17647058825,
+        "max": 584049.0588235294,
+        "sd": 75008.39164823579
+      }
+    },
+    "goldenFalseAlarm": {
+      "values": [
+        0,
+        null,
+        null
+      ],
+      "n": 1,
+      "mean": 0,
+      "min": 0,
+      "max": 0,
+      "sd": null
+    },
+    "caughtByNoSuite": [
+      "bug-001",
+      "bug-002",
+      "bug-003",
+      "bug-004",
+      "bug-005",
+      "bug-007",
+      "bug-011"
+    ],
+    "confusion": {
+      "app_defect": {
+        "inconclusive": 6,
+        "test_defect": 4
+      },
+      "environment_issue": {
+        "environment_issue": 14,
+        "test_defect": 1
+      }
+    },
+    "warnings": [
+      "/workspaces/agentic-web-testing/runs/mern-ecommerce-20261030-175229-notools: 1 test(s) fail on golden (TC-033); they are excluded from catching; review them by hand"
+    ]
+  }
+}
