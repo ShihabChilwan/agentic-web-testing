@@ -106,7 +106,32 @@
     },
     "tokenAt": "item",
     "header": "Authorization",
-    "prefix": "Bearer "
+    "prefix": "Bearer ",
+    "storage": {
+      "kind": "cookie",
+      "key": "accessToken",
+      "extra": {
+        "accessTokenVersion": "1"
+      }
+    },
+    "uiLogin": {
+      "path": "/login",
+      "fields": {
+        "email": {
+          "css": "input[name=\"emailOrUsername\"]"
+        },
+        "password": {
+          "css": "input[name=\"password\"]"
+        }
+      },
+      "submit": {
+        "role": "button",
+        "name": "Log in"
+      },
+      "waitFor": {
+        "urlNot": "/login"
+      }
+    }
   },
   "facts": [
     {

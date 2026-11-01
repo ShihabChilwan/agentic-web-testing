@@ -48,6 +48,20 @@ describe('target.config.json', () => {
     expect(errorPaths(TargetConfig, withStorage({ kind: 'cookie', key: '' }))).toContain('auth.storage.key');
   });
 
+  it('auth.storage.extra holds more entries of the same kind, as strings', () => {
+    const withStorage = (storage: unknown) => ({ ...config, auth: { ...config.auth, storage } });
+    expect(TargetConfig.parse(withStorage({ kind: 'cookie', key: 'token', extra: { version: '1' } })).auth?.storage?.extra).toEqual({ version: '1' });
+    expect(errorPaths(TargetConfig, withStorage({ kind: 'cookie', key: 'token', extra: { version: 1 } })).some((p) => p.startsWith('auth.storage.extra'))).toBe(true);
+    expect(errorPaths(TargetConfig, withStorage({ kind: 'cookie', key: 'token', other: 'x' }))).toContain('auth.storage');
+  });
+
+  it('a uiLogin locator may be a css selector, and only one kind of locator at a time', () => {
+    const withLogin = (email: unknown) => ({ ...config, auth: { ...config.auth, uiLogin: { path: '/login', fields: { email }, submit: { role: 'button', name: 'Log in' } } } });
+    expect(TargetConfig.parse(withLogin({ css: 'input[name="who"]' })).auth?.uiLogin?.fields.email).toEqual({ css: 'input[name="who"]' });
+    expect(errorPaths(TargetConfig, withLogin({ css: 'input', placeholder: 'x' })).some((p) => p.startsWith('auth.uiLogin.fields.email'))).toBe(true);
+    expect(errorPaths(TargetConfig, withLogin({ css: '' })).some((p) => p.startsWith('auth.uiLogin.fields.email'))).toBe(true);
+  });
+
   it('validates the optional seedCheck', () => {
     expect(TargetConfig.parse(config).seedCheck?.expect.nonEmptyArrayAt).toBe('products');
     const { seedCheck: _s, ...noCheck } = config;

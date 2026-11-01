@@ -13,6 +13,7 @@ interface LocatorSpec {
   placeholder?: string;
   text?: string;
   testId?: string;
+  css?: string;
 }
 
 interface TargetFile {
@@ -26,7 +27,7 @@ interface TargetFile {
     tokenAt?: string;
     header: string;
     prefix: string;
-    storage?: { kind: 'localStorage' | 'sessionStorage' | 'cookie'; key: string };
+    storage?: { kind: 'localStorage' | 'sessionStorage' | 'cookie'; key: string; extra?: Record<string, string> };
     uiLogin?: {
       path: string;
       fields: Record<string, LocatorSpec>;
@@ -121,13 +122,14 @@ export async function loginViaApi(user: User): Promise<{ headers: Record<string,
   return { headers: { [a.header]: `${a.prefix}${await loginToken(user)}` } };
 }
 
-/** A locator from a LocatorSpec (role and name, label, placeholder, text or test id). */
+/** A locator from a LocatorSpec (role and name, label, placeholder, text, test id or CSS selector). */
 export function locate(page: Page, spec: LocatorSpec): PwLocator {
   if (spec.role) return page.getByRole(spec.role as Parameters<Page['getByRole']>[0], spec.name ? { name: spec.name } : {});
   if (spec.label) return page.getByLabel(spec.label);
   if (spec.placeholder) return page.getByPlaceholder(spec.placeholder);
   if (spec.text) return page.getByText(spec.text);
   if (spec.testId) return page.getByTestId(spec.testId);
+  if (spec.css) return page.locator(spec.css);
   throw new Error('Empty locator');
 }
 
@@ -156,23 +158,29 @@ export async function loggedInPage(page: Page, user: User): Promise<Page> {
   if (!storage) throw new Error('This target has no token storage settings (target.config.json "auth.storage")');
   const token = await loginToken(user);
   if (storage.kind === 'cookie') {
-    await page.context().addCookies([{ name: storage.key, value: token, url: target.uiUrl }]);
+    const cookies = [{ name: storage.key, value: token }, ...Object.entries(storage.extra ?? {}).map(([name, value]) => ({ name, value }))];
+    await page.context().addCookies(cookies.map((c) => ({ ...c, url: target.uiUrl })));
     return page;
   }
   await page.addInitScript(
     // Runs in the browser before any page script, on every page load.
-    ({ kind, key, value, origin, marker }) => {
+    ({ kind, items, origin, marker }) => {
       type Store = { getItem(k: string): string | null; setItem(k: string, v: string): void };
       const g = globalThis as unknown as Record<string, Store> & { location: { origin: string } };
       try {
         if (g.location.origin !== origin || g.sessionStorage!.getItem(marker)) return;
-        g[kind]!.setItem(key, value);
+        for (const [key, value] of items) g[kind]!.setItem(key, value);
         g.sessionStorage!.setItem(marker, '1');
       } catch {
         // Storage is not available on some documents (e.g. about:blank).
       }
     },
-    { kind: storage.kind, key: storage.key, value: token, origin: new URL(target.uiUrl).origin, marker: '__awt_logged_in' },
+    {
+      kind: storage.kind,
+      items: [[storage.key, token], ...Object.entries(storage.extra ?? {})] as Array<[string, string]>,
+      origin: new URL(target.uiUrl).origin,
+      marker: '__awt_logged_in',
+    },
   );
   return page;
 }

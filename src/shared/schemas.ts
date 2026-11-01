@@ -102,7 +102,10 @@ export const SeedCheck = z.strictObject({
   }),
 });
 
-/** A Playwright locator described as data: exactly one of role (with optional name), label, placeholder, text, testId. */
+/**
+ * A Playwright locator described as data: exactly one of role (with optional name), label, placeholder, text, testId,
+ * css (a CSS selector, for an element that has none of the others, e.g. an input without a label or placeholder).
+ */
 export const Locator = z
   .strictObject({
     role: z.string().min(1).optional(),
@@ -111,8 +114,9 @@ export const Locator = z
     placeholder: z.string().min(1).optional(),
     text: z.string().min(1).optional(),
     testId: z.string().min(1).optional(),
+    css: z.string().min(1).optional(),
   })
-  .refine((l) => [l.role, l.label, l.placeholder, l.text, l.testId].filter(Boolean).length === 1, 'give exactly one of role, label, placeholder, text, testId')
+  .refine((l) => [l.role, l.label, l.placeholder, l.text, l.testId, l.css].filter(Boolean).length === 1, 'give exactly one of role, label, placeholder, text, testId, css')
   .refine((l) => !l.name || l.role, 'name goes with role');
 export type Locator = z.infer<typeof Locator>;
 
@@ -146,8 +150,16 @@ export const TargetAuth = z.strictObject({
    * Where the app keeps the login token, so a test page can start logged in (`loggedInPage`). `localStorage` and
    * `sessionStorage`: the item `key`; `cookie`: the cookie named `key` on the app's host, for apps whose server reads
    * the token from a cookie. The value is the token as the login response returns it (`tokenAt`), without `prefix`.
+   * `extra`: more entries of the same kind set next to the token, name → fixed value, for apps that keep a marker
+   * beside it (e.g. a version) and drop the token when the marker is missing.
    */
-  storage: z.strictObject({ kind: z.enum(['localStorage', 'sessionStorage', 'cookie']), key: z.string().min(1) }).optional(),
+  storage: z
+    .strictObject({
+      kind: z.enum(['localStorage', 'sessionStorage', 'cookie']),
+      key: z.string().min(1),
+      extra: z.record(z.string().min(1), z.string()).optional(),
+    })
+    .optional(),
   /** The frontend's login form, for `loginViaUi`. Field names are fixture user fields (e.g. email, password). */
   uiLogin: z
     .strictObject({

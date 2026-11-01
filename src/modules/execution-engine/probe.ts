@@ -132,20 +132,21 @@ export async function pageSnapshots(config: TargetConfig, requests: ReadonlyArra
       const context = await browser.newContext();
       try {
         const page = await context.newPage();
+        const items: Array<[string, string]> = token && storage ? [[storage.key, token], ...Object.entries(storage.extra ?? {})] : [];
         if (token && storage?.kind === 'cookie') {
-          await context.addCookies([{ name: storage.key, value: token, url: uiBaseUrl(config) }]);
+          await context.addCookies(items.map(([name, value]) => ({ name, value, url: uiBaseUrl(config) })));
         } else if (token && storage) {
           const origin = new URL(uiBaseUrl(config)).origin;
           await page.addInitScript(
-            ({ kind, key, value, at }) => {
+            ({ kind, entries, at }) => {
               const g = globalThis as unknown as Record<string, { setItem(k: string, v: string): void }> & { location: { origin: string } };
               try {
-                if (g.location.origin === at) g[kind]!.setItem(key, value);
+                if (g.location.origin === at) for (const [key, value] of entries) g[kind]!.setItem(key, value);
               } catch {
                 // Storage is not available on some documents (e.g. about:blank).
               }
             },
-            { kind: storage.kind, key: storage.key, value: token, at: origin },
+            { kind: storage.kind, entries: items, at: origin },
           );
         }
         const res = await page.goto(new URL(req.path, uiBaseUrl(config)).toString(), { timeout: PAGE_TIMEOUT_MS }).catch(() => null);

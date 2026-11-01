@@ -80,6 +80,27 @@ describe('pageSnapshot', () => {
     }
   }, 60_000);
 
+  it('sets the extra cookies of auth.storage next to the token', async () => {
+    // The page counts as signed in only when the marker cookie sits next to the token.
+    const app = createServer((req, res) => {
+      const cookie = req.headers.cookie ?? '';
+      const token = /(?:^|; )session=([^;]*)/.exec(cookie)?.[1];
+      const marked = /(?:^|; )session_version=2(?:;|$)/.test(cookie);
+      res.writeHead(200, { 'content-type': 'text/html' }).end(`<!doctype html><main><h1>Home</h1><p>${token && marked ? `Signed in ${token}` : 'Signed out'}</p></main>`);
+    });
+    const port = await listen(app);
+    try {
+      const make = (storage: unknown) =>
+        TargetConfig.parse({ ...structuredClone(config), frontend: { ...config.frontend!, baseUrl: `http://127.0.0.1:${port}` }, auth: { ...config.auth!, storage } });
+      const [withExtra] = await pageSnapshots(make({ kind: 'cookie', key: 'session', extra: { session_version: '2' } }), [{ path: '/', user: 'users.alice' }]);
+      const [without] = await pageSnapshots(make({ kind: 'cookie', key: 'session' }), [{ path: '/', user: 'users.alice' }]);
+      expect(withExtra?.aria).toContain('Signed in tok-123');
+      expect(without?.aria).toContain('Signed out');
+    } finally {
+      await new Promise((r) => app.close(r));
+    }
+  }, 60_000);
+
   it('takes several pages in one browser, each in a fresh context (a login does not leak into the next page)', async () => {
     const snaps = await pageSnapshots(config, [{ path: '/a', user: 'users.alice' }, { path: '/b' }]);
     expect(snaps.map((x) => /Signed in as tok-123/.test(x?.aria ?? ''))).toEqual([true, false]);
