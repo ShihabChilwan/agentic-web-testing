@@ -155,9 +155,9 @@ By framework failure category: runtime-error 33, value-less-expect 19, timeout 6
 | 1 | mern-ecommerce (golden `7f73dfb`) | `GET /api/address/:id` for an unknown id sends 404 without `return`, then throws `ERR_HTTP_HEADERS_SENT` twice; one unauthenticated request exits the backend with code 1 (`server/routes/api/address.js:52-60`) | an execution incident (`backend-crashed` before TC-026), not an assertion; present in every version |
 | 2 | Kutt v3.2.6 | `users.handler.js` uses `CustomError` without importing it, so banning an unknown or already banned user answers 500 (`ReferenceError`) instead of 400 (`users.handler.js:117`; `main` lacks the import too) | suspected defect TC-065 of `kutt-20261029-175214`, confirmed in source and server log |
 | 3 | Kutt v3.2.6 | `renders.handler.js:293` `linkEdit` reads `link.domain` of a missing link, so `/link/edit/<unknown id>` answers 500 | the server log of the same run |
-| 4 | *(not found)* | The files record **three** defects. A fourth is not in CLAUDE.md or SPEC: Kutt TC-073 (a banned custom domain still accepts new links) is recorded as a *product gap, explicitly not claimed as a defect*. | – |
+| 4 | mern-ecommerce (golden `7f73dfb`) | The merchant approval endpoints lack the admin role check: `PUT /api/merchant/approve/:id` (`server/routes/api/merchant.js:150`), `PUT /api/merchant/reject/:id` (line 181) and `PUT /api/merchant/:id/active` (line 124) use only `auth`, while the admin-only routes of the same file use `role.check(ROLES.Admin)` (lines 70, 97, 259-263). Any logged-in member can approve a merchant application: the merchant becomes `Approved` and a user with the merchant role is created (or the existing user with that email gets the merchant role, `createMerchantUser`, lines 314-358). | the first trial suite: TC-068 "non-admin cannot approve a merchant" expected 403, got 200 on golden (dry run, 20 Oct); confirmed by hand on 1 Nov by running golden: a member got 200 and the merchant became `Approved` with a `ROLE MERCHANT` user, while `GET /api/merchant` gave the member 403 and a request without a token gave 401 |
 
-None was checked against the upstream issue list for mern-ecommerce; for Kutt, no existing issue was found by title search. No Planka defect is claimed.
+None was checked against the upstream issue list for mern-ecommerce; for Kutt, no existing issue was found by title search. No Planka defect is claimed. Kutt TC-073 (a banned custom domain still accepts new links) is recorded as a product gap, explicitly not claimed as a defect. Bug 4 was added on 1 Nov after a manual check; it was found by a test case of the first trial suite (an assertion failure on golden, which the review had kept as a suspected defect), not by the final suites.
 
 ## 6. Cost and time per stage, averaged
 
@@ -189,5 +189,4 @@ Later stages (the three final suites):
 - Browser cases kept and writes read back for the final measurement: derived from run files with a different definition (marked *est.*); the script that gave the earlier 75% and 70% was not kept.
 - Endpoints at the 25 Oct cloud check: "about 61 of 73" is a text estimate recorded at the time.
 - Wall times of the cloud runs and the cloud cost of the final suites.
-- A fourth real bug (see section 5).
 - Planka run 2.
