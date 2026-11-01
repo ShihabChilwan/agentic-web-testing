@@ -1,0 +1,209 @@
+{
+  "schemaVersion": "1.0",
+  "name": "planka",
+  "repoPath": "targets/planka/repo",
+  "repoUrl": "https://github.com/plankanban/planka",
+  "goldenRef": "golden",
+  "backend": {
+    "cwd": "server",
+    "install": "npm ci",
+    "start": "node app.js",
+    "baseUrl": "http://localhost:1337",
+    "apiPrefix": "/api",
+    "healthCheckUrl": "http://localhost:1337/api/bootstrap",
+    "env": {
+      "DATABASE_URL": "postgresql://app:app@db:5432/planka",
+      "BASE_URL": "http://localhost:3000",
+      "SECRET_KEY": "test-secret-key",
+      "DEFAULT_ADMIN_EMAIL": "admin@planka.test",
+      "DEFAULT_ADMIN_PASSWORD": "Admin-pass-123",
+      "DEFAULT_ADMIN_NAME": "Admin User",
+      "DEFAULT_ADMIN_USERNAME": "admin"
+    },
+    "visibleEnv": [
+      "BASE_URL",
+      "DEFAULT_ADMIN_EMAIL",
+      "SMTP_HOST",
+      "S3_ENDPOINT",
+      "OIDC_ISSUER",
+      "GRAVATAR_BASE_URL"
+    ],
+    "disabledServices": {
+      "SMTP_HOST": "",
+      "S3_ENDPOINT": "",
+      "OIDC_ISSUER": "",
+      "GRAVATAR_BASE_URL": ""
+    }
+  },
+  "frontend": {
+    "cwd": "client",
+    "install": "npm ci",
+    "start": "npm start -- --host 127.0.0.1",
+    "baseUrl": "http://localhost:3000",
+    "healthCheckUrl": "http://localhost:3000",
+    "env": {
+      "BROWSER": "none"
+    },
+    "sourceRoots": [
+      "client/src"
+    ]
+  },
+  "lifecycle": {
+    "reset": "PGHOST=db PGUSER=app PGPASSWORD=app PGDATABASE=planka bash \"{{projectDir}}/tools/postgres/reset.sh\" && find server/data -mindepth 1 ! -name .gitkeep -delete",
+    "resetCwd": ".",
+    "seedCommand": "node db/init.js && node \"{{targetDir}}/seed.cjs\"",
+    "seedCwd": "server",
+    "startupTimeoutMs": 120000,
+    "snapshot": {
+      "save": "PGHOST=db PGUSER=app PGPASSWORD=app PGDATABASE=planka bash \"{{projectDir}}/tools/postgres/snapshot.sh\" save",
+      "restore": "PGHOST=db PGUSER=app PGPASSWORD=app PGDATABASE=planka bash \"{{projectDir}}/tools/postgres/snapshot.sh\" restore"
+    }
+  },
+  "fixtures": {
+    "users": {
+      "admin": {
+        "email": "admin@planka.test",
+        "password": "Admin-pass-123",
+        "username": "admin",
+        "role": "admin"
+      },
+      "alice": {
+        "email": "alice@planka.test",
+        "password": "Alice-pass-123",
+        "username": "alice",
+        "name": "Alice Test",
+        "role": "projectOwner"
+      },
+      "bob": {
+        "email": "bob@planka.test",
+        "password": "Bob-pass-12345",
+        "username": "bob",
+        "name": "Bob Test",
+        "role": "boardUser"
+      }
+    }
+  },
+  "seed": [],
+  "seedCheck": {
+    "method": "POST",
+    "path": "/api/access-tokens",
+    "body": {
+      "emailOrUsername": "{{fixtures.users.admin.email}}",
+      "password": "{{fixtures.users.admin.password}}"
+    },
+    "expect": {
+      "status": 200
+    }
+  },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "/api/access-tokens",
+      "body": {
+        "emailOrUsername": "{{user.email}}",
+        "password": "{{user.password}}"
+      }
+    },
+    "tokenAt": "item",
+    "header": "Authorization",
+    "prefix": "Bearer "
+  },
+  "facts": [
+    {
+      "name": "bootstrap",
+      "method": "GET",
+      "path": "/api/bootstrap",
+      "as": null
+    },
+    {
+      "name": "wrongPassword",
+      "method": "POST",
+      "path": "/api/access-tokens",
+      "body": {
+        "emailOrUsername": "{{fixtures.users.alice.email}}",
+        "password": "wrong-password-1"
+      },
+      "as": null
+    },
+    {
+      "name": "projectsAlice",
+      "method": "GET",
+      "path": "/api/projects",
+      "as": "users.alice",
+      "maxItems": 5,
+      "keep": [
+        "items[].name",
+        "items[].description",
+        "items[].isFavorite",
+        "included.boards[].name",
+        "included.boards[].defaultView",
+        "included.boardMemberships[].role",
+        "included.users[].email",
+        "included.users[].role",
+        "included.users[].name"
+      ]
+    },
+    {
+      "name": "projectsNoToken",
+      "method": "GET",
+      "path": "/api/projects",
+      "as": null
+    },
+    {
+      "name": "meAlice",
+      "method": "GET",
+      "path": "/api/users/me",
+      "as": "users.alice",
+      "keep": [
+        "item.email",
+        "item.role",
+        "item.name",
+        "item.username"
+      ]
+    },
+    {
+      "name": "usersAdmin",
+      "method": "GET",
+      "path": "/api/users",
+      "as": "users.admin",
+      "keep": [
+        "items[].email",
+        "items[].role",
+        "items[].name",
+        "items[].username"
+      ],
+      "maxItems": 5
+    },
+    {
+      "name": "usersBob",
+      "method": "GET",
+      "path": "/api/users",
+      "as": "users.bob"
+    }
+  ],
+  "sourceHints": {
+    "include": [
+      "README.md",
+      "server/api/**",
+      "server/config/routes.js",
+      "server/config/custom.js",
+      "server/utils/**",
+      "client/src/**"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/*.test.*",
+      "server/test/**",
+      "server/data/**",
+      "server/.venv/**",
+      "**/locales/**"
+    ]
+  },
+  "forbiddenPaths": [],
+  "accountResources": [
+    "/api/users"
+  ],
+  "coverage": {
+    "kind": "node-v8"
+  }
+}

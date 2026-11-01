@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "1.0",
+  "target": "planka",
+  "goldenCommit": "91eb43f47260498b1c237022f023f3deef92c11e",
+  "observedAt": "2026-11-01T11:53:33.925Z",
+  "facts": [
+    {
+      "name": "bootstrap",
+      "request": {
+        "method": "GET",
+        "path": "/api/bootstrap",
+        "as": null
+      },
+      "status": 200,
+      "body": {
+        "item": {
+          "oidc": null,
+          "termsLanguages": [
+            "de-DE",
+            "en-US"
+          ],
+          "version": "2.1.0"
+        }
+      },
+      "truncated": false
+    },
+    {
+      "name": "wrongPassword",
+      "request": {
+        "method": "POST",
+        "path": "/api/access-tokens",
+        "as": null
+      },
+      "status": 401,
+      "body": {
+        "code": "E_UNAUTHORIZED",
+        "message": "Invalid credentials"
+      },
+      "truncated": false
+    },
+    {
+      "name": "projectsAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/projects",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "name": "Website Redesign",
+            "description": "Relaunch of the company website",
+            "isFavorite": false
+          }
+        ],
+        "included": {
+          "boards": [
+            {
+              "name": "Sprint 1",
+              "defaultView": "kanban"
+            }
+          ],
+          "boardMemberships": [
+            {
+              "role": "editor"
+            }
+          ],
+          "users": [
+            {
+              "email": "alice@planka.test",
+              "role": "projectOwner",
+              "name": "Alice Test"
+            }
+          ]
+        }
+      },
+      "truncated": false
+    },
+    {
+      "name": "projectsNoToken",
+      "request": {
+        "method": "GET",
+        "path": "/api/projects",
+        "as": null
+      },
+      "status": 401,
+      "body": {
+        "code": "E_UNAUTHORIZED",
+        "message": "Access token is missing, invalid or expired"
+      },
+      "truncated": false
+    },
+    {
+      "name": "meAlice",
+      "request": {
+        "method": "GET",
+        "path": "/api/users/me",
+        "as": "users.alice"
+      },
+      "status": 200,
+      "body": {
+        "item": {
+          "email": "alice@planka.test",
+          "role": "projectOwner",
+          "name": "Alice Test",
+          "username": "alice"
+        }
+      },
+      "truncated": false
+    },
+    {
+      "name": "usersAdmin",
+      "request": {
+        "method": "GET",
+        "path": "/api/users",
+        "as": "users.admin"
+      },
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "email": "admin@planka.test",
+            "role": "admin",
+            "name": "Admin User",
+            "username": "admin"
+          },
+          {
+            "email": "alice@planka.test",
+            "role": "projectOwner",
+            "name": "Alice Test",
+            "username": "alice"
+          },
+          {
+            "email": "bob@planka.test",
+            "role": "boardUser",
+            "name": "Bob Test",
+            "username": "bob"
+          }
+        ]
+      },
+      "truncated": false
+    },
+    {
+      "name": "usersBob",
+      "request": {
+        "method": "GET",
+        "path": "/api/users",
+        "as": "users.bob"
+      },
+      "status": 403,
+      "body": {
+        "code": "E_FORBIDDEN",
+        "message": "Not enough rights"
+      },
+      "truncated": false
+    }
+  ]
+}
