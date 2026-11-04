@@ -8,3 +8,6 @@ reports/
 playwright-report/
 test-results/
 build/
+
+handoff/
+PROJECT_HANDOFF.md
