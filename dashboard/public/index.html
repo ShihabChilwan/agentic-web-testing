@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg>
+        Pipeline
+      </div>
+      <div class="facts" id="facts"></div>
+    </div>
+    <div class="tabs-row">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-run" aria-selected="true">Run</button>
+        <button class="tab" role="tab" id="tab-results" aria-selected="false">Results</button>
+      </div>
+      <div class="tools">
+          <label class="visually" for="run-picker" style="position:absolute;left:-9999px">Run</label>
+          <select class="sel" id="run-picker" aria-label="Open a run"></select>
+          <button class="btn" id="btn-new">New run</button>
+        <button class="btn" id="btn-demo" title="A limited run for presentations: chosen features, a case cap. Not an evaluation run.">New demo run</button>
+        <button class="btn primary" id="btn-continue" hidden>Continue run</button>
+          <button class="btn" id="btn-replay" title="Show the recorded files of this run again, on a shortened clock">Replay</button>
+          <span class="job" id="job" hidden></span>
+          <button class="btn danger" id="btn-stop" hidden>Stop</button>
+        </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="banner" id="replay-bar" hidden>
+    <div><strong id="replay-title"></strong> Recorded files on a shortened clock, not a live run.</div>
+    <div class="grow"><div class="bar-track"><div class="bar-fill" id="replay-fill" style="width:0"></div></div></div>
+    <select class="sel" id="replay-speed" aria-label="Replay speed">
+      <option value="30">30× faster</option>
+      <option value="60" selected>60× faster</option>
+      <option value="120">120× faster</option>
+      <option value="300">300× faster</option>
+    </select>
+    <button class="btn" id="replay-pause">Pause</button>
+    <button class="btn" id="replay-restart">Restart</button>
+    <button class="btn" id="replay-exit">Exit replay</button>
+  </div>
+
+  <main id="view-run">
+    <section class="card hero" id="empty">
+      <h1>No run open</h1>
+      <p>Pick an existing run from the list at the top, start a new one on a target, or replay a finished run from its recorded files.</p>
+      <div class="row">
+        <button class="btn primary" id="empty-new">Start a new run</button>
+        <button class="btn" id="empty-latest">Open the newest run</button>
+      </div>
+    </section>
+
+    <div id="run-body" hidden style="display:flex;flex-direction:column;gap:20px">
+      <section class="card" aria-label="Stages">
+        <div class="stepper" id="stepper"></div>
+        <div class="stage-error" id="stage-error" hidden><span id="stage-error-text"></span><button class="btn" id="btn-continue2" hidden>Continue run</button></div>
+      </section>
+
+      <section class="card" id="demo-card" aria-labelledby="h-demo" hidden>
+        <div class="card-h"><h2 id="h-demo">Demo run</h2><span class="badge suspected">Demo only · not an evaluation run</span></div>
+        <div class="card-b" id="demo-body"></div>
+      </section>
+
+      <section class="tiles" id="tiles"></section>
+
+      <section class="card" aria-labelledby="h-req">
+        <div class="card-h"><h2 id="h-req">Requirements and coverage</h2><span class="sub" id="req-sub"></span></div>
+        <div class="card-b" id="req-body"></div>
+      </section>
+
+      <div class="grid2">
+        <section class="card" aria-labelledby="h-cases">
+          <div class="card-h"><h2 id="h-cases">Test cases</h2><span class="sub" id="cases-sub"></span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Feature</th><th>Type</th></tr></thead><tbody id="cases-body"></tbody></table></div>
+          <div class="empty" id="cases-empty">Test cases appear when the test case stage finishes.</div>
+        </section>
+        <section class="card" aria-labelledby="h-scripts">
+          <div class="card-h"><h2 id="h-scripts">Scripts</h2><span class="sub" id="scripts-sub"></span></div>
+          <div class="totals" id="scripts-totals"></div>
+          <div class="stack" id="scripts-stack"></div>
+          <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th class="num">Tries</th></tr></thead><tbody id="scripts-body"></tbody></table></div>
+          <div class="empty" id="scripts-empty">Scripts appear as each one is written and checked.</div>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="h-exec">
+        <div class="card-h"><h2 id="h-exec">Execution</h2><span class="sub" id="exec-sub"></span></div>
+        <div class="exec-ctl" id="exec-ctl">
+          <button class="btn primary" id="btn-run-golden">Run correct version</button>
+          <label class="chk"><input type="checkbox" id="chk-buggy"> Also run a buggy version</label>
+          <select class="sel" id="sel-variant" hidden aria-label="Buggy version"></select>
+          <label class="chk"><input type="checkbox" id="chk-analyze" checked> Analyze after execution</label>
+          <span class="note" id="exec-note"></span>
+        </div>
+        <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>Version</th><th>Run</th><th>Status</th><th style="min-width:260px">Tests</th><th class="num">Time</th><th>Diagnosis</th></tr></thead><tbody id="exec-body"></tbody></table></div>
+        <div class="empty" id="exec-empty">No execution yet. The correct version runs at the end of a full run.</div>
+      </section>
+
+      <section class="card" aria-labelledby="h-dx">
+        <div class="card-h"><h2 id="h-dx">Diagnosis</h2><span class="sub" id="dx-sub"></span></div>
+        <div class="chips" id="dx-chips"></div>
+        <div class="dx-list" id="dx-list"></div>
+        <div class="empty" id="dx-empty">Failures are diagnosed after an execution that has any.</div>
+      </section>
+
+      <section class="card" id="log-card" aria-labelledby="h-log">
+        <div class="card-h log-h" id="log-h">
+          <h2 id="h-log"><span class="chev">▾</span> Log</h2>
+          <span style="display:flex;gap:8px;align-items:center">
+            <select class="sel" id="log-source" aria-label="Log source"></select>
+            <button class="btn" id="log-pause">Pause</button>
+          </span>
+        </div>
+        <div id="log-wrap"><div class="log-box" id="log" tabindex="0" role="log"></div></div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-results" hidden></main>
+</div>
+
+<dialog id="dlg-new">
+  <form method="dialog" id="form-new">
+    <h3>Start a new run</h3>
+    <p>Runs <code>agent all --fresh</code> on the target: requirements, test cases, scripts, coverage round, then the correct version, then diagnosis. It makes real model calls (about $0.40 and 35 to 50 minutes for mern-ecommerce).</p>
+    <label for="new-target">Target</label>
+    <select class="sel" id="new-target"></select>
+    <div class="row"><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok" id="new-ok">Start</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-demo">
+  <form method="dialog">
+    <h3>Start a demo run</h3>
+    <p>A short run for presentations. It creates the requirements document first, then you tick the features to test and set a cap on test cases. Demo runs are marked demo-only and never count as evaluation results. Model calls cost about $0.15 and the run takes about 15 minutes.</p>
+    <label for="demo-target">Target</label>
+    <select class="sel" id="demo-target"></select>
+    <div class="row"><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok">Start</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-buggy">
+  <form method="dialog">
+    <h3>Run a buggy version?</h3>
+    <p id="buggy-text"></p>
+    <div class="row"><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok">Run it</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
