@@ -14,7 +14,6 @@
 <header class="top">
   <div class="wrap hdr">
     <div class="ident">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg>
       <div>
         <h1 id="h-title">Pipeline</h1>
         <div class="ident-s"><span class="mono" id="h-run">No run open</span>
@@ -29,9 +28,11 @@
       <button class="tab" role="tab" id="tab-run" aria-selected="true">Run</button>
       <button class="tab" role="tab" id="tab-results" aria-selected="false">Results</button>
     </nav>
-    <div class="timer"><span class="k" id="timer-k">Elapsed</span><span class="t mono" id="timer-v">–</span></div>
-    <div class="actions">
+    <div class="jobbox" id="jobbox">
       <span class="job" id="job" hidden></span>
+      <span class="t mono" id="timer-v"></span>
+    </div>
+    <div class="actions">
       <button class="btn danger" id="btn-stop" hidden>Stop</button>
       <select class="sel" id="run-picker" aria-label="Open a run"></select>
       <button class="btn primary" id="btn-continue" hidden>Continue run</button>
@@ -81,7 +82,6 @@
     <div id="run-body" hidden style="display:flex;flex-direction:column;gap:20px">
       <section class="card" id="summary-card" aria-label="Run summary">
         <div class="summary" id="summary"></div>
-        <details class="stages"><summary>Time and cost per stage</summary><div class="inner" id="stage-table"></div></details>
       </section>
 
       <section class="card" aria-label="Stages">
@@ -125,7 +125,7 @@
           <label class="chk"><input type="checkbox" id="chk-analyze" checked> Analyze after execution</label>
           <span class="note" id="exec-note"></span>
         </div>
-        <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>Version</th><th>Run</th><th>Status</th><th style="min-width:260px">Tests</th><th class="num">Time</th><th>Diagnosis</th></tr></thead><tbody id="exec-body"></tbody></table></div>
+        <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>Version</th><th>Status</th><th style="min-width:260px">Tests</th><th class="num">Time</th><th>Diagnosis</th></tr></thead><tbody id="exec-body"></tbody></table></div>
         <div class="empty" id="exec-empty">No execution yet. The correct version runs at the end of a full run.</div>
       </section>
 

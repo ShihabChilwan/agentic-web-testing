@@ -385,6 +385,10 @@ export async function buildView(runId: string, options: ViewOptions = {}): Promi
   totals.pending = Math.max(0, totals.total - scriptList.length);
   const scriptsStage = stageOf('scripts').scripts ?? null;
 
+  // --- requirements per feature (reach comes from coverage/coverage.json; absent in older runs)
+  const covFile = await readJson(path.join(dir, 'coverage', 'coverage.json'));
+  const featureRows = prd ? buildFeatureRows(prd, caseList, covFile) : null;
+
   // --- headline
   const stageMs = stages.reduce((a: number, s: J) => a + (s.elapsedMs ?? 0), 0);
   const modes = new Set(diagnoses.map((d) => d.mode));
@@ -413,6 +417,9 @@ export async function buildView(runId: string, options: ViewOptions = {}): Promi
           uiRoutes: prd.uiRoutes.length,
           requirements: prd.requirements.length,
           featureNames: prd.features.map((f: J) => f.name),
+          featureRows: featureRows!.rows,
+          otherEndpoints: featureRows!.other,
+          reachRecorded: Array.isArray(covFile?.endpoints),
         }
       : null,
     cases: {
@@ -437,6 +444,44 @@ export async function buildView(runId: string, options: ViewOptions = {}): Promi
         }
       : null,
   };
+}
+
+interface Ev { file: string; lines: number[] }
+const overlaps = (a: Ev, b: Ev) => a.file === b.file && a.lines?.[0]! <= b.lines?.[1]! && b.lines?.[0]! <= a.lines?.[1]!;
+
+/**
+ * One row per feature. Endpoints carry no feature id, so they follow the requirements: an endpoint belongs to a
+ * feature when its evidence overlaps a requirement's evidence or a requirement's text names its path.
+ * `reached` is null when the run has no coverage file.
+ */
+export function buildFeatureRows(prd: J, caseList: J[], covFile: J): { rows: J[]; other: J[] } {
+  const reach = new Map<string, boolean>();
+  for (const e of covFile?.endpoints ?? []) reach.set(`${e.method} ${e.path}`, Boolean(e.reached || e.observed));
+  const recorded = Array.isArray(covFile?.endpoints);
+  const evOf = (x: J): Ev[] => (Array.isArray(x?.evidence) ? x.evidence : []);
+  const reqEvidence = (r: J): Ev[] => (r.acceptanceCriteria ?? []).flatMap((c: J) => evOf(c));
+  const reqText = (r: J) => `${r.statement ?? ''}\n${(r.acceptanceCriteria ?? []).map((c: J) => c.text).join('\n')}`;
+  const featureOfReq = new Map<string, string>((prd.requirements ?? []).map((r: J) => [r.id, r.featureId]));
+  const used = new Set<J>();
+  const rows = (prd.features ?? []).map((f: J) => {
+    const reqs = (prd.requirements ?? []).filter((r: J) => r.featureId === f.id);
+    const evidence = reqs.flatMap(reqEvidence);
+    const text = reqs.map(reqText).join('\n');
+    const endpoints = (prd.apiEndpoints ?? [])
+      .filter((e: J) => evOf(e).some((x) => evidence.some((y: Ev) => overlaps(x, y))) || (typeof e.path === 'string' && e.path && text.includes(e.path)))
+      .map((e: J) => {
+        used.add(e);
+        return { method: e.method, path: e.path, reached: recorded ? (reach.get(`${e.method} ${e.path}`) ?? false) : null };
+      });
+    const tests = caseList.filter((c: J) => (c.requirementIds ?? []).some((id: string) => featureOfReq.get(id) === f.id)).length;
+    return {
+      id: f.id, name: f.name, tests, endpoints,
+      requirements: reqs.map((r: J) => ({ id: r.id, text: r.statement, priority: r.priority })),
+    };
+  });
+  const other = (prd.apiEndpoints ?? []).filter((e: J) => !used.has(e))
+    .map((e: J) => ({ method: e.method, path: e.path, reached: recorded ? (reach.get(`${e.method} ${e.path}`) ?? false) : null }));
+  return { rows, other };
 }
 
 function scriptStatus(s: J): 'passed' | 'repaired' | 'suspected' | 'invalid' {

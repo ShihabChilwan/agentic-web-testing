@@ -21,6 +21,37 @@ const manifest = (runningExec = false) => ({
   executions: [{ execId: 'x-01', ref: 'golden', commit: 'abc', executeStatus: runningExec ? 'running' : 'done', analyzeStatus: 'pending' }],
 });
 
+describe('feature rows', () => {
+  it('links endpoints to features by evidence and marks reach only when coverage was recorded', async () => {
+    await w('r2/run.json', manifest());
+    const ev = (file: string, a: number, b: number) => ({ file, lines: [a, b] });
+    await w('r2/prd.json', {
+      features: [{ id: 'F-01', name: 'Login' }, { id: 'F-02', name: 'Cart' }],
+      requirements: [
+        { id: 'REQ-001', featureId: 'F-01', statement: 'Users log in.', priority: 'high', acceptanceCriteria: [{ text: 'POST /api/auth/login works', evidence: [ev('a.js', 1, 10)] }] },
+        { id: 'REQ-002', featureId: 'F-02', statement: 'Cart.', priority: 'low', acceptanceCriteria: [{ text: 'adds', evidence: [ev('c.js', 5, 9)] }] },
+      ],
+      apiEndpoints: [
+        { method: 'POST', path: '/api/auth/login', evidence: [ev('a.js', 4, 8)] },
+        { method: 'GET', path: '/api/cart', evidence: [ev('c.js', 1, 6)] },
+        { method: 'GET', path: '/api/lonely', evidence: [ev('z.js', 1, 2)] },
+      ],
+      uiRoutes: [],
+    });
+    await w('r2/testcases.json', { testCases: [{ id: 'TC-001', title: 'a', layer: 'api', category: 'functional', priority: 'high', requirementIds: ['REQ-001'] }] });
+    let v = await buildView('r2', { runsDir: root });
+    expect(v.prd.reachRecorded).toBe(false);
+    expect(v.prd.featureRows[0]).toMatchObject({ name: 'Login', tests: 1, endpoints: [{ path: '/api/auth/login', reached: null }] });
+    expect(v.prd.featureRows[1].endpoints).toHaveLength(1);
+    expect(v.prd.otherEndpoints).toEqual([{ method: 'GET', path: '/api/lonely', reached: null }]);
+    await w('r2/coverage/coverage.json', { endpoints: [{ method: 'POST', path: '/api/auth/login', reached: true }, { method: 'GET', path: '/api/cart', reached: false }, { method: 'GET', path: '/api/lonely', observed: true }] });
+    v = await buildView('r2', { runsDir: root });
+    expect(v.prd.reachRecorded).toBe(true);
+    expect(v.prd.featureRows.map((r: { endpoints: Array<{ reached: boolean }> }) => r.endpoints[0]!.reached)).toEqual([true, false]);
+    expect(v.prd.otherEndpoints[0].reached).toBe(true);
+  });
+});
+
 describe('buildView', () => {
   it('reads stages, scripts and cases of a run that is still writing scripts', async () => {
     await w('r1/run.json', manifest());

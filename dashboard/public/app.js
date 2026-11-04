@@ -125,15 +125,11 @@ function elapsedOf(stage, now) {
 }
 
 function renderHeader(v) {
-  const now = Date.now();
-  const total = v ? v.stages.reduce((a, s) => a + elapsedOf(s, now), 0) : null;
   $('#h-title').textContent = v ? v.run.target : 'Pipeline';
   const runEl = $('#h-run');
   runEl.textContent = v ? (state.replay ? `Replay of run ${v.run.id}` : v.run.id) : 'No run open';
   runEl.title = v ? v.run.id : '';
   $('#btn-copy').hidden = !v;
-  $('#timer-k').textContent = state.replay ? 'Recorded work time' : 'Elapsed';
-  $('#timer-v').textContent = total == null ? '–' : fmtDur(total);
   const badges = $('#badges');
   badges.replaceChildren();
   if (!v) return;
@@ -225,19 +221,10 @@ async function continueRun() {
 
 // ------------------------------------------------------------------ demo card
 
+const DEMO_INFO = 'Limited to the chosen features and a case cap, by editing prd.json and testcases.json between stages (the full files are kept as prd.full.json and testcases.full.json). Coverage is measured only: it adds no test cases. Never score a demo run.';
 let demoForm = null; // { run, features, el, read() }
 
-function stageTable(v) {
-  const rows = v.stages.map((s) => ({ label: s.label, ms: elapsedOf(s, Date.now()), cost: s.costUsd, status: s.status }));
-  const totalMs = rows.reduce((a, r) => a + (r.status === 'pending' ? 0 : r.ms), 0);
-  const totalCost = rows.reduce((a, r) => a + (r.cost || 0), 0);
-  return h('table', { class: 'mini' },
-    h('thead', {}, h('tr', {}, h('th', {}, 'Stage'), h('th', { class: 'num' }, 'Time'), h('th', { class: 'num' }, 'Model cost'))),
-    h('tbody', {}, rows.map((r) => h('tr', {}, h('td', {}, r.label), h('td', { class: 'num mono' }, r.status === 'pending' ? '–' : fmtDur(r.ms)), h('td', { class: 'num mono' }, r.cost ? usd(r.cost, 3) : r.status === 'pending' ? '–' : '$0')))),
-    h('tfoot', {}, h('tr', {}, h('td', {}, h('strong', {}, 'Total')), h('td', { class: 'num mono' }, h('strong', {}, fmtDur(totalMs))), h('td', { class: 'num mono' }, h('strong', {}, usd(totalCost, 3))))));
-}
-
-/** The same compact summary for every run; a demo run adds its features and cap. */
+/** The same compact summary for every run. */
 function renderSummary(v) {
   const now = Date.now();
   const totalMs = v.stages.reduce((a, s) => a + elapsedOf(s, now), 0);
@@ -252,16 +239,7 @@ function renderSummary(v) {
       ? item('Tests passing (correct version)', `${golden.passed} / ${golden.total}`)
       : item('Scripts passing', v.cases.total ? `${t.passed + t.repaired} / ${v.cases.total}` : '–'),
   ];
-  const sel = v.demo?.selection;
-  if (v.demo) {
-    const names = v.prd && sel ? v.prd.featureNames.join(', ') : '';
-    items.push(item('Features', sel ? `${sel.featureIds.length} ticked` : 'not chosen yet', 'sm', names));
-    items.push(item('Case cap', sel ? `${sel.cap}` : '–'));
-  }
   $('#summary').replaceChildren(...items);
-  const tbl = $('#stage-table');
-  const sig = JSON.stringify(v.stages.map((s) => [s.status, Math.round(elapsedOf(s, now) / 1000), s.costUsd]));
-  if (tbl.dataset.sig !== sig) { tbl.dataset.sig = sig; tbl.replaceChildren(stageTable(v)); }
 }
 
 async function renderDemo(v) {
@@ -282,12 +260,15 @@ async function renderDemo(v) {
   }
   demoForm = null;
   const sel = d.selection;
+  const chip = (k, val, title = '') => h('span', { class: 'kchip', title }, h('span', { class: 'k' }, k), h('span', { class: 'v' }, val));
+  const names = v.prd ? v.prd.featureNames.join(', ') : '';
   body.replaceChildren(
-    h('div', { class: 'note' }, 'Limited to the chosen features and a case cap, by editing prd.json and testcases.json between stages (the full files are kept as prd.full.json and testcases.full.json). Never score a demo run.'),
-    sel ? h('div', { class: 'demo-row' },
-      h('span', {}, 'Versions: ', h('strong', {}, sel.buggy ? `correct + ${sel.buggy.slice(sel.buggy.lastIndexOf(':') + 1)}` : 'correct only')),
-      h('span', {}, 'Analyze after execution: ', h('strong', {}, sel.analyze ? 'yes' : 'no'))) : null,
-    v.stages.find((s) => s.key === 'gaps').status !== 'pending' && v.coverage ? h('div', { class: 'note', style: 'margin-top:8px' }, 'Coverage (measured) only measures which endpoints the passing scripts reach; it adds no test cases.') : null);
+    sel ? h('div', { class: 'chips-row' },
+      chip('Features', names || `${sel.featureIds.length} ticked`, names),
+      chip('Cap', String(sel.cap)),
+      chip('Versions', sel.buggy ? `correct + ${sel.buggy.slice(sel.buggy.lastIndexOf(':') + 1)}` : 'correct only'),
+      chip('Analyze', sel.analyze ? 'on' : 'off'),
+      h('span', { class: 'info', tabindex: '0', role: 'img', 'aria-label': 'About demo runs', title: DEMO_INFO }, 'ⓘ')) : h('div', { class: 'note' }, 'Features not chosen yet.'));
 }
 
 function buildDemoForm(f) {
@@ -349,31 +330,66 @@ function renderTiles(v) {
     tile(v.prd ? v.prd.uiRoutes : '–', 'Pages found'),
     tile(v.cases.total || '–', `Test cases · ${v.cases.api} API · ${v.cases.browser} browser`),
     tile(v.cases.total ? `${t.passed + t.repaired}/${v.cases.total}` : '–', 'Scripts passing', 'green'),
-    tile(v.run.cost == null ? '–' : usd(v.run.cost, 2), `Model cost · ${v.run.calls} calls`),
   );
   void ex;
+}
+
+const reqState = new Map(); // "<run>/<feature id>" -> open, once a person has toggled a row
+
+function reachMark(reached) {
+  if (reached == null) return null;
+  return h('span', { class: `reach ${reached ? 'yes' : 'no'}` }, reached ? '✓ reached' : '✗ not reached');
+}
+
+function epLine(e) {
+  return h('div', { class: 'ep' }, h('span', { class: 'm' }, e.method), h('span', { class: 'mono p', title: e.path }, e.path), reachMark(e.reached));
+}
+
+function featureRow(f, open, recorded) {
+  const total = f.endpoints.length;
+  const reached = f.endpoints.filter((e) => e.reached).length;
+  const eps = !total ? h('span', { class: 'note' }, 'no endpoints')
+    : !recorded ? h('span', { class: 'note' }, `${total} endpoint${total === 1 ? '' : 's'}`)
+    : total === 1 ? h('span', { class: 'note' }, reached ? '1 of 1 reached' : '0 of 1 reached')
+    : h('span', { class: 'ep-bar' }, h('span', { class: 'progress' }, h('span', { class: 'c-green', style: `width:${(100 * reached) / total}%` })), h('span', { class: 'note' }, `${reached} of ${total} reached`));
+  const d = h('details', { class: 'feat-row', 'data-k': f.id }, 
+    h('summary', {},
+      h('span', { class: 'f-name', title: f.name }, f.name),
+      h('span', { class: 'f-n' }, `${f.requirements.length} req`),
+      h('span', { class: 'f-ep' }, eps),
+      h('span', { class: 'f-n' }, `${f.tests} test${f.tests === 1 ? '' : 's'}`)),
+    h('div', { class: 'f-body' },
+      h('div', { class: 'f-col' }, h('div', { class: 'f-h' }, 'Requirements'),
+        f.requirements.length ? f.requirements.map((r) => h('div', { class: 'rq' },
+          h('span', { class: 'mono id' }, r.id), h('span', { class: 'rq-t', title: r.text }, r.text), badge(r.priority === 'high' ? 'failed' : r.priority === 'medium' ? 'suspected' : 'pending', r.priority))) : h('div', { class: 'note' }, 'None.')),
+      h('div', { class: 'f-col' }, h('div', { class: 'f-h' }, 'Endpoints'),
+        f.endpoints.length ? f.endpoints.map(epLine) : h('div', { class: 'note' }, 'None linked.'))));
+  d.open = open;
+  d.addEventListener('toggle', () => reqState.set(`${state.runId}/${f.id}`, d.open));
+  return d;
 }
 
 function renderReq(v) {
   const body = $('#req-body');
   const p = v.prd;
-  $('#req-sub').replaceChildren(tagReplay() || '');
-  if (!p) { body.replaceChildren(h('div', { class: 'note' }, 'The requirements document is written when the first stage finishes.')); return; }
-  const parts = [
-    h('div', { style: 'display:flex;gap:28px;flex-wrap:wrap;margin-bottom:12px' },
-      stat(p.features, 'features'), stat(p.requirements, 'requirements'), stat(p.endpoints, 'API endpoints'), stat(p.uiRoutes, 'pages and routes')),
-    h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, p.featureNames.map((n) => h('span', { class: 'badge pending', style: 'color:var(--text-2)' }, n))),
-  ];
-  if (v.coverage) {
-    const c = v.coverage;
-    parts.push(h('div', { style: 'margin-top:16px;max-width:560px' },
-      h('div', { style: 'display:flex;justify-content:space-between;font-weight:600' }, h('span', {}, 'Endpoints reached by passing scripts'), h('span', { class: 'mono' }, `${c.reached} / ${c.total}`)),
-      h('div', { class: 'progress', style: 'margin-top:6px' }, h('span', { class: 'c-green', style: `width:${(100 * c.reached) / Math.max(1, c.total)}%` })),
-      h('div', { class: 'note', style: 'margin-top:4px' }, `${c.unreached} not reached, the coverage round asked for ${c.asked}.`)));
-  }
-  body.replaceChildren(...parts);
+  const sub = $('#req-sub');
+  if (!p) { sub.replaceChildren(tagReplay() || ''); body.replaceChildren(h('div', { class: 'note' }, 'The requirements document is written when the first stage finishes.')); return; }
+  const c = v.coverage;
+  const recorded = p.reachRecorded !== false;
+  const line = [`${p.features} feature${p.features === 1 ? '' : 's'}`, `${p.requirements} requirement${p.requirements === 1 ? '' : 's'}`];
+  if (c && recorded) line.push(c.reached === c.total ? `${c.total === 1 ? 'the' : 'all'} ${c.total} endpoint${c.total === 1 ? '' : 's'} reached` : `${c.reached} of ${c.total} endpoints reached`);
+  else line.push(`${p.endpoints} endpoint${p.endpoints === 1 ? '' : 's'}`);
+  sub.replaceChildren(...[line.join(' · '), !recorded ? h('span', { class: 'note-pill' }, 'reach not recorded for this run') : null, tagReplay()].filter(Boolean));
+  // Rebuild only when the data changed, so open rows stay open while the page refreshes.
+  const sig = JSON.stringify([state.runId, p.featureRows, p.otherEndpoints]);
+  if (body.dataset.sig === sig) return;
+  body.dataset.sig = sig;
+  const rows = p.featureRows.map((f, i) => featureRow(f, reqState.get(`${state.runId}/${f.id}`) ?? i === 0, recorded));
+  const other = p.otherEndpoints.length ? h('details', { class: 'feat-row', 'data-k': '_other' },
+    h('summary', {}, h('span', { class: 'f-name' }, 'Other endpoints'), h('span', { class: 'f-n' }, ''), h('span', { class: 'f-ep note' }, `${p.otherEndpoints.length} not linked to a feature`), h('span', { class: 'f-n' }, '')),
+    h('div', { class: 'f-body one' }, h('div', { class: 'f-col' }, p.otherEndpoints.map(epLine)))) : null;
+  body.replaceChildren(h('div', { class: `feat-rows${p.featureRows.length >= 16 ? ' scroll' : ''}` }, rows, other));
 }
-const stat = (n, l) => h('div', {}, h('div', { style: 'font-size:24px;font-weight:700' }, String(n)), h('div', { class: 'note' }, l));
 
 const byIdDesc = (a, b) => b.id.localeCompare(a.id, undefined, { numeric: true });
 
@@ -382,11 +398,15 @@ function renderCases(v) {
   $('#cases-empty').hidden = list.length > 0;
   $('#cases-sub').replaceChildren(`${v.cases.total} total`, tagReplay() || '');
   syncRows($('#cases-body'), list, (c) => c.id, (c) => `${c.title}|${c.layer}`, (tr, c) => {
-    tr.append(h('td', { class: 'id' }, c.id), h('td', { class: 'title', title: c.title }, c.title), h('td', {}, c.feature || '–'),
+    tr.append(h('td', { class: 'id' }, c.id), h('td', { class: 'title', title: c.title }, c.title), h('td', { class: 'title fcell', title: c.feature || '' }, c.feature || '–'),
       h('td', {}, badge(c.layer === 'api' ? 'api' : 'browser', c.layer === 'api' ? 'API' : 'Browser')));
   });
 }
 
+const REASON_TEXT = {
+  'no-submit': 'No script written', typecheck: 'Code error', 'lock-check': 'Expected value changed', 'value-less-expect': 'Missing expected value',
+  locator: 'Element not found', timeout: 'Timed out', 'runtime-error': 'Script error', 'fixture-mutation': 'Changed a fixture user',
+};
 const SCRIPT_TEXT = { passed: 'Passed', repaired: 'Repaired', suspected: 'Suspected defect', invalid: 'Invalid' };
 
 function renderScripts(v) {
@@ -403,7 +423,7 @@ function renderScripts(v) {
   $('#scripts-stack').replaceChildren(seg('c-green', t.passed), seg('c-amber', t.repaired + t.suspected), seg('c-red', t.invalid));
   syncRows($('#scripts-body'), list, (s) => s.id, (s) => `${s.status}|${s.attempts}`, (tr, s) => {
     tr.append(h('td', { class: 'id' }, s.id), h('td', { class: 'title', title: titles.get(s.id) || '' }, titles.get(s.id) || ''),
-      h('td', {}, badge(s.status, SCRIPT_TEXT[s.status]), s.status === 'invalid' && s.category ? h('span', { class: 'note', style: 'margin-left:8px' }, s.category) : null),
+      h('td', {}, badge(s.status, SCRIPT_TEXT[s.status]), s.status === 'invalid' && s.category ? h('span', { class: 'note reason', title: s.category }, REASON_TEXT[s.category] || s.category) : null),
       h('td', { class: 'num' }, String(s.attempts)));
   });
 }
@@ -418,10 +438,9 @@ function renderExec(v) {
     const total = Math.max(1, e.total);
     const bad = e.failed + e.errored;
     const status = e.executeStatus === 'done' ? (bad > 0 ? 'failed' : 'passed') : e.executeStatus;
-    const label = e.kind === 'golden' ? 'Correct version' : e.label;
+    const label = e.kind === 'golden' ? 'Correct version' : `${e.kind === 'environment' ? 'Environment fault' : 'Buggy version'} · ${e.label}`;
     tr.append(
-      h('td', {}, h('strong', { class: e.kind === 'golden' ? '' : 'mono' }, label), e.kind === 'golden' ? null : h('span', { class: 'note', style: 'margin-left:8px' }, e.kind === 'environment' ? 'environment fault' : 'code')),
-      h('td', { class: 'id' }, e.execId),
+      h('td', {}, h('div', { class: 'vname' }, label), h('div', { class: 'xid' }, e.execId)),
       h('td', {}, e.executeStatus === 'running' ? h('span', { class: 'badge running' }, h('span', { class: 'pulse' }), 'running') : badge(status, e.executeStatus === 'done' ? (bad > 0 ? 'Failures' : 'All passed') : e.executeStatus)),
       h('td', {},
         h('div', { class: 'progress' }, h('span', { class: 'c-green', style: `width:${(100 * e.passed) / total}%` }), h('span', { class: 'c-red', style: `width:${(100 * bad) / total}%` })),
@@ -456,6 +475,38 @@ function renderExecControls(v) {
 const CLASS_TEXT = { app_defect: 'App defect', environment_issue: 'Environment issue', test_defect: 'Faulty test' };
 let dxChoice = null;
 
+/** Diagnoses that point at the same file and line range are one finding: one card, all their tests. */
+function groupDiagnoses(items) {
+  const groups = [];
+  const byLoc = new Map();
+  for (const it of items) {
+    const loc = it.location;
+    const key = loc ? `${loc.file}:${loc.lines[0]}-${loc.lines[1]}` : null;
+    let g = key ? byLoc.get(key) : null;
+    if (!g) {
+      g = { items: [] };
+      groups.push(g);
+      if (key) byLoc.set(key, g);
+    }
+    g.items.push(it);
+  }
+  return groups.map((g) => {
+    const lead = [...g.items].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
+    return {
+      key: g.items.map((x) => x.id).join('+'), items: g.items, lead, location: lead.location,
+      testCaseIds: [...new Set(g.items.flatMap((x) => x.testCaseIds))],
+    };
+  });
+}
+
+/** First sentence, at most `max` characters. */
+function headline(text, max = 90) {
+  const t = String(text || '').trim().replace(/\s+/g, ' ');
+  const m = /^.*?[.!?](?=\s|$)/.exec(t);
+  const first = m ? m[0] : t;
+  return first.length <= max ? first : `${first.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
+}
+
 function renderDiag(v) {
   const withDx = v.diagnoses;
   $('#dx-empty').hidden = withDx.some((d) => d.items.length > 0);
@@ -470,32 +521,36 @@ function renderDiag(v) {
   }, `${d.label === 'golden' ? 'Correct version' : d.label} · ${d.execId} · ${d.items.length}`)));
   const list = $('#dx-list');
   const sel = sorted.find((d) => d.execId === dxChoice);
-  const items = sel ? sel.items : [];
-  const wanted = new Set(items.map((i) => `${sel.execId}/${i.id}`));
+  const groups = sel ? groupDiagnoses(sel.items) : [];
+  const wanted = new Set(groups.map((g) => `${sel.execId}/${g.key}`));
   for (const c of [...list.children]) if (!wanted.has(c.dataset.k)) c.remove();
-  for (const it of items) {
-    const key = `${sel.execId}/${it.id}`;
-    if (![...list.children].some((c) => c.dataset.k === key)) list.append(dxCard(sel, it, key));
+  for (const g of groups) {
+    const key = `${sel.execId}/${g.key}`;
+    if (![...list.children].some((c) => c.dataset.k === key)) list.append(dxCard(sel, g, key));
   }
-  list.hidden = items.length === 0;
+  list.hidden = groups.length === 0;
 }
 
-function dxCard(d, it, key) {
+function dxCard(d, g, key) {
+  const it = g.lead;
   const conf = Math.round((it.confidence ?? 0) * 100);
-  const loc = it.location;
+  const loc = g.location;
   const codeBox = h('div', {});
+  const shown = g.testCaseIds.slice(0, 8);
   const card = h('article', { class: 'dx', 'data-k': key },
     h('div', { class: 'dx-top' },
-      h('span', { class: 'dx-id' }, it.id), badge(it.classification, CLASS_TEXT[it.classification] || it.classification),
-      h('span', { class: 'dx-tc' }, `${it.testCaseIds.length} test${it.testCaseIds.length === 1 ? '' : 's'}: ${it.testCaseIds.slice(0, 4).join(', ')}${it.testCaseIds.length > 4 ? ' …' : ''}`)),
-    h('p', {}, it.summary),
+      h('span', { class: 'dx-id' }, g.items.map((x) => x.id).join(' · ')), badge(it.classification, CLASS_TEXT[it.classification] || it.classification)),
+    h('p', { class: 'dx-head', title: it.summary }, headline(it.summary)),
     h('div', { class: 'conf' }, h('span', {}, 'Confidence'), h('div', { class: 'bar' }, h('i', { style: `width:${conf}%` })), h('span', { class: 'mono' }, `${conf}%`)),
     loc ? h('div', { class: 'loc' }, `${loc.file}:${loc.lines[0]}${loc.lines[1] !== loc.lines[0] ? '–' + loc.lines[1] : ''}`) : h('div', { class: 'note' }, 'No code location (the cause is not in the application source).'),
     codeBox,
+    h('div', { class: 'dx-tc' }, h('strong', {}, 'Explains: '), shown.join(', '), g.testCaseIds.length > shown.length ? ` +${g.testCaseIds.length - shown.length} more` : ''),
     h('details', { class: 'more' }, h('summary', {}, 'Root cause, evidence and suggested fix'),
-      h('div', { class: 'body' }, it.rootCause || ''),
-      it.evidence.length ? h('ul', { class: 'ev' }, it.evidence.map((e) => h('li', {}, h('strong', {}, e.source + ': '), e.detail))) : null,
-      it.suggestedFix ? h('div', { class: 'body' }, h('strong', {}, 'Suggested fix: '), it.suggestedFix) : null));
+      g.items.map((x) => h('div', { class: 'more-item' },
+        g.items.length > 1 ? h('div', { class: 'body' }, h('strong', {}, `${x.id}: `), x.summary) : h('div', { class: 'body' }, x.summary),
+        h('div', { class: 'body' }, h('strong', {}, 'Root cause: '), x.rootCause || ''),
+        x.evidence.length ? h('ul', { class: 'ev' }, x.evidence.map((e) => h('li', {}, h('strong', {}, e.source + ': '), e.detail))) : null,
+        x.suggestedFix ? h('div', { class: 'body' }, h('strong', {}, 'Suggested fix: '), x.suggestedFix) : null))));
   if (loc) loadExcerpt(d.execId, loc, codeBox);
   return card;
 }
@@ -572,6 +627,12 @@ async function loadFileLog() {
 
 // ------------------------------------------------------------------ job state
 
+function renderTimer() {
+  const j = state.job;
+  const el = $('#timer-v');
+  el.textContent = j?.state === 'running' && j.startedAt ? fmtDur(Date.now() - j.startedAt) : '';
+}
+
 function renderJob() {
   const j = state.job;
   const el = $('#job');
@@ -579,9 +640,12 @@ function renderJob() {
   el.hidden = !j;
   $('#btn-stop').hidden = !running;
   if (j) {
-    el.replaceChildren(...(running ? [h('span', { class: 'pulse' })] : []), `${j.title}${running ? '' : ' · ' + j.state}`);
-    el.style.color = running ? 'var(--blue)' : j.state === 'done' ? 'var(--green)' : 'var(--red)';
+    const text = `${j.title}${running ? '' : ' · ' + j.state}`;
+    el.replaceChildren(...(running ? [h('span', { class: 'pulse' })] : []), h('span', { class: 'job-t' }, text));
+    el.title = text;
+    el.className = `job ${running ? 'running' : j.state === 'done' ? 'done' : 'failed'}`;
   }
+  renderTimer();
   $('#btn-new-menu').disabled = running;
   $('#btn-new').disabled = running;
   $('#btn-demo').disabled = running;
@@ -1015,6 +1079,7 @@ async function init() {
     if (state.replay) { if (!state.replay.paused) stepReplay(); return; }
     const v = state.live;
     if (v && v.stages.some((s) => s.status === 'running')) { renderStepper(v); renderHeader(v); renderSummary(v); }
+    renderTimer();
   }, 500);
   setInterval(() => { if (state.job?.state !== 'running') refreshRuns().catch(() => {}); }, 15000);
 }

@@ -71,7 +71,11 @@ export function viewAt(view, plan, t) {
     totals.pending = Math.max(0, totals.total - v.scripts.list.length);
     v.scripts.totals = totals;
   }
-  if (!stageDone('gaps')) v.coverage = null;
+  if (!stageDone('gaps')) {
+    v.coverage = null;
+    // Reach is known only after the coverage stage; rows keep their endpoints without marks until then.
+    if (v.prd) for (const e of [...(v.prd.otherEndpoints || []), ...(v.prd.featureRows || []).flatMap((r) => r.endpoints)]) e.reached = null;
+  }
 
   // --- executions and diagnoses
   const visible = [];
