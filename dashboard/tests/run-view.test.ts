@@ -21,6 +21,19 @@ const manifest = (runningExec = false) => ({
   executions: [{ execId: 'x-01', ref: 'golden', commit: 'abc', executeStatus: runningExec ? 'running' : 'done', analyzeStatus: 'pending' }],
 });
 
+describe('row details', () => {
+  it('carries case steps and script notes for the expanded rows, only what the files have', async () => {
+    await w('r3/run.json', manifest());
+    await w('r3/prd.json', { features: [{ id: 'F-01', name: 'Login' }], apiEndpoints: [], uiRoutes: [], requirements: [{ id: 'REQ-001', featureId: 'F-01', statement: 'Users log in.', priority: 'high', acceptanceCriteria: [] }] });
+    await w('r3/testcases.json', { testCases: [{ id: 'TC-001', title: 'a', layer: 'api', category: 'functional', priority: 'high', requirementIds: ['REQ-001'], preconditions: [], steps: ['Send it'], expected: [{ id: 'E1', description: 'It is 200', value: 200 }] }] });
+    await w('r3/scripts/manifest.json', { scripts: [{ testCaseId: 'TC-001', file: 'scripts/TC-001.spec.ts', status: 'validated', validationOutcome: 'passed', attempts: 2, repairs: 1, review: { verdict: 'keep', explanation: 'Fine as written.' }, attemptLog: [] }] });
+    const v = await buildView('r3', { runsDir: root });
+    expect(v.cases.list[0]).toMatchObject({ requirements: [{ id: 'REQ-001', text: 'Users log in.' }], preconditions: [], steps: ['Send it'], expected: [{ id: 'E1', description: 'It is 200' }] });
+    expect(v.cases.list[0].expected[0].value).toBeUndefined();
+    expect(v.scripts.list[0]).toMatchObject({ file: 'scripts/TC-001.spec.ts', repairs: 1, review: { verdict: 'keep', explanation: 'Fine as written.' }, lastError: '' });
+  });
+});
+
 describe('feature rows', () => {
   it('links endpoints to features by evidence and marks reach only when coverage was recorded', async () => {
     await w('r2/run.json', manifest());

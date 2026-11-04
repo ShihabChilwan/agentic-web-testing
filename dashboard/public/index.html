@@ -13,43 +13,39 @@
 <body>
 <header class="top">
   <div class="wrap hdr">
-    <div class="ident">
-      <div>
-        <h1 id="h-title">Pipeline</h1>
-        <div class="ident-s"><span class="mono" id="h-run">No run open</span>
-          <button class="icon-btn" id="btn-copy" title="Copy run id" aria-label="Copy run id" hidden>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-          </button>
-        </div>
+    <div class="hl">
+      <h1 id="h-title">Pipeline</h1>
+      <select class="sel" id="run-picker" aria-label="Open a run"></select>
+      <div class="pop-wrap">
+        <button class="icon-btn" id="btn-info" aria-haspopup="true" aria-expanded="false" aria-label="About this run" title="About this run" hidden>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+        </button>
+        <div class="pop" id="pop-info" hidden></div>
       </div>
     </div>
-    <div class="badges" id="badges"></div>
-    <nav class="tabs" role="tablist">
+    <nav class="seg tabs" role="tablist">
       <button class="tab" role="tab" id="tab-run" aria-selected="true">Run</button>
       <button class="tab" role="tab" id="tab-results" aria-selected="false">Results</button>
     </nav>
-    <div class="jobbox" id="jobbox">
+    <div class="hr">
       <span class="job" id="job" hidden></span>
       <span class="t mono" id="timer-v"></span>
-    </div>
-    <div class="actions">
       <button class="btn danger" id="btn-stop" hidden>Stop</button>
-      <select class="sel" id="run-picker" aria-label="Open a run"></select>
       <button class="btn primary" id="btn-continue" hidden>Continue run</button>
       <div class="menu">
-        <button class="btn" id="btn-new-menu" aria-haspopup="true" aria-expanded="false">New run ▾</button>
+        <button class="btn" id="btn-new-menu" aria-haspopup="true" aria-expanded="false" title="New run">
+          <span class="lbl">New run ▾</span>
+          <svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
         <div class="menu-list" id="menu-new" hidden>
           <button id="btn-new">Full run<span class="hint">All features, no cap</span></button>
           <button id="btn-demo">Demo run<span class="hint">Chosen features and a case cap</span></button>
         </div>
       </div>
-      <div class="menu">
-        <button class="btn" id="btn-more" aria-haspopup="true" aria-expanded="false" aria-label="More actions" title="More">⋯</button>
-        <div class="menu-list" id="menu-more" hidden>
-          <button id="btn-replay">Replay this run</button>
-        </div>
-      </div>
-      <button class="btn" id="btn-theme" aria-label="Switch colour theme" title="Switch colour theme"></button>
+      <button class="btn sq" id="btn-replay" aria-label="Replay this run" title="Replay this run">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <button class="btn sq" id="btn-theme" aria-label="Switch colour theme" title="Switch colour theme"></button>
     </div>
   </div>
 </header>
@@ -101,35 +97,40 @@
         <div class="card-b" id="req-body"></div>
       </section>
 
-      <div class="grid2">
-        <section class="card" aria-labelledby="h-cases">
+      <div class="grid2 pair">
+        <section class="card" id="cases-card" aria-labelledby="h-cases">
           <div class="card-h"><h2 id="h-cases">Test cases</h2><span class="sub" id="cases-sub"></span></div>
-          <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Feature</th><th>Type</th></tr></thead><tbody id="cases-body"></tbody></table></div>
+          <div class="tbl-wrap fit"><table class="fixed"><colgroup><col class="c-id"><col><col class="c-feat"><col class="c-badge"></colgroup><thead><tr><th>ID</th><th>Title</th><th>Feature</th><th>Type</th></tr></thead><tbody id="cases-body"></tbody></table></div>
           <div class="empty" id="cases-empty">Test cases appear when the test case stage finishes.</div>
         </section>
-        <section class="card" aria-labelledby="h-scripts">
+        <section class="card" id="scripts-card" aria-labelledby="h-scripts">
           <div class="card-h"><h2 id="h-scripts">Scripts</h2><span class="sub" id="scripts-sub"></span></div>
           <div class="totals" id="scripts-totals"></div>
           <div class="stack" id="scripts-stack"></div>
-          <div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th class="num">Tries</th></tr></thead><tbody id="scripts-body"></tbody></table></div>
+          <div class="tbl-wrap fit"><table class="fixed"><colgroup><col class="c-id"><col><col class="c-status"><col class="c-tries"></colgroup><thead><tr><th>ID</th><th>Title</th><th>Status</th><th class="num">Tries</th></tr></thead><tbody id="scripts-body"></tbody></table></div>
           <div class="empty" id="scripts-empty">Scripts appear as each one is written and checked.</div>
         </section>
       </div>
 
-      <section class="card" aria-labelledby="h-exec">
+      <section class="card" id="exec-card" aria-labelledby="h-exec">
         <div class="card-h"><h2 id="h-exec">Execution</h2><span class="sub" id="exec-sub"></span></div>
         <div class="exec-ctl" id="exec-ctl">
+          <div class="tools">
+            <span class="tlabel">Versions</span>
+            <span class="tog fixed" title="The correct version always runs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Correct version</span>
+            <label class="tog"><input type="checkbox" id="chk-buggy"><span class="tx">+ Buggy version ▾</span></label>
+            <select class="sel" id="sel-variant" hidden aria-label="Buggy version"></select>
+            <span class="vsep"></span>
+            <label class="tog"><input type="checkbox" id="chk-analyze" checked><span class="tx">Analyze after: <b class="onoff"></b></span></label>
+            <span class="note" id="exec-note"></span>
+          </div>
           <button class="btn primary" id="btn-run-golden">Run correct version</button>
-          <label class="chk"><input type="checkbox" id="chk-buggy"> Also run a buggy version</label>
-          <select class="sel" id="sel-variant" hidden aria-label="Buggy version"></select>
-          <label class="chk"><input type="checkbox" id="chk-analyze" checked> Analyze after execution</label>
-          <span class="note" id="exec-note"></span>
         </div>
-        <div class="tbl-wrap" style="max-height:420px"><table><thead><tr><th>Version</th><th>Status</th><th style="min-width:260px">Tests</th><th class="num">Time</th><th>Diagnosis</th></tr></thead><tbody id="exec-body"></tbody></table></div>
+        <div class="exec-list" id="exec-body"></div>
         <div class="empty" id="exec-empty">No execution yet. The correct version runs at the end of a full run.</div>
       </section>
 
-      <section class="card" aria-labelledby="h-dx">
+      <section class="card" id="dx-card" aria-labelledby="h-dx">
         <div class="card-h"><h2 id="h-dx">Diagnosis</h2><span class="sub" id="dx-sub"></span></div>
         <div class="chips" id="dx-chips"></div>
         <div class="dx-list" id="dx-list"></div>

@@ -4,7 +4,7 @@
 // (run.json, scripts/manifest.json, testcases.json, prd.json, coverage via run.json, executions/x-NN/*).
 import { readdir, readFile, stat, open } from 'node:fs/promises';
 import path from 'node:path';
-import { shortError } from './redact.js';
+import { redactLine, shortError } from './redact.js';
 
 export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 export const RUNS_DIR = process.env.DASHBOARD_RUNS_DIR ?? path.join(ROOT, 'runs');
@@ -369,9 +369,15 @@ export async function buildView(runId: string, options: ViewOptions = {}): Promi
   const featureOfReq = new Map<string, string>();
   const featureName = new Map<string, string>((prd?.features ?? []).map((f: J) => [f.id, f.name]));
   for (const r of prd?.requirements ?? []) featureOfReq.set(r.id, featureName.get(r.featureId) ?? r.featureId);
+  const reqText = new Map<string, string>((prd?.requirements ?? []).map((r: J) => [r.id, r.statement]));
   const caseList = (cases?.testCases ?? []).map((t: J) => ({
     id: t.id, title: t.title, layer: t.layer, category: t.category, priority: t.priority,
     requirementIds: t.requirementIds ?? [], feature: featureOfReq.get(t.requirementIds?.[0]) ?? null,
+    // detail for the expanded row; only what the file has
+    requirements: (t.requirementIds ?? []).map((id: string) => ({ id, text: reqText.get(id) ?? null })),
+    preconditions: Array.isArray(t.preconditions) ? t.preconditions : [],
+    steps: Array.isArray(t.steps) ? t.steps : [],
+    expected: (Array.isArray(t.expected) ? t.expected : []).map((e: J) => ({ id: e.id, description: e.description })),
   }));
   const byId = new Map<string, J>((manifest?.scripts ?? []).map((s: J) => [s.testCaseId, s]));
   const scriptList = [...byId.values()].map((s: J) => ({
@@ -379,6 +385,12 @@ export async function buildView(runId: string, options: ViewOptions = {}): Promi
     status: scriptStatus(s),
     attempts: s.attempts ?? 1,
     category: s.failureCategory ?? null,
+    file: typeof s.file === 'string' ? s.file : null,
+    repairs: s.repairs ?? 0,
+    unstable: s.unstable === true,
+    review: s.review ? { verdict: s.review.verdict, explanation: redactLine(String(s.review.explanation ?? '')) } : null,
+    earlierReviews: (s.earlierReviews ?? []).length,
+    lastError: s.status === 'invalid' ? shortError([...(s.attemptLog ?? [])].reverse().find((a: J) => a.error)?.error, 300) : '',
   }));
   const totals = { passed: 0, repaired: 0, suspected: 0, invalid: 0, pending: 0, total: caseList.length };
   for (const s of scriptList) totals[s.status as 'passed' | 'repaired' | 'suspected' | 'invalid'] += 1;

@@ -84,27 +84,93 @@ async function api(path, opts) {
 
 // ------------------------------------------------------------------ keyed table rows (update in place, no flicker)
 
-function syncRows(tbody, items, keyOf, sigOf, build) {
+function syncRows(tbody, items, keyOf, sigOf, build, detail) {
   const existing = new Map();
   for (const tr of tbody.children) existing.set(tr.dataset.k, tr);
   const animate = tbody.dataset.init === '1';
-  items.forEach((it, i) => {
+  const cols = tbody.parentElement.tHead?.rows[0]?.cells.length || 1;
+  tbody._detail = detail || null;
+  let at = 0;
+  const place = (tr) => { if (tbody.children[at] !== tr) tbody.insertBefore(tr, tbody.children[at] || null); at += 1; };
+  for (const it of items) {
     const k = keyOf(it);
     const sig = sigOf(it);
     let tr = existing.get(k);
+    let dr = existing.get(`${k}#d`);
+    existing.delete(k);
+    existing.delete(`${k}#d`);
     if (!tr) {
-      tr = h('tr', { 'data-k': k });
+      tr = h('tr', { 'data-k': k, class: detail ? 'xrow' : '' });
       build(tr, it);
       tr.dataset.sig = sig;
       if (animate) tr.classList.add('fresh');
-    } else {
-      existing.delete(k);
-      if (tr.dataset.sig !== sig) { tr.replaceChildren(); build(tr, it); tr.dataset.sig = sig; }
+      if (detail) {
+        tr.tabIndex = 0;
+        tr.setAttribute('aria-expanded', 'false');
+        tr.addEventListener('click', () => toggleRow(tbody, k));
+        tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRow(tbody, k); } });
+      }
+    } else if (tr.dataset.sig !== sig) { tr.replaceChildren(); build(tr, it); tr.dataset.sig = sig; }
+    tr._item = it;
+    place(tr);
+    if (detail) {
+      if (!dr) dr = h('tr', { 'data-k': `${k}#d`, class: 'drow' }, h('td', { colspan: String(cols) }, h('div', { class: 'dwrap' }, h('div', { class: 'dinner' }))));
+      place(dr);
+      if (tbody.dataset.open === k) setRow(tbody, k, true);
     }
-    if (tbody.children[i] !== tr) tbody.insertBefore(tr, tbody.children[i] || null);
-  });
+  }
   for (const tr of existing.values()) tr.remove();
   tbody.dataset.init = '1';
+}
+
+/** Opens or closes a row's detail; one row is open at a time per table. */
+function setRow(tbody, k, open) {
+  const rows = [...tbody.children];
+  const tr = rows.find((r) => r.dataset.k === k);
+  const dr = rows.find((r) => r.dataset.k === `${k}#d`);
+  if (!tr || !dr) return;
+  tr.classList.toggle('open', open);
+  tr.setAttribute('aria-expanded', String(open));
+  dr.classList.toggle('open', open);
+  if (open && dr.dataset.filled !== tr.dataset.sig && tbody._detail) {
+    dr.querySelector('.dinner').replaceChildren(tbody._detail(tr._item));
+    dr.dataset.filled = tr.dataset.sig;
+  }
+}
+
+function toggleRow(tbody, k, forceOpen = false) {
+  const prev = tbody.dataset.open || '';
+  const next = forceOpen ? k : prev === k ? '' : k;
+  if (prev && prev !== next) setRow(tbody, prev, false);
+  tbody.dataset.open = next;
+  if (next) setRow(tbody, next, true);
+}
+
+function resetLists() {
+  for (const k of ['cases-body', 'scripts-body', 'exec-body']) { const b = $('#' + k); b.replaceChildren(); delete b.dataset.init; delete b.dataset.open; }
+  $('#dx-list').replaceChildren();
+}
+
+/** Same idea for a list of cards: update in place, rebuild a card only when its signature changed. */
+function syncCards(box, items, keyOf, sigOf, build) {
+  const existing = new Map([...box.children].map((c) => [c.dataset.k, c]));
+  const animate = box.dataset.init === '1';
+  items.forEach((it, i) => {
+    const k = keyOf(it);
+    const sig = sigOf(it);
+    let el = existing.get(k);
+    if (!el) {
+      el = build(it);
+      el.dataset.k = k; el.dataset.sig = sig;
+      if (animate) el.classList.add('fresh-card');
+    } else {
+      existing.delete(k);
+      if (el.dataset.sig !== sig) { const n = build(it); n.dataset.k = k; n.dataset.sig = sig; el.replaceWith(n); el = n; }
+    }
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+  });
+  for (const el of existing.values()) el.remove();
+  box.dataset.init = '1';
 }
 
 // ------------------------------------------------------------------ header
@@ -124,20 +190,19 @@ function elapsedOf(stage, now) {
   return ms;
 }
 
+const MODE_TEXT = { full: 'With tools', 'no-tools': 'Without tools', mixed: 'Mixed' };
+
 function renderHeader(v) {
   $('#h-title').textContent = v ? v.run.target : 'Pipeline';
-  const runEl = $('#h-run');
-  runEl.textContent = v ? (state.replay ? `Replay of run ${v.run.id}` : v.run.id) : 'No run open';
-  runEl.title = v ? v.run.id : '';
-  $('#btn-copy').hidden = !v;
-  const badges = $('#badges');
-  badges.replaceChildren();
-  if (!v) return;
-  badges.append(
-    v.demo ? badge('suspected', 'Demo') : badge('pending', 'Full'),
-    ...(state.replay ? [badge('suspected', 'Replay')] : []),
-    ...(v.run.mode ? [badge('pending', `Analysis: ${v.run.mode}`)] : []),
-    ...(v.run.model ? [badge('pending', v.run.model.replace(/^.*\//, ''))] : []));
+  $('#btn-info').hidden = !v;
+  if (!v) { $('#pop-info').hidden = true; return; }
+  const rows = [['Run', v.run.id], ['Type', v.demo ? 'Demo run' : 'Full run'], ['Model', v.run.model || '–'],
+    ['Analysis', v.run.mode ? MODE_TEXT[v.run.mode] || v.run.mode : 'not run yet'], ...(state.replay ? [['Replay', 'recorded files, not live']] : [])];
+  const sig = JSON.stringify(rows);
+  const pop = $('#pop-info');
+  if (pop.dataset.sig === sig) return;
+  pop.dataset.sig = sig;
+  pop.replaceChildren(h('dl', { class: 'pop-kv' }, rows.flatMap(([k, val]) => [h('dt', {}, k), h('dd', {}, val)])));
 }
 
 function runState(r) {
@@ -153,13 +218,16 @@ function runState(r) {
   return last ? `stopped after ${last[0]}` : 'waiting';
 }
 
+const shortRunId = (r) => (r.id.startsWith(`${r.target}-`) ? r.id.slice(r.target.length + 1) : r.id);
+
 function renderPicker() {
   const sel = $('#run-picker');
   const keep = state.runId || '';
   sel.replaceChildren(h('option', { value: '' }, 'Open a run…'));
-  for (const r of state.runs) sel.append(h('option', { value: r.id }, `${r.id} · ${runState(r)}${r.demo ? ' · demo' : ''}`));
+  for (const r of state.runs) sel.append(h('option', { value: r.id, title: r.id }, `${shortRunId(r)}${r.demo ? ' · Demo' : ''} · ${runState(r)}`));
   sel.value = keep;
-  sel.title = sel.selectedOptions[0]?.textContent || '';
+  const r = state.runs.find((x) => x.id === keep);
+  sel.title = r ? `${r.id} · ${runState(r)}` : 'Open a run';
 }
 
 // ------------------------------------------------------------------ stage timeline
@@ -393,14 +461,32 @@ function renderReq(v) {
 
 const byIdDesc = (a, b) => b.id.localeCompare(a.id, undefined, { numeric: true });
 
+const chevron = () => h('span', { class: 'chev-i' }, svg('<path d="M9 6l6 6-6 6"/>', 14));
+const dl = (pairs) => h('dl', { class: 'dl' }, pairs.filter(Boolean).flatMap(([k, val]) => [h('dt', {}, k), h('dd', {}, val)]));
+const dlist = (items, ordered = false) => h(ordered ? 'ol' : 'ul', { class: 'dlist' }, items.map((x) => h('li', {}, x)));
+
+function caseDetail(c) {
+  const type = [c.layer === 'api' ? 'API' : 'Browser', c.category, c.priority ? `${c.priority} priority` : null].filter(Boolean).join(' · ');
+  const reqs = c.requirements || [];
+  return h('div', { class: 'dbody' }, dl([
+    ['Title', c.title],
+    c.feature ? ['Feature', c.feature] : null,
+    ['Type', type],
+    reqs.length ? ['Requirement', reqs.map((r) => h('div', {}, h('span', { class: 'mono' }, r.id), r.text ? ` — ${r.text}` : ''))] : null,
+    c.preconditions?.length ? ['Preconditions', dlist(c.preconditions)] : null,
+    c.steps?.length ? ['Steps', dlist(c.steps, true)] : null,
+    c.expected?.length ? ['Expected result', dlist(c.expected.map((e) => `${e.id}: ${e.description}`))] : null,
+  ]));
+}
+
 function renderCases(v) {
   const list = [...v.cases.list].sort(byIdDesc);
   $('#cases-empty').hidden = list.length > 0;
   $('#cases-sub').replaceChildren(`${v.cases.total} total`, tagReplay() || '');
-  syncRows($('#cases-body'), list, (c) => c.id, (c) => `${c.title}|${c.layer}`, (tr, c) => {
-    tr.append(h('td', { class: 'id' }, c.id), h('td', { class: 'title', title: c.title }, c.title), h('td', { class: 'title fcell', title: c.feature || '' }, c.feature || '–'),
+  syncRows($('#cases-body'), list, (c) => c.id, (c) => `${c.title}|${c.layer}|${(c.steps || []).length}`, (tr, c) => {
+    tr.append(h('td', { class: 'id' }, h('span', { class: 'idc' }, chevron(), c.id)), h('td', { class: 'title', title: c.title }, c.title), h('td', { class: 'title fcell', title: c.feature || '' }, c.feature || '–'),
       h('td', {}, badge(c.layer === 'api' ? 'api' : 'browser', c.layer === 'api' ? 'API' : 'Browser')));
-  });
+  }, caseDetail);
 }
 
 const REASON_TEXT = {
@@ -408,6 +494,29 @@ const REASON_TEXT = {
   locator: 'Element not found', timeout: 'Timed out', 'runtime-error': 'Script error', 'fixture-mutation': 'Changed a fixture user',
 };
 const SCRIPT_TEXT = { passed: 'Passed', repaired: 'Repaired', suspected: 'Suspected defect', invalid: 'Invalid' };
+const REVIEW_TEXT = { keep: 'kept the test as written', test_case_wrong: 'found the test case wrong and changed it', script_wrong: 'found the script wrong and rewrote it' };
+
+function scriptStatusText(s) {
+  if (s.status === 'invalid') return `Invalid: no working script${s.category ? ` (${REASON_TEXT[s.category] || s.category})` : ''}`;
+  if (s.status === 'suspected') return 'Suspected defect: the script ran and a checked value differed from the test case';
+  return s.attempts > 1 ? `Passed after ${s.attempts} tries (repaired)` : 'Passed on the first try';
+}
+
+function scriptDetail(s, title) {
+  const notes = [];
+  if (s.repairs) notes.push(`Rewritten ${s.repairs} time${s.repairs === 1 ? '' : 's'} after a failed check`);
+  if (s.unstable) notes.push('Passed only after a timeout or a browser error, so it may be unstable');
+  if (s.review) notes.push(h('span', {}, h('strong', {}, `Review ${REVIEW_TEXT[s.review.verdict] || s.review.verdict}. `), s.review.explanation));
+  if (s.earlierReviews) notes.push(`${s.earlierReviews} earlier review${s.earlierReviews === 1 ? '' : 's'} of this script`);
+  return h('div', { class: 'dbody' }, dl([
+    title ? ['Title', title] : null,
+    ['Status', scriptStatusText(s)],
+    ['Tries', String(s.attempts)],
+    s.lastError ? ['Last error', h('span', { class: 'mono' }, s.lastError)] : null,
+    notes.length ? ['Notes', dlist(notes)] : null,
+    s.file ? ['Script file', h('span', { class: 'mono' }, s.file)] : null,
+  ]));
+}
 
 function renderScripts(v) {
   const titles = new Map(v.cases.list.map((c) => [c.id, c.title]));
@@ -421,34 +530,50 @@ function renderScripts(v) {
   const total = Math.max(1, t.total);
   const seg = (c, n) => h('span', { class: c, style: `width:${(100 * n) / total}%` });
   $('#scripts-stack').replaceChildren(seg('c-green', t.passed), seg('c-amber', t.repaired + t.suspected), seg('c-red', t.invalid));
-  syncRows($('#scripts-body'), list, (s) => s.id, (s) => `${s.status}|${s.attempts}`, (tr, s) => {
-    tr.append(h('td', { class: 'id' }, s.id), h('td', { class: 'title', title: titles.get(s.id) || '' }, titles.get(s.id) || ''),
-      h('td', {}, badge(s.status, SCRIPT_TEXT[s.status]), s.status === 'invalid' && s.category ? h('span', { class: 'note reason', title: s.category }, REASON_TEXT[s.category] || s.category) : null),
+  syncRows($('#scripts-body'), list, (s) => s.id, (s) => `${s.status}|${s.attempts}|${s.category}`, (tr, s) => {
+    tr.append(h('td', { class: 'id' }, h('span', { class: 'idc' }, chevron(), s.id)), h('td', { class: 'title', title: titles.get(s.id) || '' }, titles.get(s.id) || ''),
+      h('td', {}, h('div', { class: 'st' }, badge(s.status, SCRIPT_TEXT[s.status]), s.status === 'invalid' && s.category ? h('span', { class: 'note reason', title: s.category }, REASON_TEXT[s.category] || s.category) : null)),
       h('td', { class: 'num' }, String(s.attempts)));
-  });
+  }, (s) => scriptDetail(s, titles.get(s.id)));
 }
 
 // ------------------------------------------------------------------ executions
+
+const badCount = (e) => e.failed + e.errored;
+
+function execCard(e) {
+  const total = Math.max(1, e.total);
+  const bad = badCount(e);
+  const running = e.executeStatus === 'running';
+  const failedRun = e.executeStatus === 'failed';
+  const tone = running ? 'running' : failedRun ? 'bad' : e.executeStatus !== 'done' ? 'wait' : bad > 0 ? 'bad' : 'ok';
+  const name = e.kind === 'golden' ? 'Correct version' : `${e.kind === 'environment' ? 'Environment fault' : 'Buggy version'} · ${e.label}`;
+  const big = running ? [`${e.done} / ${e.total || '?'}`, h('span', { class: 'unit' }, ' run')]
+    : failedRun ? ['Execution failed']
+    : e.executeStatus !== 'done' ? ['Waiting']
+    : bad > 0 ? [`${e.passed}`, h('span', { class: 'unit' }, ' passed · '), h('span', { class: 'bad' }, `${bad}`), h('span', { class: 'unit bad' }, ' failed')]
+    : [`${e.passed} / ${e.total}`, h('span', { class: 'unit' }, ' passed')];
+  let link;
+  if (e.analyzeStatus === 'running') link = h('span', { class: 'xlink busy' }, h('span', { class: 'pulse' }), 'Diagnosing…');
+  else if (e.executeStatus === 'done' && bad > 0 && e.analyzeStatus === 'done') {
+    link = h('button', { class: 'xlink', onclick: () => { dxChoice = e.execId; renderDiag(cur()); $('#dx-card').scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, 'View diagnosis →');
+  } else if (e.analyzeStatus === 'failed') link = h('span', { class: 'xlink bad' }, 'Diagnosis failed');
+  else if (e.executeStatus === 'done' && bad > 0) link = h('span', { class: 'xlink muted' }, 'Waiting for diagnosis');
+  else if (e.executeStatus === 'done') link = h('span', { class: 'xlink muted' }, 'No failures');
+  else link = h('span', { class: 'xlink muted' }, '');
+  return h('div', { class: `xcard t-${tone}` },
+    h('div', { class: 'x-name' }, h('div', { class: 'vname', title: name }, name), h('div', { class: 'xid' }, e.execId)),
+    h('div', { class: 'x-big' }, h('div', { class: 'big-n' }, big), e.skipped ? h('div', { class: 'xid' }, `${e.skipped} skipped`) : null),
+    h('div', { class: 'x-bar' }, h('div', { class: 'segbar' }, h('span', { class: 'c-green', style: `width:${(100 * e.passed) / total}%` }), h('span', { class: 'c-red', style: `width:${(100 * bad) / total}%` }))),
+    h('div', { class: 'x-time mono' }, fmtDur(e.durationMs)),
+    h('div', { class: 'x-link' }, link));
+}
 
 function renderExec(v) {
   const list = v.executions;
   $('#exec-empty').hidden = list.length > 0;
   $('#exec-sub').replaceChildren(`${list.length} version${list.length === 1 ? '' : 's'}`, tagReplay() || '');
-  syncRows($('#exec-body'), list, (e) => e.execId, (e) => JSON.stringify([e.executeStatus, e.analyzeStatus, e.done, e.total, e.passed, e.failed, e.errored, e.durationMs, e.analysisMs]), (tr, e) => {
-    const total = Math.max(1, e.total);
-    const bad = e.failed + e.errored;
-    const status = e.executeStatus === 'done' ? (bad > 0 ? 'failed' : 'passed') : e.executeStatus;
-    const label = e.kind === 'golden' ? 'Correct version' : `${e.kind === 'environment' ? 'Environment fault' : 'Buggy version'} · ${e.label}`;
-    tr.append(
-      h('td', {}, h('div', { class: 'vname' }, label), h('div', { class: 'xid' }, e.execId)),
-      h('td', {}, e.executeStatus === 'running' ? h('span', { class: 'badge running' }, h('span', { class: 'pulse' }), 'running') : badge(status, e.executeStatus === 'done' ? (bad > 0 ? 'Failures' : 'All passed') : e.executeStatus)),
-      h('td', {},
-        h('div', { class: 'progress' }, h('span', { class: 'c-green', style: `width:${(100 * e.passed) / total}%` }), h('span', { class: 'c-red', style: `width:${(100 * bad) / total}%` })),
-        h('div', { class: 'note', style: 'margin-top:3px' }, `${e.done} / ${e.total || '?'} run · `, h('span', { style: 'color:var(--green);font-weight:600' }, `${e.passed} passed`), ' · ', h('span', { style: `color:${bad ? 'var(--red)' : 'inherit'};font-weight:600` }, `${bad} failed`), e.skipped ? ` · ${e.skipped} skipped` : '')),
-      h('td', { class: 'num mono' }, fmtDur(e.durationMs)),
-      h('td', {}, e.analyzeStatus === 'running' ? h('span', { class: 'badge running' }, h('span', { class: 'pulse' }), 'diagnosing') : badge(e.analyzeStatus === 'done' ? 'done' : 'pending', e.analyzeStatus === 'done' ? 'Diagnosed' : e.analyzeStatus === 'failed' ? 'Failed' : bad > 0 || e.executeStatus !== 'done' ? 'Waiting' : 'Nothing to diagnose')),
-    );
-  });
+  syncCards($('#exec-body'), list, (e) => e.execId, (e) => JSON.stringify([e.executeStatus, e.analyzeStatus, e.done, e.total, e.passed, e.failed, e.errored, e.skipped, e.durationMs]), execCard);
   renderExecControls(v);
 }
 
@@ -507,21 +632,43 @@ function headline(text, max = 90) {
   return first.length <= max ? first : `${first.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
 }
 
+function openCase(id) {
+  const body = $('#cases-body');
+  const tr = [...body.children].find((r) => r.dataset.k === id);
+  if (!tr) { toast(`${id} is not in the test cases table`); return; }
+  toggleRow(body, id, true);
+  setTimeout(() => tr.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+}
+
 function renderDiag(v) {
   const withDx = v.diagnoses;
-  $('#dx-empty').hidden = withDx.some((d) => d.items.length > 0);
-  $('#dx-sub').replaceChildren(withDx.reduce((a, d) => a + d.items.length, 0) + ' diagnoses', tagReplay() || '');
-  // chips: one per execution that has an analysis
-  const sorted = [...withDx].sort((a, b) => b.execId.localeCompare(a.execId));
-  if (!sorted.find((d) => d.execId === dxChoice)) dxChoice = (sorted.find((d) => d.items.length > 0) || sorted[0])?.execId ?? null;
+  const itemsOf = (id) => withDx.find((d) => d.execId === id)?.items ?? [];
+  // A version gets a tab when it has failures or a diagnosis.
+  const tabs = v.executions
+    .filter((e) => badCount(e) > 0 || itemsOf(e.execId).length > 0)
+    .map((e) => ({ execId: e.execId, label: e.kind === 'golden' ? 'Correct version' : e.label, count: itemsOf(e.execId).length }))
+    .sort((a, b) => b.execId.localeCompare(a.execId));
+  const total = withDx.reduce((a, d) => a + d.items.length, 0);
+  $('#dx-sub').replaceChildren(total + ' diagnoses', tagReplay() || '');
+  if (!tabs.find((t) => t.execId === dxChoice)) dxChoice = (tabs.find((t) => t.count > 0) || tabs[0])?.execId ?? null;
   const chips = $('#dx-chips');
-  chips.replaceChildren(...sorted.map((d) => h('button', {
-    class: 'chip', 'aria-pressed': String(d.execId === dxChoice),
-    onclick: () => { dxChoice = d.execId; renderDiag(cur()); },
-  }, `${d.label === 'golden' ? 'Correct version' : d.label} · ${d.execId} · ${d.items.length}`)));
+  chips.hidden = tabs.length === 0;
+  chips.replaceChildren(...tabs.map((t) => h('button', {
+    class: 'chip', 'aria-pressed': String(t.execId === dxChoice),
+    onclick: () => { dxChoice = t.execId; renderDiag(cur()); },
+  }, `${t.label} · ${t.execId} · ${t.count}`)));
+  const done = v.executions.filter((e) => e.executeStatus === 'done');
+  const empty = $('#dx-empty');
+  const clean = done.length > 0 && tabs.length === 0 && done.length === v.executions.length;
+  empty.className = clean ? 'empty ok' : 'empty';
+  empty.hidden = tabs.length > 0 && itemsOf(dxChoice).length > 0;
+  if (!empty.hidden) {
+    empty.replaceChildren(...(clean ? [svg(ICONS.check, 18), 'No failures, nothing to diagnose']
+      : [tabs.length ? 'Waiting for the diagnosis of this version…' : 'Failures are diagnosed after an execution that has any.']));
+  }
   const list = $('#dx-list');
-  const sel = sorted.find((d) => d.execId === dxChoice);
-  const groups = sel ? groupDiagnoses(sel.items) : [];
+  const sel = tabs.find((t) => t.execId === dxChoice);
+  const groups = sel ? groupDiagnoses(itemsOf(sel.execId)) : [];
   const wanted = new Set(groups.map((g) => `${sel.execId}/${g.key}`));
   for (const c of [...list.children]) if (!wanted.has(c.dataset.k)) c.remove();
   for (const g of groups) {
@@ -536,15 +683,18 @@ function dxCard(d, g, key) {
   const conf = Math.round((it.confidence ?? 0) * 100);
   const loc = g.location;
   const codeBox = h('div', {});
-  const shown = g.testCaseIds.slice(0, 8);
-  const card = h('article', { class: 'dx', 'data-k': key },
+  const shown = g.testCaseIds.slice(0, 12);
+  const card = h('article', { class: `dx cls-${it.classification}`, 'data-k': key },
     h('div', { class: 'dx-top' },
-      h('span', { class: 'dx-id' }, g.items.map((x) => x.id).join(' · ')), badge(it.classification, CLASS_TEXT[it.classification] || it.classification)),
+      badge(it.classification, CLASS_TEXT[it.classification] || it.classification),
+      h('span', { class: 'dx-id' }, g.items.map((x) => x.id).join(' · ')),
+      h('div', { class: 'ring', style: `--p:${conf}`, title: `Confidence ${conf}%` }, h('span', {}, `${conf}%`))),
     h('p', { class: 'dx-head', title: it.summary }, headline(it.summary)),
-    h('div', { class: 'conf' }, h('span', {}, 'Confidence'), h('div', { class: 'bar' }, h('i', { style: `width:${conf}%` })), h('span', { class: 'mono' }, `${conf}%`)),
     loc ? h('div', { class: 'loc' }, `${loc.file}:${loc.lines[0]}${loc.lines[1] !== loc.lines[0] ? '–' + loc.lines[1] : ''}`) : h('div', { class: 'note' }, 'No code location (the cause is not in the application source).'),
     codeBox,
-    h('div', { class: 'dx-tc' }, h('strong', {}, 'Explains: '), shown.join(', '), g.testCaseIds.length > shown.length ? ` +${g.testCaseIds.length - shown.length} more` : ''),
+    h('div', { class: 'dx-tc' }, h('span', { class: 'k' }, 'Explains'),
+      shown.map((id) => h('button', { class: 'tcchip', title: 'Open in the test cases table', onclick: () => openCase(id) }, id)),
+      g.testCaseIds.length > shown.length ? h('span', { class: 'note', title: g.testCaseIds.slice(shown.length).join(', ') }, `+${g.testCaseIds.length - shown.length} more`) : null),
     h('details', { class: 'more' }, h('summary', {}, 'Root cause, evidence and suggested fix'),
       g.items.map((x) => h('div', { class: 'more-item' },
         g.items.length > 1 ? h('div', { class: 'body' }, h('strong', {}, `${x.id}: `), x.summary) : h('div', { class: 'body' }, x.summary),
@@ -719,8 +869,7 @@ async function openRun(id, { push = true } = {}) {
   state.runId = id || null;
   state.live = null;
   dxChoice = null;
-  for (const k of ['cases-body', 'scripts-body', 'exec-body']) { const b = $('#' + k); b.replaceChildren(); delete b.dataset.init; }
-  $('#dx-list').replaceChildren();
+  resetLists();
   $('#stepper').replaceChildren();
   state.logSource = 'job';
   if (push) history.replaceState(null, '', id ? `#run=${encodeURIComponent(id)}` : '#');
@@ -757,8 +906,7 @@ function startReplay() {
   state.logs.replay = [];
   state.prevReplayView = null;
   dxChoice = null;
-  for (const k of ['cases-body', 'scripts-body', 'exec-body']) { const b = $('#' + k); b.replaceChildren(); delete b.dataset.init; }
-  $('#dx-list').replaceChildren();
+  resetLists();
   $('#replay-bar').hidden = false;
   $('#replay-title').textContent = `Replay of run ${state.runId}.`;
   $('#replay-pause').textContent = 'Pause';
@@ -803,8 +951,7 @@ function exitReplay(redraw = true) {
   state.prevReplayView = null;
   $('#replay-bar').hidden = true;
   $('#log').dataset.mode = '';
-  for (const k of ['cases-body', 'scripts-body', 'exec-body']) { const b = $('#' + k); b.replaceChildren(); delete b.dataset.init; }
-  $('#dx-list').replaceChildren();
+  resetLists();
   dxChoice = null;
   if (redraw) render();
 }
@@ -946,7 +1093,7 @@ function toggleTheme() {
 }
 
 function wireMenus() {
-  const pairs = [['#btn-new-menu', '#menu-new'], ['#btn-more', '#menu-more']];
+  const pairs = [['#btn-new-menu', '#menu-new'], ['#btn-info', '#pop-info']];
   const closeAll = () => pairs.forEach(([b, m]) => { $(m).hidden = true; $(b).setAttribute('aria-expanded', 'false'); });
   for (const [b, m] of pairs) {
     $(b).addEventListener('click', (e) => {
@@ -956,7 +1103,8 @@ function wireMenus() {
       $(m).hidden = !open;
       $(b).setAttribute('aria-expanded', String(open));
     });
-    $(m).addEventListener('click', closeAll);
+    if (m === '#menu-new') $(m).addEventListener('click', closeAll);
+    else $(m).addEventListener('click', (e) => e.stopPropagation());
   }
   document.addEventListener('click', closeAll);
   document.addEventListener('keydown', (e) => e.key === 'Escape' && closeAll());
@@ -1004,9 +1152,6 @@ function wire() {
   $('#btn-theme').onclick = toggleTheme;
   setThemeButton();
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!storedTheme()) { applyTheme(systemTheme()); setThemeButton(); } });
-  $('#btn-copy').onclick = async () => {
-    try { await navigator.clipboard.writeText(state.runId); toast('Run id copied'); } catch { toast('Copy failed: select the id and copy it by hand'); }
-  };
   $('#btn-continue').onclick = continueRun;
   $('#btn-continue2').onclick = continueRun;
   const demoDlg = $('#dlg-demo');
@@ -1021,8 +1166,7 @@ function wire() {
     const r = state.replay; if (!r) return;
     r.offset = 0; r.startedReal = Date.now(); r.paused = false; state.logs.replay = []; state.prevReplayView = null;
     $('#replay-pause').textContent = 'Pause'; $('#log').dataset.mode = '';
-    for (const k of ['cases-body', 'scripts-body', 'exec-body']) { const b = $('#' + k); b.replaceChildren(); delete b.dataset.init; }
-    $('#dx-list').replaceChildren(); stepReplay();
+    resetLists(); stepReplay();
   };
   $('#replay-pause').onclick = () => {
     const r = state.replay; if (!r || r.offset >= r.plan.total) return;
