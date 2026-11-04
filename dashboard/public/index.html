@@ -7,33 +7,48 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header class="top">
-  <div class="wrap">
-    <div class="top-row">
-      <div class="brand">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg>
-        Pipeline
-      </div>
-      <div class="facts" id="facts"></div>
-    </div>
-    <div class="tabs-row">
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" id="tab-run" aria-selected="true">Run</button>
-        <button class="tab" role="tab" id="tab-results" aria-selected="false">Results</button>
-      </div>
-      <div class="tools">
-          <label class="visually" for="run-picker" style="position:absolute;left:-9999px">Run</label>
-          <select class="sel" id="run-picker" aria-label="Open a run"></select>
-          <button class="btn" id="btn-new">New run</button>
-        <button class="btn" id="btn-demo" title="A limited run for presentations: chosen features, a case cap. Not an evaluation run.">New demo run</button>
-        <button class="btn primary" id="btn-continue" hidden>Continue run</button>
-          <button class="btn" id="btn-replay" title="Show the recorded files of this run again, on a shortened clock">Replay</button>
-          <span class="job" id="job" hidden></span>
-          <button class="btn danger" id="btn-stop" hidden>Stop</button>
+  <div class="wrap hdr">
+    <div class="ident">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg>
+      <div>
+        <h1 id="h-title">Pipeline</h1>
+        <div class="ident-s"><span class="mono" id="h-run">No run open</span>
+          <button class="icon-btn" id="btn-copy" title="Copy run id" aria-label="Copy run id" hidden>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          </button>
         </div>
+      </div>
+    </div>
+    <div class="badges" id="badges"></div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-run" aria-selected="true">Run</button>
+      <button class="tab" role="tab" id="tab-results" aria-selected="false">Results</button>
+    </nav>
+    <div class="timer"><span class="k" id="timer-k">Elapsed</span><span class="t mono" id="timer-v">–</span></div>
+    <div class="actions">
+      <span class="job" id="job" hidden></span>
+      <button class="btn danger" id="btn-stop" hidden>Stop</button>
+      <select class="sel" id="run-picker" aria-label="Open a run"></select>
+      <button class="btn primary" id="btn-continue" hidden>Continue run</button>
+      <div class="menu">
+        <button class="btn" id="btn-new-menu" aria-haspopup="true" aria-expanded="false">New run ▾</button>
+        <div class="menu-list" id="menu-new" hidden>
+          <button id="btn-new">Full run<span class="hint">All features, no cap</span></button>
+          <button id="btn-demo">Demo run<span class="hint">Chosen features and a case cap</span></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="btn" id="btn-more" aria-haspopup="true" aria-expanded="false" aria-label="More actions" title="More">⋯</button>
+        <div class="menu-list" id="menu-more" hidden>
+          <button id="btn-replay">Replay this run</button>
+        </div>
+      </div>
+      <button class="btn" id="btn-theme" aria-label="Switch colour theme" title="Switch colour theme"></button>
     </div>
   </div>
 </header>
@@ -64,6 +79,11 @@
     </section>
 
     <div id="run-body" hidden style="display:flex;flex-direction:column;gap:20px">
+      <section class="card" id="summary-card" aria-label="Run summary">
+        <div class="summary" id="summary"></div>
+        <details class="stages"><summary>Time and cost per stage</summary><div class="inner" id="stage-table"></div></details>
+      </section>
+
       <section class="card" aria-label="Stages">
         <div class="stepper" id="stepper"></div>
         <div class="stage-error" id="stage-error" hidden><span id="stage-error-text"></span><button class="btn" id="btn-continue2" hidden>Continue run</button></div>

@@ -125,32 +125,45 @@ function elapsedOf(stage, now) {
 }
 
 function renderHeader(v) {
-  const facts = $('#facts');
-  facts.replaceChildren();
-  if (!v) { facts.append(fact('Target', '—'), fact('Run', '—'), fact('Run type', '—'), fact('Analysis mode', '—'), fact('Model', '—'), fact('Elapsed', '—')); return; }
   const now = Date.now();
-  const total = v.stages.reduce((a, s) => a + elapsedOf(s, now), 0);
-  const runLabel = state.replay ? `Replay of run ${v.run.id}` : v.run.id;
-  facts.append(
-    fact('Target', v.run.target),
-    fact(state.replay ? 'Replay' : 'Run', runLabel, true),
-    fact('Run type', v.demo ? 'Demo (limited)' : 'Full'),
-    fact('Analysis mode', v.run.mode ?? '—'),
-    fact('Model', v.run.model ? v.run.model.replace(/^.*\//, '') : '—'),
-    fact(state.replay ? 'Recorded work time' : 'Elapsed', fmtDur(total)),
-  );
+  const total = v ? v.stages.reduce((a, s) => a + elapsedOf(s, now), 0) : null;
+  $('#h-title').textContent = v ? v.run.target : 'Pipeline';
+  const runEl = $('#h-run');
+  runEl.textContent = v ? (state.replay ? `Replay of run ${v.run.id}` : v.run.id) : 'No run open';
+  runEl.title = v ? v.run.id : '';
+  $('#btn-copy').hidden = !v;
+  $('#timer-k').textContent = state.replay ? 'Recorded work time' : 'Elapsed';
+  $('#timer-v').textContent = total == null ? '–' : fmtDur(total);
+  const badges = $('#badges');
+  badges.replaceChildren();
+  if (!v) return;
+  badges.append(
+    v.demo ? badge('suspected', 'Demo') : badge('pending', 'Full'),
+    ...(state.replay ? [badge('suspected', 'Replay')] : []),
+    ...(v.run.mode ? [badge('pending', `Analysis: ${v.run.mode}`)] : []),
+    ...(v.run.model ? [badge('pending', v.run.model.replace(/^.*\//, ''))] : []));
 }
-const fact = (k, val, mono) => h('div', { class: 'fact' }, h('span', { class: 'k' }, k), h('span', { class: `v${mono ? ' mono' : ''}`, title: val }, val));
+
+function runState(r) {
+  const entries = Object.entries(r.stages);
+  const failed = entries.find(([, st]) => st === 'failed');
+  if (failed) return `failed at ${failed[0]}`;
+  const running = entries.find(([, st]) => st === 'running');
+  if (running) return `running ${running[0]}`;
+  const stale = entries.find(([, st]) => st === 'stale');
+  if (stale) return `${stale[0]} outdated`;
+  if (entries.length && entries.every(([, st]) => st === 'done') && r.executions > 0) return 'done';
+  const last = [...entries].reverse().find(([, st]) => st === 'done');
+  return last ? `stopped after ${last[0]}` : 'waiting';
+}
 
 function renderPicker() {
   const sel = $('#run-picker');
   const keep = state.runId || '';
   sel.replaceChildren(h('option', { value: '' }, 'Open a run…'));
-  for (const r of state.runs) {
-    const done = Object.values(r.stages).every((s) => s === 'done');
-    sel.append(h('option', { value: r.id }, `${r.id}${done ? '' : '  (' + (Object.entries(r.stages).find(([, s]) => s !== 'done')?.[0] ?? '') + ' ' + (Object.entries(r.stages).find(([, s]) => s !== 'done')?.[1] ?? '') + ')'}`));
-  }
+  for (const r of state.runs) sel.append(h('option', { value: r.id }, `${r.id} · ${runState(r)}${r.demo ? ' · demo' : ''}`));
   sel.value = keep;
+  sel.title = sel.selectedOptions[0]?.textContent || '';
 }
 
 // ------------------------------------------------------------------ stage timeline
@@ -224,6 +237,33 @@ function stageTable(v) {
     h('tfoot', {}, h('tr', {}, h('td', {}, h('strong', {}, 'Total')), h('td', { class: 'num mono' }, h('strong', {}, fmtDur(totalMs))), h('td', { class: 'num mono' }, h('strong', {}, usd(totalCost, 3))))));
 }
 
+/** The same compact summary for every run; a demo run adds its features and cap. */
+function renderSummary(v) {
+  const now = Date.now();
+  const totalMs = v.stages.reduce((a, s) => a + elapsedOf(s, now), 0);
+  const golden = v.executions.find((e) => e.kind === 'golden' && e.executeStatus === 'done');
+  const t = v.scripts.totals;
+  const item = (k, val, cls = '', title = '') => h('div', { class: 'sum-item' }, h('div', { class: 'k' }, k), h('div', { class: `v ${cls}`, title }, val));
+  const items = [
+    item('Run type', v.demo ? 'Demo' : 'Full'),
+    item('Total time', fmtDur(totalMs)),
+    item('Model cost', v.run.cost == null ? '–' : usd(v.run.cost, 3)),
+    golden
+      ? item('Tests passing (correct version)', `${golden.passed} / ${golden.total}`)
+      : item('Scripts passing', v.cases.total ? `${t.passed + t.repaired} / ${v.cases.total}` : '–'),
+  ];
+  const sel = v.demo?.selection;
+  if (v.demo) {
+    const names = v.prd && sel ? v.prd.featureNames.join(', ') : '';
+    items.push(item('Features', sel ? `${sel.featureIds.length} ticked` : 'not chosen yet', 'sm', names));
+    items.push(item('Case cap', sel ? `${sel.cap}` : '–'));
+  }
+  $('#summary').replaceChildren(...items);
+  const tbl = $('#stage-table');
+  const sig = JSON.stringify(v.stages.map((s) => [s.status, Math.round(elapsedOf(s, now) / 1000), s.costUsd]));
+  if (tbl.dataset.sig !== sig) { tbl.dataset.sig = sig; tbl.replaceChildren(stageTable(v)); }
+}
+
 async function renderDemo(v) {
   const card = $('#demo-card');
   card.hidden = !v?.demo;
@@ -245,12 +285,9 @@ async function renderDemo(v) {
   body.replaceChildren(
     h('div', { class: 'note' }, 'Limited to the chosen features and a case cap, by editing prd.json and testcases.json between stages (the full files are kept as prd.full.json and testcases.full.json). Never score a demo run.'),
     sel ? h('div', { class: 'demo-row' },
-      h('span', {}, h('strong', {}, `${sel.featureIds.length} feature${sel.featureIds.length === 1 ? '' : 's'}`), ' ticked'),
-      h('span', {}, 'Cap: ', h('strong', {}, `${sel.cap} test cases`)),
       h('span', {}, 'Versions: ', h('strong', {}, sel.buggy ? `correct + ${sel.buggy.slice(sel.buggy.lastIndexOf(':') + 1)}` : 'correct only')),
       h('span', {}, 'Analyze after execution: ', h('strong', {}, sel.analyze ? 'yes' : 'no'))) : null,
-    v.stages.find((s) => s.key === 'gaps').status !== 'pending' && v.coverage ? h('div', { class: 'note', style: 'margin-top:8px' }, 'Coverage (measured) only measures which endpoints the passing scripts reach; it adds no test cases.') : null,
-    stageTable(v));
+    v.stages.find((s) => s.key === 'gaps').status !== 'pending' && v.coverage ? h('div', { class: 'note', style: 'margin-top:8px' }, 'Coverage (measured) only measures which endpoints the passing scripts reach; it adds no test cases.') : null);
 }
 
 function buildDemoForm(f) {
@@ -545,6 +582,7 @@ function renderJob() {
     el.replaceChildren(...(running ? [h('span', { class: 'pulse' })] : []), `${j.title}${running ? '' : ' · ' + j.state}`);
     el.style.color = running ? 'var(--blue)' : j.state === 'done' ? 'var(--green)' : 'var(--red)';
   }
+  $('#btn-new-menu').disabled = running;
   $('#btn-new').disabled = running;
   $('#btn-demo').disabled = running;
   $('#btn-continue').hidden = !canContinue(cur());
@@ -567,6 +605,7 @@ function render() {
   if (!v) return;
   renderStepper(v);
   void renderDemo(v);
+  renderSummary(v);
   renderTiles(v);
   renderReq(v);
   renderCases(v);
@@ -824,6 +863,41 @@ async function renderResults() {
     h('div', { class: 'note' }, `Read from scoring/out/scores.json. Protocol hash ${r.protocolSha256.slice(0, 12)}…. Warnings: ${r.warnings.length ? r.warnings.join(' ') : 'none'}`));
 }
 
+// ------------------------------------------------------------------ theme and menus
+
+const storedTheme = () => { try { const t = localStorage.getItem('theme'); return t === 'light' || t === 'dark' ? t : null; } catch { return null; } };
+const systemTheme = () => (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+const applyTheme = (t) => { document.documentElement.dataset.theme = t; };
+function setThemeButton() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const b = $('#btn-theme');
+  b.replaceChildren(svg(dark ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 17));
+  b.title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem('theme', next); } catch { /* the choice just is not remembered */ }
+  setThemeButton();
+}
+
+function wireMenus() {
+  const pairs = [['#btn-new-menu', '#menu-new'], ['#btn-more', '#menu-more']];
+  const closeAll = () => pairs.forEach(([b, m]) => { $(m).hidden = true; $(b).setAttribute('aria-expanded', 'false'); });
+  for (const [b, m] of pairs) {
+    $(b).addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = $(m).hidden;
+      closeAll();
+      $(m).hidden = !open;
+      $(b).setAttribute('aria-expanded', String(open));
+    });
+    $(m).addEventListener('click', closeAll);
+  }
+  document.addEventListener('click', closeAll);
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && closeAll());
+}
+
 // ------------------------------------------------------------------ wiring
 
 function setTab(name) {
@@ -862,6 +936,13 @@ function wire() {
     newDlg.returnValue = '';
   });
   $('#empty-latest').onclick = () => state.runs[0] && openRun(state.runs[0].id);
+  wireMenus();
+  $('#btn-theme').onclick = toggleTheme;
+  setThemeButton();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!storedTheme()) { applyTheme(systemTheme()); setThemeButton(); } });
+  $('#btn-copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(state.runId); toast('Run id copied'); } catch { toast('Copy failed: select the id and copy it by hand'); }
+  };
   $('#btn-continue').onclick = continueRun;
   $('#btn-continue2').onclick = continueRun;
   const demoDlg = $('#dlg-demo');
@@ -933,7 +1014,7 @@ async function init() {
   setInterval(() => {
     if (state.replay) { if (!state.replay.paused) stepReplay(); return; }
     const v = state.live;
-    if (v && v.stages.some((s) => s.status === 'running')) { renderStepper(v); renderHeader(v); }
+    if (v && v.stages.some((s) => s.status === 'running')) { renderStepper(v); renderHeader(v); renderSummary(v); }
   }, 500);
   setInterval(() => { if (state.job?.state !== 'running') refreshRuns().catch(() => {}); }, 15000);
 }

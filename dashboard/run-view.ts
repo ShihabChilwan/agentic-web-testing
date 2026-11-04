@@ -45,6 +45,7 @@ export interface RunSummary {
   createdAt: string;
   stages: Record<string, string>;
   executions: number;
+  demo: boolean;
 }
 
 export async function listRuns(runsDir = RUNS_DIR): Promise<RunSummary[]> {
@@ -56,7 +57,7 @@ export async function listRuns(runsDir = RUNS_DIR): Promise<RunSummary[]> {
     if (!m?.target || !m.createdAt) continue;
     const stages: Record<string, string> = {};
     for (const [k, v] of Object.entries<J>(m.stages ?? {})) stages[k] = v?.status ?? 'pending';
-    out.push({ id, target: m.target, createdAt: m.createdAt, stages, executions: (m.executions ?? []).length });
+    out.push({ id, target: m.target, createdAt: m.createdAt, stages, executions: (m.executions ?? []).length, demo: await exists(path.join(runsDir, id, 'demo.json')) });
   }
   return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
