@@ -1,6 +1,6 @@
 # Agentic Web Testing
 
-An agentic framework in which LLM agents read the source code of a React + Node web application, generate API and end-to-end (browser) tests for it, run them, and diagnose every failure as an application defect, an environment issue or a faulty test. The repository also contains an empirical study of how well this works: planted bugs with known answers, three independent test suites, a pre-registered scoring protocol and held-out applications.
+An agentic framework in which LLM agents read the source code of Node.js web applications, generate API and end-to-end (browser) tests for them, run them, and diagnose every failure as an application defect, an environment issue or a faulty test. The repository also contains an empirical study of how well this works: planted bugs with known answers, three independent test suites, a pre-registered scoring protocol and held-out applications.
 
 Given the source of an app, the framework:
 
@@ -177,9 +177,11 @@ npx tsx dashboard/server.ts      # http://localhost:4000  (DASHBOARD_PORT or POR
 A small server that reads `runs/<id>/` and starts the same CLI commands as child processes; it contains no pipeline logic. One job runs at a time because the target app uses fixed ports. Live output is streamed to the page, with secrets redacted.
 
 - **Run tab:** run summary, stages with status, time and cost, tiles, requirements and coverage per feature, test cases, scripts (status and tries), execution results, diagnoses, and the live log.
-- **Results tab:** comparison of executions, golden against buggy versions.
+- **Results tab:** the fixed evaluation results read from `scoring/out/scores.json`: bug detection, why bugs were missed, diagnosis accuracy, cost and time, and a per-version table. It does not depend on the selected run.
 - **New run:** pick a target and start the whole pipeline.
 - **Demo mode:** choose features from a checklist and a case cap (default 20). Golden is executed by default; optionally a buggy version from a variant list is executed too, followed by analysis. Demo runs limit the PRD and the test case list by editing the run's own files between stages (full copies are kept as `prd.full.json` and `testcases.full.json`), are marked `DEMO-ONLY.txt` and `demo.json`, and are never scored.
+
+Screenshots: see `docs/screenshots/`.
 
 ## Evaluation method
 
@@ -220,7 +222,7 @@ A small server that reads `runs/<id>/` and starts the same CLI commands as child
 |---|---|---|---|---|
 | [mern-ecommerce](https://github.com/mohamedsamara/mern-ecommerce) | development and evaluation | React 16, Node/Express, MongoDB | commit `7f73dfb` (branch `golden`) | MIT |
 | [Kutt](https://github.com/thedevs-network/kutt) | development (SQLite and PostgreSQL targets) | Express, server-rendered Handlebars with htmx | tag `v3.2.6` (`6ca8033`) | MIT |
-| [Planka](https://github.com/plankanban/planka) | held out | React, Sails.js, PostgreSQL | tag `v2.1.0` (`91eb43f4`) | PLANKA Community License (educational use) |
+| [Planka](https://github.com/plankanban/planka) | held out | React, Sails.js, PostgreSQL | tag `v2.1.0` (`91eb43f4`) | PLANKA Community License v1.1 (its "Fair Use License": personal, educational and research use) |
 
 The framework never modifies target source. Live third-party services (email, payments, OAuth, cloud storage) are disabled in every target configuration. For Planka, files for its Pro and Enterprise editions (`*.pe.*`) are never read or used.
 
