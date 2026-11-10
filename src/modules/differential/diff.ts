@@ -1,7 +1,7 @@
 import type { RecordedResponse, UnstableOrder } from '../../shared/schemas.js';
+import { ABSENT } from './shapes.js';
 
-/** Shown for a value that one side does not have (JSON has no undefined). */
-export const ABSENT = '(absent)';
+export { ABSENT };
 
 /** One changed value: `path` with positions or item keys, `field` generalised (`items[*].price`). */
 export interface FieldDiff {
@@ -18,6 +18,8 @@ export interface MatchedPair {
   occurrence: number;
   a?: RecordedResponse;
   b?: RecordedResponse;
+  /** Set when the two calls have the same method, path and query names but other query values: the request itself changed. */
+  request?: { a: string; b: string };
 }
 
 const HEX_ID = /^[0-9a-f]{24}$/i;
@@ -137,6 +139,32 @@ export function normaliseBodies(list: readonly RecordedResponse[]): RecordedResp
   });
 }
 
+/** How many ids appear in two or more tests: seeded records shared by the tests of one execution. */
+export function sharedIdCount(list: readonly RecordedResponse[]): number {
+  const testsOf = new Map<string, Set<string>>();
+  for (const r of list) {
+    if (r.bodyKind !== 'json') continue;
+    const ids = new Set<string>();
+    collectIds(r.body, ids);
+    for (const id of ids) testsOf.set(id, (testsOf.get(id) ?? new Set<string>()).add(r.testCaseId));
+  }
+  return [...testsOf.values()].filter((t) => t.size > 1).length;
+}
+
+/**
+ * When two endpoints have the same method, path and query parameter names but different query values,
+ * the endpoint with each differing value as `*`; otherwise undefined.
+ */
+export function sameRequestOtherQuery(a: string, b: string): string | undefined {
+  const [pa, qa] = a.split('?', 2) as [string, string | undefined];
+  const [pb, qb] = b.split('?', 2) as [string, string | undefined];
+  if (pa !== pb || qa === undefined || qb === undefined || qa === qb) return undefined;
+  const xa = qa.split('&').map((p) => p.split('=', 2));
+  const xb = qb.split('&').map((p) => p.split('=', 2));
+  if (xa.length !== xb.length || xa.some(([k], i) => k !== xb[i]![0])) return undefined;
+  return `${pa}?${xa.map(([k, v], i) => (v === xb[i]![1] ? (v === undefined ? k : `${k}=${v}`) : `${k}=*`)).join('&')}`;
+}
+
 /**
  * Pairs the responses of two executions by test, endpoint and occurrence (the n-th call of that endpoint
  * in the test), not by arrival order: browser calls made at the same time can arrive in either order.
@@ -157,12 +185,37 @@ export function matchResponses(a: readonly RecordedResponse[], b: readonly Recor
   const ia = index(normaliseBodies(comparable(a)));
   const ib = index(normaliseBodies(comparable(b)));
   const pairs: MatchedPair[] = [];
+  type Entry = { testCaseId: string; endpoint: string; occurrence: number; r: RecordedResponse };
+  const leftA: Entry[] = [];
+  const leftB: Entry[] = [];
   for (const key of new Set([...ia.keys(), ...ib.keys()])) {
     const x = ia.get(key);
     const y = ib.get(key);
-    const head = (x ?? y)!;
-    pairs.push({ testCaseId: head.testCaseId, endpoint: head.endpoint, occurrence: head.occurrence, ...(x ? { a: x.r } : {}), ...(y ? { b: y.r } : {}) });
+    if (x && y) pairs.push({ testCaseId: x.testCaseId, endpoint: x.endpoint, occurrence: x.occurrence, a: x.r, b: y.r });
+    else if (x) leftA.push(x);
+    else if (y) leftB.push(y);
   }
+  // A call left over on each side, in the same test, with the same path and query names but other
+  // query values: one changed request (e.g. a sort order the page asks for differently).
+  const bySeq = (p: Entry, q: Entry) => p.r.seq - q.r.seq;
+  leftA.sort(bySeq);
+  leftB.sort(bySeq);
+  const requestKey = new Map<string, number>();
+  for (const x of leftA) {
+    const i = leftB.findIndex((y) => y.testCaseId === x.testCaseId && sameRequestOtherQuery(x.endpoint, y.endpoint) !== undefined);
+    if (i < 0) {
+      pairs.push({ testCaseId: x.testCaseId, endpoint: x.endpoint, occurrence: x.occurrence, a: x.r });
+      continue;
+    }
+    const [y] = leftB.splice(i, 1);
+    const endpoint = sameRequestOtherQuery(x.endpoint, y!.endpoint)!;
+    const k = `${x.testCaseId}\u0000${endpoint}`;
+    const occurrence = (requestKey.get(k) ?? 0) + 1;
+    requestKey.set(k, occurrence);
+    const query = (e: string) => e.split('?', 2)[1] ?? '';
+    pairs.push({ testCaseId: x.testCaseId, endpoint, occurrence, a: x.r, b: y!.r, request: { a: query(x.endpoint), b: query(y!.endpoint) } });
+  }
+  for (const y of leftB) pairs.push({ testCaseId: y.testCaseId, endpoint: y.endpoint, occurrence: y.occurrence, b: y.r });
   return pairs.sort((p, q) => p.testCaseId.localeCompare(q.testCaseId) || p.endpoint.localeCompare(q.endpoint) || p.occurrence - q.occurrence);
 }
 
@@ -319,6 +372,8 @@ function diffKeyed(a: readonly unknown[], b: readonly unknown[], key: string, pa
 export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDiff[] {
   const { a, b } = pair;
   if (!a || !b) return [{ field: '(response)', path: '(response)', a: a ? `${a.status}` : ABSENT, b: b ? `${b.status}` : ABSENT }];
+  // A changed request: its answer differs as a consequence, so only the request is reported.
+  if (pair.request) return [{ field: '(request)', path: '(request)', a: pair.request.a, b: pair.request.b }];
   const out: FieldDiff[] = [];
   if (a.status !== b.status) out.push({ field: '(status)', path: '(status)', a: a.status, b: b.status });
   if (a.bodyKind !== b.bodyKind) {
@@ -331,7 +386,7 @@ export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDif
 }
 
 /** Fields about the whole response; as noise they hold only for the tests they were seen in. */
-export const WHOLE_RESPONSE_FIELDS: ReadonlySet<string> = new Set(['(response)', '(status)', '(body)']);
+export const WHOLE_RESPONSE_FIELDS: ReadonlySet<string> = new Set(['(response)', '(status)', '(body)', '(request)']);
 
 /** True when `field` is a noise field or lies inside one (`items[*]` covers `items[*].price`). */
 export function coveredBy(field: string, noise: ReadonlySet<string>): boolean {

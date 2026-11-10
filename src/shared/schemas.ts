@@ -858,6 +858,18 @@ export const RecordedResponse = z.object({
 /** A field path in a response with array positions generalised (`items[*].price`); `(status)`, `(body)` and `(response)` name the whole status, a non-JSON body and a missing response. */
 const FieldPath = z.string().min(1);
 
+/**
+ * What the values of a noise field looked like in the correct runs: `time` (ISO times), `tail` (the same
+ * start and a varying tail of a learned length and character classes: `a` lower, `A` upper, `9` digit,
+ * other characters as themselves), or only `type`. `types` lists the value types seen.
+ */
+export const ValueShape = z.object({
+  kind: z.enum(['time', 'tail', 'type']),
+  types: z.array(z.string()),
+  tailLength: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]).optional(),
+  tailChars: z.string().optional(),
+});
+
 /** A list whose order changed between two runs of the same version, and the key its items are matched by. */
 export const UnstableOrder = z.object({
   array: FieldPath,
@@ -873,10 +885,13 @@ export const NoiseFields = z.object({
   /** The run folder name and the suite's own run id from run.json. */
   run: z.string(),
   sourceRunId: z.string(),
-  executions: z.tuple([ExecId, ExecId]),
+  /** The correct-app executions the noise was learned from (two or more; every pair is compared). */
+  executions: z.array(ExecId).min(2),
   summary: z.object({
-    responsesA: z.number().int().nonnegative(),
-    responsesB: z.number().int().nonnegative(),
+    /** Responses per execution, in the order of `executions`. */
+    responses: z.array(z.number().int().nonnegative()).default([]),
+    responsesA: z.number().int().nonnegative().optional(),
+    responsesB: z.number().int().nonnegative().optional(),
     matched: z.number().int().nonnegative(),
     unmatched: z.number().int().nonnegative(),
     differences: z.number().int().nonnegative(),
@@ -887,7 +902,18 @@ export const NoiseFields = z.object({
   endpoints: z.array(
     z.object({
       endpoint: z.string(),
-      fields: z.array(z.object({ field: FieldPath, tests: z.array(ScriptTestId), count: z.number().int().positive(), example: z.object({ a: z.unknown(), b: z.unknown() }) })),
+      fields: z.array(
+        z.object({
+          field: FieldPath,
+          tests: z.array(ScriptTestId),
+          count: z.number().int().positive(),
+          example: z.object({ a: z.unknown(), b: z.unknown() }),
+          /** Value fields: the shape the correct runs showed; a value outside it is a real difference. */
+          shape: ValueShape.optional(),
+          /** List item fields: true when no list in the correct runs held a value twice; a duplicate is then a real difference. */
+          unique: z.boolean().optional(),
+        }),
+      ),
       unstableOrder: z.array(UnstableOrder),
     }),
   ),
@@ -912,6 +938,12 @@ export const ResponseComparison = z.object({
     weak: z.number().int().nonnegative().default(0),
     testsWithDifferences: z.number().int().nonnegative(),
   }),
+  /**
+   * Differences folded into one finding each, counted as one strong difference: `setup-changed` when most
+   * strong differences only change id aliases because the other run's tests no longer share seeded
+   * records (the data snapshot failed and every test re-seeded).
+   */
+  findings: z.array(z.object({ kind: z.enum(['setup-changed']), message: z.string(), count: z.number().int().nonnegative() })).default([]),
   tests: z.array(
     z.object({
       testCaseId: ScriptTestId,
@@ -928,6 +960,8 @@ export const ResponseComparison = z.object({
               other: z.unknown(),
               /** `weak`: a browser call (page source) present in one run only; `strong`: every other difference (a changed value, status or list, an api response missing). */
               strength: z.enum(['strong', 'weak']).default('strong'),
+              /** `shape`: a noise field's value outside its learned shape; `duplicate`: a value twice in a list that had none in the correct runs; `request`: a changed request; `value`: anything else. */
+              reason: z.enum(['value', 'shape', 'duplicate', 'request']).default('value'),
             }),
           ),
         }),
@@ -940,6 +974,7 @@ export type RecordedResponse = z.infer<typeof RecordedResponse>;
 export type NoiseFields = z.infer<typeof NoiseFields>;
 export type ResponseComparison = z.infer<typeof ResponseComparison>;
 export type UnstableOrder = z.infer<typeof UnstableOrder>;
+export type ValueShape = z.infer<typeof ValueShape>;
 export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;

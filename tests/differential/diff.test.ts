@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { compareResponses, diffJson, endpointOf, findNoise, matchResponses, listKey, normaliseGenerated, orderChange } from '../../src/modules/differential/index.js';
 import { redact, REDACTED, toRecorded } from '../../src/modules/execution-engine/responses.js';
 import type { RecordedResponse } from '../../src/shared/schemas.js';
+import { fitsShape, observeShape } from '../../src/modules/differential/shapes.js';
 
 const res = (testCaseId: string, seq: number, method: string, path: string, body: unknown, status = 200): RecordedResponse => ({
   testCaseId, seq, source: 'api', method, path, status, contentType: 'application/json', bodyKind: 'json', body,
 });
-const meta = { run: 'r', sourceRunId: 'r', executions: ['x-01', 'x-02'] as [string, string], now: new Date('2026-11-10T00:00:00Z') };
+const meta = { run: 'r', sourceRunId: 'r', executions: ['x-01', 'x-02'], now: new Date('2026-11-10T00:00:00Z') };
 const cmeta = { run: 'r', base: 'x-01', other: 'x-03', noiseFile: 'noise-fields.json', now: new Date('2026-11-10T00:00:00Z') };
 
 describe('endpointOf', () => {
@@ -73,7 +74,7 @@ describe('id aliases through matchResponses', () => {
     const bug = [res('TC-001', 1, 'GET', '/api/x', { items: [{ _id: '6af303dca8871b39ce4f50a5' }, { _id: '6af303dca8871b39ce4f50a6' }], owner: '6af303dca8871b39ce4f50a5' })];
     expect(matchResponses(run1, run2)[0]!.a!.body).toEqual({ items: [{ _id: '<id:t.1>' }, { _id: '<id:t.2>' }], owner: '<id:t.2>' });
     expect(compareResponses(run1, run2, null, cmeta).summary.differences).toBe(0);
-    expect(compareResponses(run1, bug, null, cmeta).tests[0]!.endpoints[0]!.differences).toEqual([{ field: 'owner', path: 'owner', base: '<id:t.2>', other: '<id:t.1>', strength: 'strong' }]);
+    expect(compareResponses(run1, bug, null, cmeta).tests[0]!.endpoints[0]!.differences).toEqual([{ field: 'owner', path: 'owner', base: '<id:t.2>', other: '<id:t.1>', strength: 'strong', reason: 'value' }]);
   });
 
   it('an id seen in several tests keeps its alias when another test misses a record', () => {
@@ -132,13 +133,13 @@ describe('findNoise and compareResponses', () => {
   ];
 
   it('lists the fields that differ per endpoint (ids aliased) and the lists whose order changed, without marking reordered fields as noise', () => {
-    const noise = findNoise(golden1, golden2, meta);
+    const noise = findNoise([golden1, golden2], meta);
     expect(noise.endpoints).toEqual([
       { endpoint: 'GET /api/product/list', fields: [], unstableOrder: [{ array: 'products', key: '_id', tests: ['TC-002'] }] },
       {
         endpoint: 'POST /api/product',
         fields: [
-          { field: 'product.created', tests: ['TC-001'], count: 1, example: { a: '2026-11-10T10:00:00Z', b: '2026-11-10T10:05:00Z' } },
+          { field: 'product.created', tests: ['TC-001'], count: 1, example: { a: '2026-11-10T10:00:00Z', b: '2026-11-10T10:05:00Z' }, shape: { kind: 'time', types: ['string'] } },
         ],
         unstableOrder: [],
       },
@@ -147,7 +148,7 @@ describe('findNoise and compareResponses', () => {
   });
 
   it('a third golden run leaves nothing; a real change is kept, also inside a reordered list', () => {
-    const noise = findNoise(golden1, golden2, meta);
+    const noise = findNoise([golden1, golden2], meta);
     const golden3 = [
       res('TC-001', 1, 'POST', '/api/product', { product: { _id: '65a1b2c3d4e5f60718290000', name: 'Shirt', price: 10, created: '2026-11-10T11:00:00Z' } }),
       res('TC-002', 1, 'GET', '/api/product/list', { products: [{ _id: 'b', price: 7 }, { _id: 'a', price: 5 }] }),
@@ -161,11 +162,13 @@ describe('findNoise and compareResponses', () => {
     const c = compareResponses(golden1, bug, noise, cmeta);
     expect(c.tests).toEqual([
       { testCaseId: 'TC-001', endpoints: [{ endpoint: 'POST /api/product', occurrence: 1, differences: [
-        { field: '(status)', path: '(status)', base: 200, other: 201, strength: 'strong' },
-        { field: 'product.price', path: 'product.price', base: 10, other: 0, strength: 'strong' },
+        { field: '(status)', path: '(status)', base: 200, other: 201, strength: 'strong', reason: 'value' },
+        // 'x' is not a time: outside the shape the correct runs showed for this noise field.
+        { field: 'product.created', path: 'product.created', base: '2026-11-10T10:00:00Z', other: 'x', strength: 'strong', reason: 'shape' },
+        { field: 'product.price', path: 'product.price', base: 10, other: 0, strength: 'strong', reason: 'value' },
       ] }] },
       { testCaseId: 'TC-002', endpoints: [{ endpoint: 'GET /api/product/list', occurrence: 1, differences: [
-        { field: 'products[*].price', path: 'products[_id="b"].price', base: 7, other: 8, strength: 'strong' },
+        { field: 'products[*].price', path: 'products[_id="b"].price', base: 7, other: 8, strength: 'strong', reason: 'value' },
       ] }] },
     ]);
   });
@@ -173,7 +176,7 @@ describe('findNoise and compareResponses', () => {
   it('a list with a stable order is still compared by position, so a reordering bug is caught', () => {
     const sorted = [res('TC-003', 1, 'GET', '/api/x', { list: [{ id: 1 }, { id: 2 }] })];
     const reversed = [res('TC-003', 1, 'GET', '/api/x', { list: [{ id: 2 }, { id: 1 }] })];
-    const noise = findNoise(sorted, sorted, meta);
+    const noise = findNoise([sorted, sorted], meta);
     expect(compareResponses(sorted, reversed, noise, cmeta).tests[0]!.endpoints[0]!.differences.map((d) => d.field)).toEqual(['list[*](order)']);
   });
 });
@@ -182,11 +185,55 @@ describe('whole-response noise', () => {
   it('holds only for the tests it was seen in', () => {
     const a = [res('TC-001', 1, 'GET', '/api/me', { n: 1 }), res('TC-001', 2, 'GET', '/api/me', { n: 1 })];
     const b = [res('TC-001', 1, 'GET', '/api/me', { n: 1 })];
-    const noise = findNoise(a, b, meta);
+    const noise = findNoise([a, b], meta);
     expect(noise.endpoints[0]!.fields.map((f) => [f.field, f.tests])).toEqual([['(response)', ['TC-001']]]);
     expect(compareResponses(a, b, noise, cmeta).summary.remaining).toBe(0);
     const other = (id: string) => [res(id, 1, 'GET', '/api/me', { n: 1 }), res(id, 2, 'GET', '/api/me', { n: 1 })];
     expect(compareResponses(other('TC-002'), [res('TC-002', 1, 'GET', '/api/me', { n: 1 })], noise, cmeta).summary.remaining).toBe(1);
+  });
+});
+
+describe('shapes, duplicates, changed requests and setup findings', () => {
+  it('learns a random tail and flags a value that loses it', () => {
+    // Mixed-case random tails: `_` and `-` are allowed although these two never show them.
+    expect(observeShape('tools-OznBKCxVve', 'tools-VQHlHzF7AL')).toEqual({ kind: 'tail', types: ['string'], tailLength: [10, 10], tailChars: '-9A_a' });
+    const shape = observeShape('tools-OznBKCxVve', 'tools-VQHlHzF7AL');
+    expect(fitsShape('tools-OznBKCxVve', 'tools-D_DfCbZgM9', shape)).toBe(true);
+    expect(fitsShape('tools-OznBKCxVve', 'tools', shape)).toBe(false);
+    expect(fitsShape('2026-11-10T10:00:00Z', '2026-11-10T11:00:00Z', observeShape('2026-11-10T09:00:00Z', '2026-11-10T09:05:00Z'))).toBe(true);
+    expect(fitsShape(5, 'x', observeShape(4, 7))).toBe(false);
+  });
+
+  it('a slug that loses its suffix and a duplicate slug are strong', () => {
+    const list = (slugs: string[]) => [res('TC-001', 1, 'GET', '/api/c', { items: slugs.map((slug, i) => ({ id: i, slug })) })];
+    const noise = findNoise([list(['tools', 'tools-OznBKCxVve']), list(['tools', 'tools-VQHlHzF7AL']), list(['tools', 'tools-kD-O_sfOUr'])], { ...meta, executions: ['x-01', 'x-02', 'x-03'] });
+    expect(noise.endpoints[0]!.fields[0]).toMatchObject({ field: 'items[*].slug', unique: true, shape: { kind: 'tail', tailLength: [10, 10] } });
+    const c = compareResponses(list(['tools', 'tools-OznBKCxVve']), list(['tools', 'tools']), noise, cmeta);
+    expect(c.tests[0]!.endpoints[0]!.differences.map((d) => [d.field, d.reason, d.other])).toEqual([
+      ['items[*].slug', 'shape', 'tools'],
+      ['items[*].slug(duplicate)', 'duplicate', ['tools']],
+    ]);
+    expect(compareResponses(list(['tools', 'tools-OznBKCxVve']), list(['tools', 'tools-D_DfCbZgM9']), noise, cmeta).summary.remaining).toBe(0);
+  });
+
+  it('a request with other query values is one strong difference, unless the correct runs vary it', () => {
+    const call = (t: string, q: string): RecordedResponse => ({ ...res(t, 1, 'GET', `/api/list?sort=${q}&page=1`, { n: q }), source: 'page' });
+    const c = compareResponses([call('TC-001', 'desc')], [call('TC-001', 'asc')], null, cmeta);
+    expect(c.tests[0]!.endpoints[0]).toMatchObject({ endpoint: 'GET /api/list?sort=*&page=:id', differences: [{ field: '(request)', base: 'sort=desc&page=:id', other: 'sort=asc&page=:id', strength: 'strong', reason: 'request' }] });
+    const noise = findNoise([[call('TC-001', 'desc')], [call('TC-001', 'asc')]], meta);
+    expect(compareResponses([call('TC-001', 'desc')], [call('TC-001', 'up')], noise, cmeta).summary.remaining).toBe(0);
+  });
+
+  it('folds id-alias differences into one setup finding when the other run shares no seeded ids', () => {
+    const hex = (n: number) => (0x6af302ba9c0b1b2a7eb20000n + BigInt(n)).toString(16);
+    const shared = Array.from({ length: 60 }, (_, i) => hex(i));
+    const golden = ['TC-001', 'TC-002'].map((t) => res(t, 1, 'GET', '/api/x', { items: shared.map((_id, i) => ({ _id, n: i })) }));
+    const reseeded = ['TC-001', 'TC-002'].map((t, k) => res(t, 1, 'GET', '/api/x', { items: shared.map((_, i) => ({ _id: hex(1000 * (k + 1) + i), n: i })) }));
+    const c = compareResponses(golden, reseeded, null, cmeta);
+    expect(c.findings).toHaveLength(1);
+    expect(c.findings[0]).toMatchObject({ kind: 'setup-changed', count: 120 });
+    expect(c.findings[0]!.message).toMatch(/snapshot failed \/ re-seeded/);
+    expect(c.summary).toMatchObject({ strong: 1, weak: 0, remaining: 1 });
   });
 });
 

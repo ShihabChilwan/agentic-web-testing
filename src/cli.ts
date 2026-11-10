@@ -216,10 +216,11 @@ agent
 
 agent
   .command('noise')
-  .description('Run the generation version twice with responses recorded and write noise-fields.json: the fields that differ between the two (no model)')
+  .description('Run the generation version several times with responses recorded and write noise-fields.json: the fields that differ between them (no model)')
   .requiredOption('--run <runId>', 'run folder to use')
-  .option('--execs <a,b>', 'two executions that already recorded responses, instead of running two new ones')
-  .action(async (opts: { run: string; execs?: string }) => {
+  .option('--execs <a,b,...>', 'two or more executions that already recorded responses, instead of running new ones')
+  .option('--runs <n>', 'new executions to run when --execs is not given (default 3)', (v) => Number.parseInt(v, 10))
+  .action(async (opts: { run: string; execs?: string; runs?: number }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping Playwright and the app...');
@@ -229,17 +230,18 @@ agent
     process.once('SIGTERM', onSignal);
     try {
       const execs = opts.execs?.split(',').map((x) => x.trim()).filter(Boolean);
-      if (execs && execs.length !== 2) throw new Error('--execs takes exactly two execution ids, e.g. x-02,x-03');
+      if (execs && execs.length < 2) throw new Error('--execs takes two or more execution ids, e.g. x-02,x-03,x-19');
       const result = await measureNoise({
         runId: opts.run,
-        ...(execs ? { executions: [execs[0]!, execs[1]!] as [string, string] } : {}),
+        ...(execs ? { executions: execs } : {}),
+        ...(opts.runs !== undefined ? { runs: opts.runs } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });
       for (const r of result.executed) for (const line of describeExecution(r)) console.log(`${r.execId}: ${line}`);
       const s = result.noise.summary;
       console.log(`noise-fields.json: ${result.file}`);
-      console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences in ${s.noiseFields} noise fields; ${s.unstableOrderLists} lists with unstable order`);
+      console.log(`Over every pair of runs: ${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences in ${s.noiseFields} noise fields; ${s.unstableOrderLists} lists with unstable order`);
     } catch (err) {
       console.error(`noise failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
@@ -262,6 +264,7 @@ agent
       const s = comparison.summary;
       console.log(`Comparison: ${file} (and .md)`);
       console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences, ${s.ignoredAsNoise} ignored as noise, ${s.remaining} remaining (strong ${s.strong}, weak ${s.weak}) in ${s.testsWithDifferences} tests`);
+      for (const f of comparison.findings) console.log(`Finding: ${f.message}`);
     } catch (err) {
       console.error(`compare failed: ${errorSummary(err)}`);
       process.exitCode = 1;
