@@ -186,7 +186,8 @@ agent
   .option('--skip-seed', 'start without the seed command and seed requests')
   .option('--exec-id <id>', 'execution id (default: the next x-NN)')
   .option('--record-responses', 'save every response the tests receive to responses.jsonl (for agent noise and agent compare)')
-  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean }) => {
+  .option('--record-pages', 'save the accessibility snapshot of each page after navigation and at the end of each browser test to pages.jsonl')
+  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean; recordPages?: boolean }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -203,6 +204,7 @@ agent
         ...(opts.skipSeed ? { skipSeed: true } : {}),
         ...(opts.execId ? { execId: opts.execId } : {}),
         ...(opts.recordResponses ? { recordResponses: true } : {}),
+        ...(opts.recordPages ? { recordPages: true } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });
@@ -220,7 +222,8 @@ agent
   .requiredOption('--run <runId>', 'run folder to use')
   .option('--execs <a,b,...>', 'two or more executions that already recorded responses, instead of running new ones')
   .option('--runs <n>', 'new executions to run when --execs is not given (default 3)', (v) => Number.parseInt(v, 10))
-  .action(async (opts: { run: string; execs?: string; runs?: number }) => {
+  .option('--page-execs <a,b,...>', 'two or more executions that recorded page snapshots, for the page noise')
+  .action(async (opts: { run: string; execs?: string; runs?: number; pageExecs?: string }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping Playwright and the app...');
@@ -235,6 +238,7 @@ agent
         runId: opts.run,
         ...(execs ? { executions: execs } : {}),
         ...(opts.runs !== undefined ? { runs: opts.runs } : {}),
+        ...(opts.pageExecs ? { pageExecutions: opts.pageExecs.split(',').map((x) => x.trim()).filter(Boolean) } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });

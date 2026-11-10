@@ -7,7 +7,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { measureCoverage } from '../../src/modules/execution-engine/coverage.js';
 import { executeRun, executeVersion, nextExecId } from '../../src/modules/execution-engine/execute.js';
-import { readResponsesFile } from '../../src/modules/execution-engine/responses.js';
+import { readPagesFile, readResponsesFile } from '../../src/modules/execution-engine/responses.js';
 import { loadTargetConfig } from '../../src/shared/target-config.js';
 import type { StartOptions } from '../../src/modules/execution-engine/lifecycle.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
@@ -224,7 +224,7 @@ describe('executeRun (real Playwright)', () => {
 
 describe('executeRun with recorded responses (real Playwright)', () => {
   it('writes every response of the api object and the page\'s backend calls to responses.jsonl, in test order', async () => {
-    const result = await executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, execId: 'x-60', recordResponses: true });
+    const result = await executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, execId: 'x-60', recordResponses: true, recordPages: true });
     const execDir = path.join(runsDir, runId, 'executions', 'x-60');
     expect(result.responses?.file).toBe(path.join(execDir, 'responses.jsonl'));
     const lines = (await readResponsesFile(path.join(execDir, 'responses.jsonl'))).map((r) => [r.testCaseId, r.seq, r.source, r.method, r.path, r.status, r.body]);
@@ -240,6 +240,10 @@ describe('executeRun with recorded responses (real Playwright)', () => {
       ['TC-007', 1, 'api', 'GET', '/api/items', 200, { items: [], users: 1 }],
     ]);
     expect(result.responses?.testsWithout).toEqual([]); // TC-003 used the api object: an empty list, not a missing file
+    // The browser test (TC-005) has a snapshot after its navigation and one at its end; api tests have none.
+    const pages = (await readPagesFile(path.join(execDir, 'pages.jsonl')))!;
+    expect(pages.map((p) => [p.testCaseId, p.seq, p.kind, p.path])).toEqual([['TC-005', 1, 'navigation', '/'], ['TC-005', 2, 'end', '/']]);
+    expect(pages[1]!.snapshot).toContain('heading "Shop" [level=1]');
     // The results are the same as without recording.
     expect(result.results.summary).toEqual({ total: 7, passed: 4, failed: 2, errored: 1, skipped: 2, notIsolated: 0 });
   }, 180_000);

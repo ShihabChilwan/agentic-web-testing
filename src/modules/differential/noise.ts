@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readResponsesFile } from '../execution-engine/responses.js';
+import { readPagesFile, readResponsesFile } from '../execution-engine/responses.js';
+import { pageRecords } from './pages.js';
 import { NoiseFields, ResponseComparison, SCHEMA_VERSION } from '../../shared/schemas.js';
 import type { RecordedResponse, ValueShape } from '../../shared/schemas.js';
-import { canonical, comparable, coveredBy, diffPair, endpointOf, matchResponses, normaliseBodies, sharedIdCount, WHOLE_RESPONSE_FIELDS, type MatchedPair } from './diff.js';
+import { canonical, comparable, coveredBy, diffPair, endpointOf, matchResponses, isWholeField, normaliseBodies, sharedIdCount, type MatchedPair } from './diff.js';
 import { describeShape, fitsShape, mergeShapes, observeShape } from './shapes.js';
 
 const MAX_EXAMPLE_CHARS = 2000;
@@ -72,7 +73,7 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
           const entry: NoiseEntry = byField.get(d.field) ?? { tests: new Set<string>(), count: 0, example: { a: short(d.a), b: short(d.b) } };
           entry.tests.add(pair.testCaseId);
           entry.count += 1;
-          if (!WHOLE_RESPONSE_FIELDS.has(d.field)) {
+          if (!isWholeField(d.field)) {
             const seen = observeShape(d.a, d.b);
             entry.shape = entry.shape ? mergeShapes(entry.shape, seen) : seen;
           }
@@ -105,7 +106,7 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
         .sort(([x], [y]) => x.localeCompare(y))
         .map(([field, e]) => {
           // Times are not identifiers (two records can share a millisecond): no duplicate check for them.
-          const unique = field.includes('[*]') && !WHOLE_RESPONSE_FIELDS.has(field) && e.shape?.kind !== 'time' ? uniqueOf(endpoint, field) : undefined;
+          const unique = field.includes('[*]') && !isWholeField(field) && e.shape?.kind !== 'time' ? uniqueOf(endpoint, field) : undefined;
           return { field, tests: [...e.tests].sort(), count: e.count, example: e.example, ...(e.shape ? { shape: e.shape } : {}), ...(unique !== undefined ? { unique } : {}) };
         }),
       unstableOrder: [...(reordered.get(endpoint) ?? new Map()).entries()]
@@ -155,9 +156,9 @@ export function compareResponses(
     (noise?.endpoints ?? []).map((e) => [
       e.endpoint,
       {
-        fields: new Set(e.fields.filter((f) => !WHOLE_RESPONSE_FIELDS.has(f.field)).map((f) => f.field)),
+        fields: new Set(e.fields.filter((f) => !isWholeField(f.field)).map((f) => f.field)),
         entries: new Map(e.fields.map((f) => [f.field, f])),
-        wholeFor: new Map(e.fields.filter((f) => WHOLE_RESPONSE_FIELDS.has(f.field)).map((f) => [f.field, new Set(f.tests)])),
+        wholeFor: new Map(e.fields.filter((f) => isWholeField(f.field)).map((f) => [f.field, new Set(f.tests)])),
         keyed: new Map(e.unstableOrder.map((u) => [u.array, u.key])),
       },
     ]),
@@ -178,7 +179,7 @@ export function compareResponses(
       const entry = known?.entries.get(d.field);
       let noisy = false;
       let reason: Kept['reason'] = d.field === '(request)' ? 'request' : 'value';
-      if (known && WHOLE_RESPONSE_FIELDS.has(d.field)) noisy = known.wholeFor.get(d.field)?.has(pair.testCaseId) === true;
+      if (known && isWholeField(d.field)) noisy = known.wholeFor.get(d.field)?.has(pair.testCaseId) === true;
       else if (known) {
         noisy = coveredBy(d.field, known.fields) || known.wholeFor.get('(body)')?.has(pair.testCaseId) === true;
         // An exact noise field whose value leaves the shape the correct runs showed is a real difference.
@@ -309,16 +310,36 @@ export function noiseMarkdown(n: NoiseFields): string {
 }
 
 const responsesOf = (runDir: string, execId: string) => readResponsesFile(path.join(runDir, 'executions', execId, 'responses.jsonl'));
+const pagesOf = (runDir: string, execId: string) => readPagesFile(path.join(runDir, 'executions', execId, 'pages.jsonl'));
+async function requirePages(runDir: string, execId: string) {
+  const pages = await pagesOf(runDir, execId);
+  if (pages === null) throw new Error(`${execId} did not record pages (run it with --record-pages)`);
+  return pageRecords(pages);
+}
 
 async function sourceRunId(runDir: string): Promise<string> {
   const manifest = JSON.parse(await readFile(path.join(runDir, 'run.json'), 'utf8')) as { runId?: string };
   return manifest.runId ?? path.basename(runDir);
 }
 
-/** Writes runs/<run>/noise-fields.json and noise-fields.md from two or more recorded executions of the same version. */
-export async function writeNoiseFile(runDir: string, executions: string[]): Promise<{ file: string; noise: NoiseFields }> {
+/**
+ * Writes runs/<run>/noise-fields.json and noise-fields.md from two or more recorded executions of the
+ * same version; page noise (endpoints `PAGE …`, `END …`) from `pageExecutions` when given.
+ */
+export async function writeNoiseFile(runDir: string, executions: string[], pageExecutions?: string[]): Promise<{ file: string; noise: NoiseFields }> {
   const runs = await Promise.all(executions.map((x) => responsesOf(runDir, x)));
-  const noise = findNoise(runs, { run: path.basename(runDir), sourceRunId: await sourceRunId(runDir), executions });
+  const meta = { run: path.basename(runDir), sourceRunId: await sourceRunId(runDir) };
+  let noise = findNoise(runs, { ...meta, executions });
+  if (pageExecutions) {
+    const pageRuns = await Promise.all(pageExecutions.map((x) => requirePages(runDir, x)));
+    const pageNoise = findNoise(pageRuns, { ...meta, executions: pageExecutions });
+    noise = NoiseFields.parse({
+      ...noise,
+      pageExecutions,
+      summary: { ...noise.summary, noiseFields: noise.summary.noiseFields + pageNoise.summary.noiseFields, pageNoiseFields: pageNoise.summary.noiseFields },
+      endpoints: [...noise.endpoints, ...pageNoise.endpoints].sort((x, y) => x.endpoint.localeCompare(y.endpoint)),
+    });
+  }
   const file = path.join(runDir, 'noise-fields.json');
   await writeFile(file, `${JSON.stringify(noise, null, 2)}\n`, 'utf8');
   await writeFile(path.join(runDir, 'noise-fields.md'), noiseMarkdown(noise), 'utf8');
@@ -328,7 +349,11 @@ export async function writeNoiseFile(runDir: string, executions: string[]): Prom
 /** Writes runs/<run>/differential/compare-<base>-<other>.json and .md. `noiseFile` null compares without a filter. */
 export async function writeComparison(runDir: string, base: string, other: string, noiseFile: string | null) {
   const noise = noiseFile ? NoiseFields.parse(JSON.parse(await readFile(noiseFile, 'utf8'))) : null;
-  const [a, b] = await Promise.all([responsesOf(runDir, base), responsesOf(runDir, other)]);
+  const [ra, rb, pa, pb] = await Promise.all([responsesOf(runDir, base), responsesOf(runDir, other), pagesOf(runDir, base), pagesOf(runDir, other)]);
+  // Page snapshots are compared when both executions recorded them.
+  const withPages = pa !== null && pb !== null;
+  const a = withPages ? [...ra, ...pageRecords(pa)] : ra;
+  const b = withPages ? [...rb, ...pageRecords(pb)] : rb;
   const comparison = compareResponses(a, b, noise, { run: path.basename(runDir), base, other, noiseFile: noiseFile ? path.relative(runDir, noiseFile) || noiseFile : null });
   const dir = path.join(runDir, 'differential');
   await mkdir(dir, { recursive: true });

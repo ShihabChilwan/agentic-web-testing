@@ -55,9 +55,10 @@ const isolated = base.extend<{ _isolation: void }>({
  * the backend, with its full body, written to the test's output folder as responses.json.
  */
 const RECORDING_HELPERS = `
-// Response recording: every response the test receives from the app, written as responses.json.
+// Recording: every response the test receives from the app (responses.json) and the page's
+// accessibility snapshot after each navigation and at the end of the test (pages.json).
 import { readFileSync, writeFileSync } from 'node:fs';
-import type { APIResponse, Response } from '@playwright/test';
+import type { APIResponse, Frame, Page, Response } from '@playwright/test';
 
 interface Recorded {
   seq: number;
@@ -71,12 +72,21 @@ interface Recorded {
   error?: string;
 }
 
+interface PageShot {
+  seq: number;
+  kind: 'navigation' | 'end';
+  url: string;
+  snapshot: string | null;
+  error?: string;
+}
+
 const settings = JSON.parse(readFileSync(new URL('./_target.json', import.meta.url), 'utf8')) as { apiUrl: string; uiUrl: string; apiPrefix?: string };
 const BACKEND_ORIGIN = new URL(settings.apiUrl).origin;
 const UI_ORIGIN = new URL(settings.uiUrl).origin;
 const API_PREFIX = settings.apiPrefix ?? '/api';
 const API_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'fetch']);
 const BODY_WAIT_MS = 10_000;
+const SNAPSHOT_WAIT_MS = 3_000;
 
 const isText = (type: string) => type === '' || /json|text|xml|javascript|html|urlencoded/i.test(type);
 const firstLine = (err: unknown) => String((err as Error)?.message ?? err).split('\\n')[0] ?? '';
@@ -92,6 +102,20 @@ function methodOf(prop: string, args: unknown[]): string {
   if (options?.method) return options.method.toUpperCase();
   const first = args[0] as { method?: () => string } | string;
   return typeof first === 'object' && first !== null && typeof first.method === 'function' ? first.method().toUpperCase() : 'GET';
+}
+
+async function snapshotOf(page: Page, entry: PageShot): Promise<void> {
+  try {
+    entry.snapshot = await page.locator('body').ariaSnapshot({ timeout: SNAPSHOT_WAIT_MS });
+  } catch (err) {
+    entry.error = firstLine(err);
+  }
+}
+
+async function settle(tasks: Promise<unknown>[]): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  await Promise.race([Promise.allSettled(tasks), new Promise((resolve) => { timer = setTimeout(resolve, BODY_WAIT_MS); })]);
+  clearTimeout(timer);
 }
 
 /** A backend call of the page: fetch/XHR to the backend's origin, or to the page's own origin under the API prefix. */
@@ -111,9 +135,10 @@ export const test = isolated.extend<{ _responses: Recorded[] }>({
   _responses: async ({}, use, testInfo) => {
     const list: Recorded[] = [];
     await use(list);
-    writeFileSync(testInfo.outputPath('responses.json'), JSON.stringify(list));
+    if (RECORD_RESPONSES) writeFileSync(testInfo.outputPath('responses.json'), JSON.stringify(list));
   },
   api: async ({ api, _responses }, use) => {
+    if (!RECORD_RESPONSES) return use(api);
     const wrapped = new Proxy(api, {
       get(obj, prop, receiver) {
         const value = Reflect.get(obj, prop, receiver) as unknown;
@@ -136,10 +161,27 @@ export const test = isolated.extend<{ _responses: Recorded[] }>({
     });
     await use(wrapped);
   },
-  page: async ({ page, _responses }, use) => {
+  page: async ({ page, _responses }, use, testInfo) => {
     const pending: Promise<void>[] = [];
+    const shots: PageShot[] = [];
+    const shotTasks: Promise<void>[] = [];
+    // After each main-frame navigation: wait for the page to load and the network to go quiet, then
+    // take its accessibility snapshot (in the background; the test goes on meanwhile).
+    const onNavigated = (frame: Frame) => {
+      if (frame !== page.mainFrame() || frame.url().startsWith('about:')) return;
+      const entry: PageShot = { seq: shots.length + 1, kind: 'navigation', url: frame.url(), snapshot: null };
+      shots.push(entry);
+      shotTasks.push(
+        (async () => {
+          await page.waitForLoadState('load', { timeout: SNAPSHOT_WAIT_MS }).catch(() => {});
+          await page.waitForLoadState('networkidle', { timeout: SNAPSHOT_WAIT_MS }).catch(() => {});
+          await snapshotOf(page, entry);
+        })(),
+      );
+    };
+    if (RECORD_PAGES) page.on('framenavigated', onNavigated);
     const onResponse = (r: Response) => {
-      if (!fromBackend(r)) return;
+      if (!RECORD_RESPONSES || !fromBackend(r)) return;
       const entry: Recorded = {
         seq: _responses.length + 1, source: 'page', method: r.request().method(), url: r.url(), status: r.status(),
         contentType: r.headers()['content-type'] ?? '', body: null,
@@ -149,17 +191,25 @@ export const test = isolated.extend<{ _responses: Recorded[] }>({
     };
     page.on('response', onResponse);
     await use(page);
-    let timer: NodeJS.Timeout | undefined;
-    await Promise.race([Promise.allSettled(pending), new Promise((resolve) => { timer = setTimeout(resolve, BODY_WAIT_MS); })]);
-    clearTimeout(timer);
+    if (RECORD_PAGES) {
+      page.off('framenavigated', onNavigated);
+      await settle(shotTasks);
+      const end: PageShot = { seq: shots.length + 1, kind: 'end', url: page.url(), snapshot: null };
+      shots.push(end);
+      await snapshotOf(page, end);
+      writeFileSync(testInfo.outputPath('pages.json'), JSON.stringify(shots));
+    }
+    await settle(pending);
     page.off('response', onResponse);
   },
 });
 `;
 
-/** The suite's `_helpers.ts` text: the restore before every test, plus response recording when asked. */
-export function executionHelpers(recordResponses: boolean): string {
-  return recordResponses ? `${EXECUTION_HELPERS}${RECORDING_HELPERS}` : `${EXECUTION_HELPERS}\nexport const test = isolated;\n`;
+/** The suite's `_helpers.ts` text: the restore before every test, plus response and page recording when asked. */
+export function executionHelpers(record: { responses?: boolean; pages?: boolean } = {}): string {
+  if (!record.responses && !record.pages) return `${EXECUTION_HELPERS}\nexport const test = isolated;\n`;
+  const flags = `\nconst RECORD_RESPONSES = ${record.responses === true};\nconst RECORD_PAGES = ${record.pages === true};\n`;
+  return `${EXECUTION_HELPERS}${RECORDING_HELPERS}${flags}`;
 }
 
 function playwrightConfig(uiUrl: string): string {
@@ -188,14 +238,15 @@ export async function buildSuite(
   scriptsDir: string,
   testIds: readonly string[],
   config: TargetConfig,
-  options: { recordResponses?: boolean } = {},
+  options: { recordResponses?: boolean; recordPages?: boolean } = {},
 ): Promise<string> {
   const suiteDir = path.join(execDir, 'suite');
   await mkdir(suiteDir, { recursive: true });
   for (const id of testIds) await copyFile(path.join(scriptsDir, `${id}.spec.ts`), path.join(suiteDir, `${id}.spec.ts`));
   await copyFile(path.join(scriptsDir, '_helpers.ts'), path.join(suiteDir, '_helpers.base.ts'));
-  await writeFile(path.join(suiteDir, '_helpers.ts'), executionHelpers(options.recordResponses === true), 'utf8');
-  const settings = { ...targetSettings(config), ...(options.recordResponses ? { apiPrefix: config.backend.apiPrefix } : {}) };
+  await writeFile(path.join(suiteDir, '_helpers.ts'), executionHelpers({ responses: options.recordResponses === true, pages: options.recordPages === true }), 'utf8');
+  const recording = options.recordResponses || options.recordPages;
+  const settings = { ...targetSettings(config), ...(recording ? { apiPrefix: config.backend.apiPrefix } : {}) };
   await writeFile(path.join(suiteDir, '_target.json'), `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
   await writeFile(path.join(execDir, 'playwright.config.ts'), playwrightConfig(uiBaseUrl(config)), 'utf8');
   return suiteDir;

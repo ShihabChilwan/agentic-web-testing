@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compareResponses, diffJson, endpointOf, findNoise, matchResponses, listKey, normaliseGenerated, orderChange } from '../../src/modules/differential/index.js';
-import { redact, REDACTED, toRecorded } from '../../src/modules/execution-engine/responses.js';
+import { compareResponses, diffJson, endpointOf, findNoise, matchResponses, ariaLines, diffPageText, listKey, normaliseGenerated, orderChange, pageRecords } from '../../src/modules/differential/index.js';
+import { redact, REDACTED, toRecorded, toRecordedPages } from '../../src/modules/execution-engine/responses.js';
 import type { RecordedResponse } from '../../src/shared/schemas.js';
-import { fitsShape, observeShape } from '../../src/modules/differential/shapes.js';
+import { fitsShape, mergeShapes, observeShape } from '../../src/modules/differential/shapes.js';
 
 const res = (testCaseId: string, seq: number, method: string, path: string, body: unknown, status = 200): RecordedResponse => ({
   testCaseId, seq, source: 'api', method, path, status, contentType: 'application/json', bodyKind: 'json', body,
@@ -200,8 +200,16 @@ describe('shapes, duplicates, changed requests and setup findings', () => {
     const shape = observeShape('tools-OznBKCxVve', 'tools-VQHlHzF7AL');
     expect(fitsShape('tools-OznBKCxVve', 'tools-D_DfCbZgM9', shape)).toBe(true);
     expect(fitsShape('tools-OznBKCxVve', 'tools', shape)).toBe(false);
+    // A tail that starts with a delimiter still fits.
+    expect(fitsShape('industrial--K-exw-1Oz', 'industrial-4nqpXMXEaQ', shape)).toBe(true);
+    expect(fitsShape('industrial--K-exw-1Oz', 'industrial', shape)).toBe(false);
     expect(fitsShape('2026-11-10T10:00:00Z', '2026-11-10T11:00:00Z', observeShape('2026-11-10T09:00:00Z', '2026-11-10T09:05:00Z'))).toBe(true);
     expect(fitsShape(5, 'x', observeShape(4, 7))).toBe(false);
+    // Only the digit runs that varied in the correct runs may vary: the time, not the price.
+    const row = observeShape('Placed 10:05 total $12.50', 'Placed 10:09 total $12.50');
+    expect(row).toMatchObject({ kind: 'digits', digitRuns: [0], runCount: 2 });
+    expect(fitsShape('Placed 10:05 total $12.50', 'Placed 11:07 total $12.50', mergeShapes(row, observeShape('Placed 10:05 total $12.50', 'Placed 10:06 total $12.50')))).toBe(true);
+    expect(fitsShape('Placed 10:05 total $12.50', 'Placed 10:07 total $13.50', row)).toBe(false);
   });
 
   it('a slug that loses its suffix and a duplicate slug are strong', () => {
@@ -237,6 +245,35 @@ describe('shapes, duplicates, changed requests and setup findings', () => {
   });
 });
 
+describe('page snapshots', () => {
+  const snap = (rows: string[]) => ['- banner:', '  - link "Store"', '- main:', '  - heading "Orders" [level=1]', '  - table:', ...rows.map((r) => `    - row "${r}"`)].join('\n');
+  const page = (t: string, text: string | null, kind: 'navigation' | 'end' = 'end') => pageRecords([{ testCaseId: t, seq: 1, kind, path: '/orders', snapshot: text }]);
+
+  it('reads role paths and diffs lines: a changed text pairs up, an extra line stands alone', () => {
+    expect(ariaLines(snap(['A']))).toEqual([
+      { path: 'banner', text: 'banner' },
+      { path: 'banner>link', text: 'link "Store"' },
+      { path: 'main', text: 'main' },
+      { path: 'main>heading', text: 'heading "Orders" [level=1]' },
+      { path: 'main>table', text: 'table' },
+      { path: 'main>table>row', text: 'row "A"' },
+    ]);
+    expect(diffPageText(snap(['A', 'B']), snap(['A', 'C', 'D']))).toEqual([
+      { field: 'main>table>row', path: 'main>table>row#1', a: 'row "B"', b: 'row "C"' },
+      { field: 'main>table>row(line)', path: 'main>table>row', a: '(absent)', b: 'row "D"' },
+    ]);
+  });
+
+  it('learns page noise like response noise: a time in a row is noise, a new button is strong', () => {
+    const at = (t: string) => snap([`Placed ${t}`]);
+    const noise = findNoise([page('TC-001', at('2026-11-10T10:00:00Z')), page('TC-001', at('2026-11-10T10:05:00Z')), page('TC-001', at('2026-11-10T10:09:00Z'))], { ...meta, executions: ['x-01', 'x-02', 'x-03'] });
+    expect(noise.endpoints.map((e) => [e.endpoint, e.fields.map((f) => [f.field, f.shape?.kind])])).toEqual([['END /orders', [['main>table>row', 'digits']]]]);
+    expect(compareResponses(page('TC-001', at('2026-11-10T10:00:00Z')), page('TC-001', at('2026-11-10T11:30:00Z')), noise, cmeta).summary.remaining).toBe(0);
+    const extra = compareResponses(page('TC-001', at('2026-11-10T10:00:00Z')), page('TC-001', `${at('2026-11-10T11:30:00Z')}\n  - button "Delete"`), noise, cmeta);
+    expect(extra.tests[0]!.endpoints[0]!.differences).toMatchObject([{ field: 'main>button(line)', base: '(absent)', other: 'button "Delete"', strength: 'strong' }]);
+  });
+});
+
 describe('strong and weak differences', () => {
   it('a browser call in one run only is weak; an api response in one run only, or a changed value, is strong', () => {
     const page = (t: string, seq: number, body: unknown): RecordedResponse => ({ ...res(t, seq, 'GET', '/api/me', body), source: 'page' });
@@ -258,5 +295,10 @@ describe('recorded response lines', () => {
     expect(line).toMatchObject({ method: 'POST', path: '/api/auth/login?x=1', bodyKind: 'json', body: { token: REDACTED, user: { password: REDACTED, name: 'A' } } });
     expect(text).toMatchObject({ bodyKind: 'text', body: `ok ${REDACTED}` });
     expect(redact({ list: [{ apiKey: 'k' }] })).toEqual({ list: [{ apiKey: REDACTED }] });
+    // A token in a URL (e.g. a login redirect) is redacted in the path too, for responses and pages.
+    const [inPath] = toRecorded('TC-001', [{ seq: 1, source: 'page', method: 'GET', url: `http://localhost:3000/api/x?token=Bearer%20${jwt}`, status: 200, contentType: '', body: null }]);
+    expect(inPath!.path).toBe(`/api/x?token=Bearer%20${REDACTED}`);
+    const [page] = toRecordedPages('TC-001', [{ seq: 1, kind: 'navigation', url: `http://localhost:8080/auth/success?token=${jwt}`, snapshot: `- text: ${jwt}` }]);
+    expect([page!.path, page!.snapshot]).toEqual([`/auth/success?token=${REDACTED}`, `- text: ${REDACTED}`]);
   });
 });

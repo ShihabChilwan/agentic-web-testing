@@ -855,17 +855,37 @@ export const RecordedResponse = z.object({
   error: z.string().optional(),
 });
 
+/**
+ * One line of executions/<execId>/pages.jsonl (SPEC §7.6): the page's accessibility snapshot (Playwright's
+ * text outline of roles, names and text; not a screenshot) after a main-frame navigation, or at the end of
+ * a browser test. Written only when the execution records pages. `seq` counts the test's snapshots.
+ */
+export const RecordedPage = z.object({
+  testCaseId: ScriptTestId,
+  seq: z.number().int().positive(),
+  kind: z.enum(['navigation', 'end']),
+  /** URL path with the query string (no origin). */
+  path: z.string().min(1),
+  /** Null when the snapshot could not be taken (see `error`). JWT-looking strings are redacted. */
+  snapshot: z.string().nullable(),
+  error: z.string().optional(),
+});
+
 /** A field path in a response with array positions generalised (`items[*].price`); `(status)`, `(body)` and `(response)` name the whole status, a non-JSON body and a missing response. */
 const FieldPath = z.string().min(1);
 
 /**
- * What the values of a noise field looked like in the correct runs: `time` (ISO times), `tail` (the same
+ * What the values of a noise field looked like in the correct runs: `time` (ISO times), `digits` (texts
+ * equal apart from some digit runs, e.g. a time inside a sentence), `tail` (the same
  * start and a varying tail of a learned length and character classes: `a` lower, `A` upper, `9` digit,
  * other characters as themselves), or only `type`. `types` lists the value types seen.
  */
 export const ValueShape = z.object({
-  kind: z.enum(['time', 'tail', 'type']),
+  kind: z.enum(['time', 'digits', 'tail', 'type']),
   types: z.array(z.string()),
+  /** `digits`: texts equal apart from their digit groups (digit runs joined by `-:/.T`); the positions (0-based) of the groups that varied, and how many groups the text has. */
+  digitRuns: z.array(z.number().int().nonnegative()).optional(),
+  runCount: z.number().int().nonnegative().optional(),
   tailLength: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]).optional(),
   tailChars: z.string().optional(),
 });
@@ -887,6 +907,8 @@ export const NoiseFields = z.object({
   sourceRunId: z.string(),
   /** The correct-app executions the noise was learned from (two or more; every pair is compared). */
   executions: z.array(ExecId).min(2),
+  /** The correct-app executions the page noise (endpoints `PAGE …`, `END …`) was learned from, when pages were recorded. */
+  pageExecutions: z.array(ExecId).min(2).optional(),
   summary: z.object({
     /** Responses per execution, in the order of `executions`. */
     responses: z.array(z.number().int().nonnegative()).default([]),
@@ -897,6 +919,8 @@ export const NoiseFields = z.object({
     differences: z.number().int().nonnegative(),
     noiseFields: z.number().int().nonnegative(),
     unstableOrderLists: z.number().int().nonnegative(),
+    /** Noise fields learned from the page snapshots (included in `noiseFields`). */
+    pageNoiseFields: z.number().int().nonnegative().default(0),
   }),
   /** One entry per endpoint (`METHOD /normalised/path`), sorted. */
   endpoints: z.array(
@@ -971,6 +995,7 @@ export const ResponseComparison = z.object({
 });
 
 export type RecordedResponse = z.infer<typeof RecordedResponse>;
+export type RecordedPage = z.infer<typeof RecordedPage>;
 export type NoiseFields = z.infer<typeof NoiseFields>;
 export type ResponseComparison = z.infer<typeof ResponseComparison>;
 export type UnstableOrder = z.infer<typeof UnstableOrder>;

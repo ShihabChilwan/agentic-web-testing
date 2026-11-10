@@ -1,5 +1,6 @@
 import type { RecordedResponse, UnstableOrder } from '../../shared/schemas.js';
 import { ABSENT } from './shapes.js';
+import { diffPageText, PAGE_METHODS } from './pages.js';
 
 export { ABSENT };
 
@@ -380,6 +381,7 @@ export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDif
     out.push({ field: '(body)', path: '(body)', a: a.bodyKind === 'json' ? a.body : a.body ?? a.bodyKind, b: b.bodyKind === 'json' ? b.body : b.body ?? b.bodyKind });
     return out;
   }
+  if (PAGE_METHODS.has(a.method) && a.bodyKind === 'text' && typeof a.body === 'string' && typeof b.body === 'string') return [...out, ...diffPageText(a.body, b.body)];
   if (a.bodyKind === 'json') return diffJson(a.body, b.body, options, '', '', out);
   if (a.bodyKind === 'text' && a.body !== b.body) out.push({ field: '(body)', path: '(body)', a: a.body, b: b.body });
   return out;
@@ -387,6 +389,11 @@ export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDif
 
 /** Fields about the whole response; as noise they hold only for the tests they were seen in. */
 export const WHOLE_RESPONSE_FIELDS: ReadonlySet<string> = new Set(['(response)', '(status)', '(body)', '(request)']);
+
+/** A field about the whole response, or a page line present on one side only: as noise, it holds only for the tests it was seen in. */
+export function isWholeField(field: string): boolean {
+  return WHOLE_RESPONSE_FIELDS.has(field) || field.endsWith('(line)');
+}
 
 /** True when `field` is a noise field or lies inside one (`items[*]` covers `items[*].price`). */
 export function coveredBy(field: string, noise: ReadonlySet<string>): boolean {
