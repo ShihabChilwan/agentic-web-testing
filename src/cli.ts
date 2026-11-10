@@ -184,7 +184,8 @@ agent
   .option('--patch <file>', 'a unified diff applied on top of the ref, for this execution only (the target repo never changes)')
   .option('--skip-seed', 'start without the seed command and seed requests')
   .option('--exec-id <id>', 'execution id (default: the next x-NN)')
-  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string }) => {
+  .option('--record-responses', 'save every response the tests receive to responses.jsonl (for agent noise and agent compare)')
+  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -200,6 +201,7 @@ agent
         ...(opts.patch ? { patch: opts.patch } : {}),
         ...(opts.skipSeed ? { skipSeed: true } : {}),
         ...(opts.execId ? { execId: opts.execId } : {}),
+        ...(opts.recordResponses ? { recordResponses: true } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });

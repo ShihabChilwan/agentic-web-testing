@@ -833,6 +833,29 @@ export const ExecutionResults = z.object({
   results: z.array(TestResult),
 });
 
+/**
+ * One line of executions/<execId>/responses.jsonl (SPEC §7.6): an HTTP response a test received from the
+ * app, written only when the execution records responses. `seq` counts the test's responses in arrival
+ * order (api object and browser page together). Login tokens, passwords and secrets are redacted.
+ */
+export const RecordedResponse = z.object({
+  testCaseId: ScriptTestId,
+  seq: z.number().int().positive(),
+  /** `api`: the scripts' api object; `page`: a fetch/XHR call the browser page made to the backend. */
+  source: z.enum(['api', 'page']),
+  method: z.string().min(1),
+  /** URL path with the query string, as requested (no origin). */
+  path: z.string().min(1),
+  status: z.number().int(),
+  contentType: z.string().default(''),
+  /** `json`: body holds the parsed value; `text`: a string; `binary`: body is null; `none`: no body or unreadable. */
+  bodyKind: z.enum(['json', 'text', 'binary', 'none']),
+  body: z.unknown(),
+  /** Why the body could not be read (e.g. the page navigated away first). */
+  error: z.string().optional(),
+});
+
+export type RecordedResponse = z.infer<typeof RecordedResponse>;
 export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;
