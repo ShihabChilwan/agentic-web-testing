@@ -6,6 +6,7 @@ import { describeExecution, executeRun } from './modules/execution-engine/index.
 import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/index.js';
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
+import { measureNoise, writeComparison } from './modules/differential/index.js';
 import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
 import { checkFrozen, DEFAULT_FREEZE_TAG, recordFreeze, requireFrozen } from './shared/freeze.js';
 import { describeScriptsSummary, describeSuspectedDefects, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
@@ -22,7 +23,7 @@ const program = new Command();
 
 program.name('agentic-web-testing').description('Agentic web application testing and fault diagnosis');
 
-const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report');
+const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report; noise and compare (response comparison)');
 
 agent
   .command('prd')
@@ -210,6 +211,60 @@ agent
     } catch (err) {
       console.error(`execute failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+agent
+  .command('noise')
+  .description('Run the generation version twice with responses recorded and write noise-fields.json: the fields that differ between the two (no model)')
+  .requiredOption('--run <runId>', 'run folder to use')
+  .option('--execs <a,b>', 'two executions that already recorded responses, instead of running two new ones')
+  .action(async (opts: { run: string; execs?: string }) => {
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping Playwright and the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      const execs = opts.execs?.split(',').map((x) => x.trim()).filter(Boolean);
+      if (execs && execs.length !== 2) throw new Error('--execs takes exactly two execution ids, e.g. x-02,x-03');
+      const result = await measureNoise({
+        runId: opts.run,
+        ...(execs ? { executions: [execs[0]!, execs[1]!] as [string, string] } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      for (const r of result.executed) for (const line of describeExecution(r)) console.log(`${r.execId}: ${line}`);
+      const s = result.noise.summary;
+      console.log(`noise-fields.json: ${result.file}`);
+      console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences in ${s.noiseFields} noise fields; ${s.unstableOrderLists} lists with unstable order`);
+    } catch (err) {
+      console.error(`noise failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+agent
+  .command('compare')
+  .description('Compare the recorded responses of two executions, leaving out the noise fields (no model)')
+  .requiredOption('--run <runId>', 'run folder to use')
+  .requiredOption('--base <execId>', 'execution to compare from (e.g. a golden one)')
+  .requiredOption('--other <execId>', 'execution to compare with')
+  .option('--noise <file>', 'noise file (default: the run\'s noise-fields.json)')
+  .option('--no-noise', 'compare without a noise filter')
+  .action(async (opts: { run: string; base: string; other: string; noise?: string | false }) => {
+    try {
+      const runDir = runPaths(opts.run).dir;
+      const noiseFile = opts.noise === false ? null : path.resolve(opts.noise ?? path.join(runDir, 'noise-fields.json'));
+      const { file, comparison } = await writeComparison(runDir, opts.base, opts.other, noiseFile);
+      const s = comparison.summary;
+      console.log(`Comparison: ${file} (and .md)`);
+      console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences, ${s.ignoredAsNoise} ignored as noise, ${s.remaining} remaining in ${s.testsWithDifferences} tests`);
+    } catch (err) {
+      console.error(`compare failed: ${errorSummary(err)}`);
+      process.exitCode = 1;
     }
   });
 

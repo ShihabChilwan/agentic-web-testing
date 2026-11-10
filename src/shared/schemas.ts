@@ -855,7 +855,79 @@ export const RecordedResponse = z.object({
   error: z.string().optional(),
 });
 
+/** A field path in a response with array positions generalised (`items[*].price`); `(status)`, `(body)` and `(response)` name the whole status, a non-JSON body and a missing response. */
+const FieldPath = z.string().min(1);
+
+/** A list whose order changed between two runs of the same version, and the key its items are matched by. */
+export const UnstableOrder = z.object({
+  array: FieldPath,
+  /** An item field unique in both lists (`_id`, `id`, ...), `(value)` for a list of plain values, `(item)` for whole equal items. */
+  key: z.string().min(1),
+  tests: z.array(ScriptTestId),
+});
+
+/** runs/<runId>/noise-fields.json (SPEC §7.6): fields that differ between two executions of the same version. */
+export const NoiseFields = z.object({
+  schemaVersion: SchemaVersion,
+  createdAt: Timestamp,
+  /** The run folder name and the suite's own run id from run.json. */
+  run: z.string(),
+  sourceRunId: z.string(),
+  executions: z.tuple([ExecId, ExecId]),
+  summary: z.object({
+    responsesA: z.number().int().nonnegative(),
+    responsesB: z.number().int().nonnegative(),
+    matched: z.number().int().nonnegative(),
+    unmatched: z.number().int().nonnegative(),
+    differences: z.number().int().nonnegative(),
+    noiseFields: z.number().int().nonnegative(),
+    unstableOrderLists: z.number().int().nonnegative(),
+  }),
+  /** One entry per endpoint (`METHOD /normalised/path`), sorted. */
+  endpoints: z.array(
+    z.object({
+      endpoint: z.string(),
+      fields: z.array(z.object({ field: FieldPath, tests: z.array(ScriptTestId), count: z.number().int().positive(), example: z.object({ a: z.unknown(), b: z.unknown() }) })),
+      unstableOrder: z.array(UnstableOrder),
+    }),
+  ),
+});
+
+/** runs/<runId>/differential/compare-<base>-<other>.json (SPEC §7.6): differences left after the noise filter. */
+export const ResponseComparison = z.object({
+  schemaVersion: SchemaVersion,
+  createdAt: Timestamp,
+  run: z.string(),
+  base: ExecId,
+  other: ExecId,
+  noiseFile: z.string().nullable(),
+  summary: z.object({
+    matched: z.number().int().nonnegative(),
+    unmatched: z.number().int().nonnegative(),
+    differences: z.number().int().nonnegative(),
+    ignoredAsNoise: z.number().int().nonnegative(),
+    remaining: z.number().int().nonnegative(),
+    testsWithDifferences: z.number().int().nonnegative(),
+  }),
+  tests: z.array(
+    z.object({
+      testCaseId: ScriptTestId,
+      endpoints: z.array(
+        z.object({
+          endpoint: z.string(),
+          /** 1 = the first response of this endpoint in the test, 2 = the second, ... */
+          occurrence: z.number().int().positive(),
+          differences: z.array(z.object({ field: FieldPath, path: z.string(), base: z.unknown(), other: z.unknown() })),
+        }),
+      ),
+    }),
+  ),
+});
+
 export type RecordedResponse = z.infer<typeof RecordedResponse>;
+export type NoiseFields = z.infer<typeof NoiseFields>;
+export type ResponseComparison = z.infer<typeof ResponseComparison>;
+export type UnstableOrder = z.infer<typeof UnstableOrder>;
 export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;
