@@ -40,7 +40,7 @@ function splitTail(a: string, b: string): { prefix: string; ta: string; tb: stri
 /**
  * The shape of one pair of values that differed between two runs of the same version: both ISO times
  * (`time`); two texts with the same start and different tails (`tail`: tail lengths and character
- * classes, e.g. a slug with a random suffix of 10 characters); otherwise only their types (`type`).
+ * classes, e.g. a readable name with a random suffix of 10 characters); otherwise only their types (`type`).
  */
 export function observeShape(a: unknown, b: unknown): ValueShape {
   const types = [...new Set([typeOf(a), typeOf(b)])].sort();

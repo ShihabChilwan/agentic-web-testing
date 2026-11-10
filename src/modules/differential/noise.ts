@@ -17,7 +17,7 @@ function short(v: unknown): unknown {
 
 type NoiseEntry = { tests: Set<string>; count: number; example: { a: unknown; b: unknown }; shape?: ValueShape };
 
-/** The values of a list item field (`items[*].slug`) in each innermost list of a body. */
+/** The values of a list item field (`items[*].code`) in each innermost list of a body. */
 export function listInstances(body: unknown, field: string): unknown[][] {
   const tokens: string[] = [...(field.match(/\[\*\]|[^.[\]]+/g) ?? [])];
   const last = tokens.lastIndexOf('[*]');
