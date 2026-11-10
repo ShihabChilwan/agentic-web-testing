@@ -906,7 +906,10 @@ export const ResponseComparison = z.object({
     unmatched: z.number().int().nonnegative(),
     differences: z.number().int().nonnegative(),
     ignoredAsNoise: z.number().int().nonnegative(),
+    /** strong + weak. */
     remaining: z.number().int().nonnegative(),
+    strong: z.number().int().nonnegative().default(0),
+    weak: z.number().int().nonnegative().default(0),
     testsWithDifferences: z.number().int().nonnegative(),
   }),
   tests: z.array(
@@ -917,7 +920,16 @@ export const ResponseComparison = z.object({
           endpoint: z.string(),
           /** 1 = the first response of this endpoint in the test, 2 = the second, ... */
           occurrence: z.number().int().positive(),
-          differences: z.array(z.object({ field: FieldPath, path: z.string(), base: z.unknown(), other: z.unknown() })),
+          differences: z.array(
+            z.object({
+              field: FieldPath,
+              path: z.string(),
+              base: z.unknown(),
+              other: z.unknown(),
+              /** `weak`: a browser call (page source) present in one run only; `strong`: every other difference (a changed value, status or list, an api response missing). */
+              strength: z.enum(['strong', 'weak']).default('strong'),
+            }),
+          ),
         }),
       ),
     }),

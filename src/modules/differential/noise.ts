@@ -115,9 +115,17 @@ export function compareResponses(
     if (kept.length === 0) continue;
     const list = tests.get(pair.testCaseId) ?? [];
     tests.set(pair.testCaseId, list);
-    list.push({ endpoint: pair.endpoint, occurrence: pair.occurrence, differences: kept.map((d) => ({ field: d.field, path: d.path, base: d.a, other: d.b })) });
+    // Weak: a browser call seen in one run only (browser timing can cause it); everything else is strong.
+    const present = pair.a ?? pair.b;
+    const strengthOf = (field: string): 'strong' | 'weak' => (field === '(response)' && present?.source === 'page' ? 'weak' : 'strong');
+    list.push({
+      endpoint: pair.endpoint,
+      occurrence: pair.occurrence,
+      differences: kept.map((d) => ({ field: d.field, path: d.path, base: d.a, other: d.b, strength: strengthOf(d.field) })),
+    });
   }
   const grouped = [...tests.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([testCaseId, endpoints]) => ({ testCaseId, endpoints }));
+  const all = grouped.flatMap((t) => t.endpoints.flatMap((e) => e.differences));
   return ResponseComparison.parse({
     schemaVersion: SCHEMA_VERSION,
     createdAt: (meta.now ?? new Date()).toISOString(),
@@ -131,6 +139,8 @@ export function compareResponses(
       differences,
       ignoredAsNoise: ignored,
       remaining: differences - ignored,
+      strong: all.filter((d) => d.strength === 'strong').length,
+      weak: all.filter((d) => d.strength === 'weak').length,
       testsWithDifferences: grouped.length,
     },
     tests: grouped,
@@ -142,7 +152,7 @@ const cell = (v: unknown, max = 160) => {
   return (text.length > max ? `${text.slice(0, max)}…` : text).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 };
 
-/** The comparison as Markdown: one section per test, a table per endpoint. */
+/** The comparison as Markdown: strong differences first, then weak ones, each by test and endpoint. */
 export function comparisonMarkdown(c: ResponseComparison): string {
   const s = c.summary;
   const lines = [
@@ -150,13 +160,20 @@ export function comparisonMarkdown(c: ResponseComparison): string {
     '',
     `Run \`${c.run}\`; noise file: ${c.noiseFile ? `\`${c.noiseFile}\`` : 'none'}.`,
     '',
-    `Matched responses ${s.matched}, unmatched ${s.unmatched}; differences ${s.differences}, ignored as noise ${s.ignoredAsNoise}, **remaining ${s.remaining}** in ${s.testsWithDifferences} tests.`,
+    `Matched responses ${s.matched}, unmatched ${s.unmatched}; differences ${s.differences}, ignored as noise ${s.ignoredAsNoise}, **remaining ${s.remaining}: strong ${s.strong}, weak ${s.weak}** in ${s.testsWithDifferences} tests.`,
+    '',
+    'Strong: a changed value, status code or list, or an api response present in one run only. Weak: a browser call present in one run only (browser timing can cause it).',
   ];
-  for (const t of c.tests) {
-    lines.push('', `## ${t.testCaseId}`);
-    for (const e of t.endpoints) {
-      lines.push('', `### ${e.endpoint}${e.occurrence > 1 ? ` (call ${e.occurrence})` : ''}`, '', `| Field | Path | ${c.base} | ${c.other} |`, '|---|---|---|---|');
-      for (const d of e.differences) lines.push(`| \`${d.field}\` | \`${d.path}\` | ${cell(d.base)} | ${cell(d.other)} |`);
+  for (const strength of ['strong', 'weak'] as const) {
+    lines.push('', `## ${strength === 'strong' ? 'Strong' : 'Weak'} differences (${strength === 'strong' ? s.strong : s.weak})`);
+    for (const t of c.tests) {
+      const endpoints = t.endpoints.map((e) => ({ ...e, differences: e.differences.filter((d) => d.strength === strength) })).filter((e) => e.differences.length > 0);
+      if (endpoints.length === 0) continue;
+      lines.push('', `### ${t.testCaseId}`);
+      for (const e of endpoints) {
+        lines.push('', `#### ${e.endpoint}${e.occurrence > 1 ? ` (call ${e.occurrence})` : ''}`, '', `| Field | Path | ${c.base} | ${c.other} |`, '|---|---|---|---|');
+        for (const d of e.differences) lines.push(`| \`${d.field}\` | \`${d.path}\` | ${cell(d.base)} | ${cell(d.other)} |`);
+      }
     }
   }
   return `${lines.join('\n')}\n`;

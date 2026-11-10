@@ -100,21 +100,36 @@ export function comparable(list: readonly RecordedResponse[]): RecordedResponse[
 }
 
 /**
- * Prepares bodies for comparison. Id values (24-hex ids, UUIDs) become `<id:n>`, their rank in sorted
- * order among the ids the test saw: every execution seeds afresh, so the same record has another id in
- * each one, and ids that start with their creation time (24-hex object ids) keep their order, so the same
- * records get the same aliases and a missing or different record still shows. Other strings, and text
- * bodies, get normaliseGenerated.
+ * Prepares bodies for comparison. Every execution seeds afresh, so the same record has another id in each
+ * one; ids that start with their creation time (24-hex object ids) keep their order, so ids are replaced
+ * by their rank in sorted order: an id seen in two or more tests (a seeded record) by `<id:n>`, its rank
+ * among those ids in the whole execution, so a record missing from one response shifts no other alias;
+ * an id seen in one test only (a record that test made) by `<id:t.n>`, its rank among that test's own ids.
+ * Limitation: a seeded record that a version shows in one test only becomes test-local there, and the
+ * shared ranks after it shift. Other strings, and text bodies, get normaliseGenerated.
  */
 export function normaliseBodies(list: readonly RecordedResponse[]): RecordedResponse[] {
-  const byTest = new Map<string, Set<string>>();
+  const testsOf = new Map<string, Set<string>>();
+  const idsOf = new Map<string, Set<string>>();
   for (const r of list) {
     if (r.bodyKind !== 'json') continue;
-    const ids = byTest.get(r.testCaseId) ?? new Set<string>();
-    byTest.set(r.testCaseId, ids);
+    const ids = new Set<string>();
     collectIds(r.body, ids);
+    const own = idsOf.get(r.testCaseId) ?? new Set<string>();
+    idsOf.set(r.testCaseId, own);
+    for (const id of ids) {
+      own.add(id);
+      testsOf.set(id, (testsOf.get(id) ?? new Set<string>()).add(r.testCaseId));
+    }
   }
-  const aliases = new Map([...byTest].map(([t, ids]) => [t, new Map([...ids].sort().map((id, i) => [id, `<id:${i + 1}>`]))]));
+  const shared = [...testsOf].filter(([, tests]) => tests.size > 1).map(([id]) => id).sort();
+  const sharedAlias = new Map(shared.map((id, i) => [id, `<id:${i + 1}>`]));
+  const aliases = new Map(
+    [...idsOf].map(([t, ids]) => {
+      const local = [...ids].filter((id) => !sharedAlias.has(id)).sort();
+      return [t, new Map([...sharedAlias, ...local.map((id, i): [string, string] => [id, `<id:t.${i + 1}>`])])];
+    }),
+  );
   return list.map((r) => {
     if (r.bodyKind === 'json') return { ...r, body: normaliseValue(r.body, aliases.get(r.testCaseId)!) };
     if (r.bodyKind === 'text' && typeof r.body === 'string') return { ...r, body: normaliseGenerated(r.body) };
@@ -163,15 +178,29 @@ export function canonical(v: unknown): string {
 
 const PREFERRED_KEYS = ['_id', 'id', 'uuid', 'key', 'code', 'email', 'name', 'title'];
 
+const itemKey = (item: unknown, key: string) => (key === '(value)' || key === '(item)' ? canonical(item) : canonical((item as Record<string, unknown>)[key]));
+
 /**
- * A key that identifies the items of two lists: `(value)` for lists of plain values, else the first item
- * field (preferred names first, then any other) that every item of both lists has as a plain value,
- * unique within each list, with the same set of values on both sides. Undefined when none fits.
+ * A key to match the items of two lists by, for any list: `(value)` for plain values unique on each side;
+ * else the first item field (preferred names first, then any other) that every item has as a plain value,
+ * unique within each list, with at least half of the shorter list's values found on the other side (so a
+ * field that differs every run, such as a time, is not taken). Undefined when none fits: positions are
+ * compared.
  */
-export function stableKey(a: readonly unknown[], b: readonly unknown[]): string | undefined {
+export function listKey(a: readonly unknown[], b: readonly unknown[]): string | undefined {
   const all = [...a, ...b];
   if (all.length === 0) return undefined;
-  if (all.every(isPrimitive)) return '(value)';
+  const overlapOk = (va: string[], vb: string[]) => {
+    const shorter = Math.min(va.length, vb.length);
+    const common = va.filter((v) => vb.includes(v)).length;
+    return shorter === 0 || common * 2 >= shorter;
+  };
+  const unique = (vs: string[]) => new Set(vs).size === vs.length;
+  if (all.every(isPrimitive)) {
+    const va = a.map(canonical);
+    const vb = b.map(canonical);
+    return unique(va) && unique(vb) && overlapOk(va, vb) ? '(value)' : undefined;
+  }
   if (!all.every(isObject)) return undefined;
   const objects = all as Array<Record<string, unknown>>;
   const fields = new Set(objects.flatMap((o) => Object.keys(o)));
@@ -180,28 +209,29 @@ export function stableKey(a: readonly unknown[], b: readonly unknown[]): string 
     if (!objects.every((o) => field in o && isPrimitive(o[field]))) continue;
     const va = (a as Array<Record<string, unknown>>).map((o) => canonical(o[field]));
     const vb = (b as Array<Record<string, unknown>>).map((o) => canonical(o[field]));
-    if (new Set(va).size !== va.length || new Set(vb).size !== vb.length) continue;
-    if (va.length !== vb.length || va.some((v) => !vb.includes(v))) continue;
-    return field;
+    if (unique(va) && unique(vb) && overlapOk(va, vb)) return field;
   }
   return undefined;
 }
 
-const itemKey = (item: unknown, key: string) => (key === '(value)' || key === '(item)' ? canonical(item) : canonical((item as Record<string, unknown>)[key]));
+/** True when the items both lists share (by key) come in a different order. */
+function orderDiffers(a: readonly unknown[], b: readonly unknown[], key: string): boolean {
+  const kb = new Set(b.map((x) => itemKey(x, key)));
+  const ka = new Set(a.map((x) => itemKey(x, key)));
+  const sa = a.map((x) => itemKey(x, key)).filter((k) => kb.has(k));
+  const sb = b.map((x) => itemKey(x, key)).filter((k) => ka.has(k));
+  return sa.some((k, i) => k !== sb[i]);
+}
 
 /**
- * When two lists hold the same items in a different order, the key that matches them (`stableKey`, else
- * `(item)` when the items are equal as a whole). Undefined when the order is the same or items differ
- * without a key.
+ * When two lists hold the same items in a different order, the key that matches them (`listKey`, else
+ * `(item)` when the items are equal as a whole). Undefined when the order is the same.
  */
 export function orderChange(a: readonly unknown[], b: readonly unknown[]): string | undefined {
-  if (a.length !== b.length || a.length < 2) return undefined;
-  const key = stableKey(a, b);
-  if (key) {
-    const ka = a.map((x) => itemKey(x, key));
-    const kb = b.map((x) => itemKey(x, key));
-    return ka.some((k, i) => k !== kb[i]) ? key : undefined;
-  }
+  if (a.length < 2 || b.length < 2) return undefined;
+  const key = listKey(a, b);
+  if (key) return orderDiffers(a, b, key) ? key : undefined;
+  if (a.length !== b.length) return undefined;
   const ca = a.map(canonical);
   const cb = b.map(canonical);
   if (ca.every((c, i) => c === cb[i])) return undefined;
@@ -230,15 +260,26 @@ export function diffJson(a: unknown, b: unknown, options: DiffOptions = {}, path
   }
   if (Array.isArray(a) && Array.isArray(b)) {
     const itemField = `${field}[*]`;
-    let key = options.keyedArrays?.(here);
-    if (!key && options.onOrderChange) {
+    // A list the noise runs saw in another order: matched by its key, its order not compared.
+    const unstable = options.keyedArrays?.(here);
+    if (unstable) return diffKeyed(a, b, unstable, path, itemField, options, out);
+    if (options.onOrderChange) {
       const changed = orderChange(a, b);
       if (changed) {
         options.onOrderChange(here, changed);
-        key = changed;
+        return diffKeyed(a, b, changed, path, itemField, options, out);
       }
     }
-    if (key) return diffKeyed(a, b, key, path, itemField, options, out);
+    // Every other list: items matched by key when one fits (a missing item is one difference), and a
+    // change of order is one difference of its own.
+    const key = listKey(a, b);
+    if (key) {
+      if (orderDiffers(a, b, key)) {
+        const keysOf = (list: readonly unknown[]) => list.map((x) => (key === '(value)' ? x : (x as Record<string, unknown>)[key]));
+        out.push({ field: `${itemField}(order)`, path: `${path || '(body)'}(order by ${key})`, a: keysOf(a), b: keysOf(b) });
+      }
+      return diffKeyed(a, b, key, path, itemField, options, out);
+    }
     for (let i = 0; i < Math.max(a.length, b.length); i++) {
       const p = `${path}[${i}]`;
       if (i >= a.length || i >= b.length) out.push({ field: itemField, path: p, a: i < a.length ? a[i] : ABSENT, b: i < b.length ? b[i] : ABSENT });
@@ -265,7 +306,7 @@ function diffKeyed(a: readonly unknown[], b: readonly unknown[], key: string, pa
   for (const k of [...new Set([...ga.keys(), ...gb.keys()])].sort()) {
     const xs = ga.get(k) ?? [];
     const ys = gb.get(k) ?? [];
-    const label = key === '(value)' || key === '(item)' ? `${path}[${key}]` : `${path}[${key}=${k}]`;
+    const label = key === '(item)' ? `${path}[(item)]` : key === '(value)' ? `${path}[=${k}]` : `${path}[${key}=${k}]`;
     for (let i = 0; i < Math.max(xs.length, ys.length); i++) {
       if (i >= xs.length || i >= ys.length) out.push({ field: itemField, path: label, a: i < xs.length ? xs[i] : ABSENT, b: i < ys.length ? ys[i] : ABSENT });
       else if (key !== '(value)' && key !== '(item)') diffJson(xs[i], ys[i], options, label, itemField, out);

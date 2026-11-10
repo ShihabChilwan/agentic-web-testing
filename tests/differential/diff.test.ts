@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareResponses, diffJson, endpointOf, findNoise, matchResponses, normaliseGenerated, orderChange, stableKey } from '../../src/modules/differential/index.js';
+import { compareResponses, diffJson, endpointOf, findNoise, matchResponses, listKey, normaliseGenerated, orderChange } from '../../src/modules/differential/index.js';
 import { redact, REDACTED, toRecorded } from '../../src/modules/execution-engine/responses.js';
 import type { RecordedResponse } from '../../src/shared/schemas.js';
 
@@ -71,33 +71,53 @@ describe('id aliases through matchResponses', () => {
     const run1 = [res('TC-001', 1, 'GET', '/api/x', { items: [{ _id: '6af302ba9c0b1b2a7eb22f65' }, { _id: '6af302ba9c0b1b2a7eb22f66' }], owner: '6af302ba9c0b1b2a7eb22f66' })];
     const run2 = [res('TC-001', 1, 'GET', '/api/x', { items: [{ _id: '6af303dca8871b39ce4f50a5' }, { _id: '6af303dca8871b39ce4f50a6' }], owner: '6af303dca8871b39ce4f50a6' })];
     const bug = [res('TC-001', 1, 'GET', '/api/x', { items: [{ _id: '6af303dca8871b39ce4f50a5' }, { _id: '6af303dca8871b39ce4f50a6' }], owner: '6af303dca8871b39ce4f50a5' })];
-    expect(matchResponses(run1, run2)[0]!.a!.body).toEqual({ items: [{ _id: '<id:1>' }, { _id: '<id:2>' }], owner: '<id:2>' });
+    expect(matchResponses(run1, run2)[0]!.a!.body).toEqual({ items: [{ _id: '<id:t.1>' }, { _id: '<id:t.2>' }], owner: '<id:t.2>' });
     expect(compareResponses(run1, run2, null, cmeta).summary.differences).toBe(0);
-    expect(compareResponses(run1, bug, null, cmeta).tests[0]!.endpoints[0]!.differences).toEqual([{ field: 'owner', path: 'owner', base: '<id:2>', other: '<id:1>' }]);
+    expect(compareResponses(run1, bug, null, cmeta).tests[0]!.endpoints[0]!.differences).toEqual([{ field: 'owner', path: 'owner', base: '<id:t.2>', other: '<id:t.1>', strength: 'strong' }]);
+  });
+
+  it('an id seen in several tests keeps its alias when another test misses a record', () => {
+    const ids = ['6af302ba9c0b1b2a7eb22f61', '6af302ba9c0b1b2a7eb22f62', '6af302ba9c0b1b2a7eb22f63'];
+    const all = (t: string, list: string[]) => res(t, 1, 'GET', '/api/x', { items: list.map((_id) => ({ _id })) });
+    const golden = [all('TC-001', ids), all('TC-002', ids), all('TC-003', ids)];
+    const bug = [all('TC-001', ids), all('TC-002', ids.slice(1)), all('TC-003', ids)];
+    const c = compareResponses(golden, bug, null, cmeta);
+    expect(c.summary.remaining).toBe(1);
+    expect(c.tests[0]!.endpoints[0]!.differences[0]).toMatchObject({ field: 'items[*]', path: 'items[_id="<id:1>"]', other: '(absent)' });
   });
 });
 
 describe('diffJson', () => {
   it('generalises array positions in the field and keeps them in the path', () => {
     const d = diffJson({ items: [{ id: 1, at: 'x' }, { id: 2, at: 'y' }] }, { items: [{ id: 1, at: 'x' }, { id: 2, at: 'z' }] });
-    expect(d).toEqual([{ field: 'items[*].at', path: 'items[1].at', a: 'y', b: 'z' }]);
+    expect(d).toEqual([{ field: 'items[*].at', path: 'items[id=2].at', a: 'y', b: 'z' }]);
   });
 
   it('reports a missing key and an extra item as absent', () => {
     expect(diffJson({ a: 1, list: [1] }, { list: [1, 2] })).toEqual([
       { field: 'a', path: 'a', a: 1, b: '(absent)' },
-      { field: 'list[*]', path: 'list[1]', a: '(absent)', b: 2 },
+      { field: 'list[*]', path: 'list[=2]', a: '(absent)', b: 2 },
     ]);
   });
 });
 
-describe('stableKey and orderChange', () => {
-  it('prefers _id or id, else another unique field, else whole items', () => {
-    expect(stableKey([{ _id: 'a', n: 1 }, { _id: 'b', n: 1 }], [{ _id: 'b', n: 1 }, { _id: 'a', n: 1 }])).toBe('_id');
-    expect(stableKey([{ sku: 'a', n: 1 }, { sku: 'b', n: 1 }], [{ sku: 'b', n: 1 }, { sku: 'a', n: 1 }])).toBe('sku');
-    expect(stableKey([3, 1], [1, 3])).toBe('(value)');
+describe('listKey and orderChange', () => {
+  it('prefers _id or id, else another unique field shared by both sides, else plain values', () => {
+    expect(listKey([{ _id: 'a', n: 1 }, { _id: 'b', n: 1 }], [{ _id: 'b', n: 1 }, { _id: 'a', n: 1 }])).toBe('_id');
+    expect(listKey([{ sku: 'a', n: 1 }, { sku: 'b', n: 1 }], [{ sku: 'b', n: 1 }])).toBe('sku');
+    expect(listKey([3, 1], [1, 3])).toBe('(value)');
+    // A field unique on each side but never shared (e.g. a time) is not a key.
+    expect(listKey([{ at: 't1', n: 1 }, { at: 't2', n: 1 }], [{ at: 't3', n: 1 }, { at: 't4', n: 1 }])).toBeUndefined();
     expect(orderChange([{ x: [1] }, { x: [2] }], [{ x: [2] }, { x: [1] }])).toBe('(item)');
     expect(orderChange([{ _id: 'a' }, { _id: 'b' }], [{ _id: 'a' }, { _id: 'b' }])).toBeUndefined();
+  });
+
+  it('reports one missing item as one difference, and a changed order as one difference', () => {
+    const list = [{ _id: 'a', p: 1 }, { _id: 'b', p: 2 }, { _id: 'c', p: 3 }];
+    expect(diffJson({ items: list }, { items: list.slice(1) })).toEqual([{ field: 'items[*]', path: 'items[_id="a"]', a: list[0], b: '(absent)' }]);
+    expect(diffJson({ items: list }, { items: [...list].reverse() })).toEqual([
+      { field: 'items[*](order)', path: 'items(order by _id)', a: ['a', 'b', 'c'], b: ['c', 'b', 'a'] },
+    ]);
   });
 });
 
@@ -141,11 +161,11 @@ describe('findNoise and compareResponses', () => {
     const c = compareResponses(golden1, bug, noise, cmeta);
     expect(c.tests).toEqual([
       { testCaseId: 'TC-001', endpoints: [{ endpoint: 'POST /api/product', occurrence: 1, differences: [
-        { field: '(status)', path: '(status)', base: 200, other: 201 },
-        { field: 'product.price', path: 'product.price', base: 10, other: 0 },
+        { field: '(status)', path: '(status)', base: 200, other: 201, strength: 'strong' },
+        { field: 'product.price', path: 'product.price', base: 10, other: 0, strength: 'strong' },
       ] }] },
       { testCaseId: 'TC-002', endpoints: [{ endpoint: 'GET /api/product/list', occurrence: 1, differences: [
-        { field: 'products[*].price', path: 'products[_id="b"].price', base: 7, other: 8 },
+        { field: 'products[*].price', path: 'products[_id="b"].price', base: 7, other: 8, strength: 'strong' },
       ] }] },
     ]);
   });
@@ -154,7 +174,7 @@ describe('findNoise and compareResponses', () => {
     const sorted = [res('TC-003', 1, 'GET', '/api/x', { list: [{ id: 1 }, { id: 2 }] })];
     const reversed = [res('TC-003', 1, 'GET', '/api/x', { list: [{ id: 2 }, { id: 1 }] })];
     const noise = findNoise(sorted, sorted, meta);
-    expect(compareResponses(sorted, reversed, noise, cmeta).summary.remaining).toBe(2);
+    expect(compareResponses(sorted, reversed, noise, cmeta).tests[0]!.endpoints[0]!.differences.map((d) => d.field)).toEqual(['list[*](order)']);
   });
 });
 
@@ -167,6 +187,17 @@ describe('whole-response noise', () => {
     expect(compareResponses(a, b, noise, cmeta).summary.remaining).toBe(0);
     const other = (id: string) => [res(id, 1, 'GET', '/api/me', { n: 1 }), res(id, 2, 'GET', '/api/me', { n: 1 })];
     expect(compareResponses(other('TC-002'), [res('TC-002', 1, 'GET', '/api/me', { n: 1 })], noise, cmeta).summary.remaining).toBe(1);
+  });
+});
+
+describe('strong and weak differences', () => {
+  it('a browser call in one run only is weak; an api response in one run only, or a changed value, is strong', () => {
+    const page = (t: string, seq: number, body: unknown): RecordedResponse => ({ ...res(t, seq, 'GET', '/api/me', body), source: 'page' });
+    const a = [page('TC-001', 1, { n: 1 }), res('TC-002', 1, 'GET', '/api/x', { n: 1 }), res('TC-003', 1, 'GET', '/api/y', { n: 1 })];
+    const b = [res('TC-003', 1, 'GET', '/api/y', { n: 2 })];
+    const c = compareResponses(a, b, null, cmeta);
+    expect(c.summary).toMatchObject({ remaining: 3, strong: 2, weak: 1 });
+    expect(c.tests.map((t) => [t.testCaseId, t.endpoints[0]!.differences[0]!.strength])).toEqual([['TC-001', 'weak'], ['TC-002', 'strong'], ['TC-003', 'strong']]);
   });
 });
 

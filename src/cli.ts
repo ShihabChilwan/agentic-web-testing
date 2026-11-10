@@ -261,7 +261,7 @@ agent
       const { file, comparison } = await writeComparison(runDir, opts.base, opts.other, noiseFile);
       const s = comparison.summary;
       console.log(`Comparison: ${file} (and .md)`);
-      console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences, ${s.ignoredAsNoise} ignored as noise, ${s.remaining} remaining in ${s.testsWithDifferences} tests`);
+      console.log(`${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences, ${s.ignoredAsNoise} ignored as noise, ${s.remaining} remaining (strong ${s.strong}, weak ${s.weak}) in ${s.testsWithDifferences} tests`);
     } catch (err) {
       console.error(`compare failed: ${errorSummary(err)}`);
       process.exitCode = 1;
