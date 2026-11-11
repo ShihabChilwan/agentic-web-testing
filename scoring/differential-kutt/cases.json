@@ -1,0 +1,120 @@
+{
+  "variants": "targets/kutt/variants.json",
+  "repeats": 3,
+  "control": {
+    "run": "runs/kutt-20261029-175214-diff",
+    "execId": "x-05",
+    "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-05.json",
+    "comparisonSha256": "b518fe8212cd467316b3062e736f60c2f957ce2fd774f16c10709fa5b00e0699"
+  },
+  "cases": [
+    {
+      "suite": "K1",
+      "bug": "bug-001",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-06",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-06.json",
+      "testCaught": false,
+      "comparisonSha256": "acc5cef74c4c231fb94c91e78eed9e9e8cc1fcc4111f72b32123a652ba56e11f"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-002",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-07",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-07.json",
+      "testCaught": false,
+      "comparisonSha256": "c71d4e190e3e6e38c5d0a396e6e82aa075d6ced55d9a392a52e6e83a7a3314bc"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-003",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-08",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-08.json",
+      "testCaught": false,
+      "comparisonSha256": "325637d66a5cb99046fa061f39ab8459279cfef2232ef38edcc62ddbe3859d76"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-004",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-09",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-09.json",
+      "testCaught": false,
+      "comparisonSha256": "c98e03c1b10f0fe32f3f3c56400d41ddbe3ae9132c96de89997c9e37c67943ad"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-10",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-10.json",
+      "testCaught": true,
+      "comparisonSha256": "106a2351d79320f182bc1a6cfb49949d8187aaf77c909cff94bbef1c7d8c53e4"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-006",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-11",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-11.json",
+      "testCaught": false,
+      "comparisonSha256": "dc3b043a48a170a70eefbe0b3f3d409e05160ac9b9e7409e1138b78a03cdc9e8"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-12",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-12.json",
+      "testCaught": true,
+      "comparisonSha256": "b896816f19e020ccdcabe1bdc4cd65f9e4dd65f70b4c7eb1fed31080432dcba4"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-13",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-13.json",
+      "testCaught": true,
+      "comparisonSha256": "5b657bdc988625abfe11c309e3988b7928ca601cdebd42a3393d0f8ffea1e8fa"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-14",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-14.json",
+      "testCaught": true,
+      "comparisonSha256": "dff39d11c06ff14c1dfcb4cb2aaa410cedbfad103895fdb0621a0c86a2da5c28"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-010",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-15",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-15.json",
+      "testCaught": false,
+      "comparisonSha256": "d575d8ab0b3d03b52c4ee662343398e540a93235fc126f24097d7d30f42ef228"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-16",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-16.json",
+      "testCaught": true,
+      "comparisonSha256": "597cc7270a693c128fff7f243132a1030e496eae234381730106bda7d19fe5f5"
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-012",
+      "run": "runs/kutt-20261029-175214-diff",
+      "execId": "x-17",
+      "comparison": "runs/kutt-20261029-175214-diff/differential/compare-x-02-x-17.json",
+      "testCaught": false,
+      "comparisonSha256": "323717486108a8cbc89d3b855a6558712e2b01eec744ced32a5cee49a0a5d25f"
+    }
+  ]
+}
