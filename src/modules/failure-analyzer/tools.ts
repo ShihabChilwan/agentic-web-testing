@@ -5,6 +5,7 @@ import type { AgentTool } from '../../agent/types.js';
 import { trimDom } from '../script-generator/dry-run.js';
 import { RequirementId, ScriptTestId } from '../../shared/schemas.js';
 import type { ExecutionResults, Prd, TestCase, TestResult } from '../../shared/schemas.js';
+import { formatDifferences, type DifferenceLine } from './differences.js';
 import type { EnvironmentSummary } from './triage.js';
 
 export const MAX_ARTIFACT_CHARS = 20_000;
@@ -22,6 +23,8 @@ export interface AnalysisContext {
   environment: EnvironmentSummary;
   testCases: ReadonlyMap<string, TestCase>;
   prd: Prd;
+  /** Strong comparator differences of this execution against a reference run (SPEC §8.5); absent without them. */
+  differences?: readonly DifferenceLine[];
 }
 
 const ARTIFACT_KINDS = ['network', 'console', 'dom', 'lastResponse', 'serverLog'] as const;
@@ -46,8 +49,10 @@ function cut(text: string, max: number, fromEnd: boolean): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createAnalyzerTools(ctx: AnalysisContext): AgentTool<any>[] {
   const failing = new Map<string, TestResult>(ctx.results.results.filter((r) => r.status !== 'passed').map((r) => [r.testCaseId, r]));
+  // With comparator differences, the tests of a difference group passed: get_failure shows them too.
+  const executed = new Map<string, TestResult>(ctx.results.results.map((r) => [r.testCaseId, r]));
   const failure = (id: string) => {
-    const result = failing.get(id);
+    const result = failing.get(id) ?? (ctx.differences ? executed.get(id) : undefined);
     if (!result) throw new Error(`${id} is not a failing test of this execution; list_failures shows them`);
     return result;
   };
@@ -155,5 +160,17 @@ export function createAnalyzerTools(ctx: AnalysisContext): AgentTool<any>[] {
     },
   };
 
-  return [listFailures, getFailure, getRequirement, readArtifact, getEnvironment, readServerLog];
+  const differences = ctx.differences;
+  const getDifferences: AgentTool<{ testCaseId?: string }> = {
+    name: 'get_differences',
+    description: 'Differences between this run and a reference run of the same tests (recorded responses and page snapshots): test, endpoint, field, reference value, this run\'s value and reason. All of them, or those of one test.',
+    input: z.strictObject({ testCaseId: ScriptTestId.optional() }),
+    run: async ({ testCaseId }) => {
+      const lines = (differences ?? []).filter((l) => !testCaseId || l.testCaseId === testCaseId);
+      if (lines.length === 0) return testCaseId ? `No differences for ${testCaseId}.` : 'No differences.';
+      return cut(formatDifferences(lines, lines.length).join('\n'), MAX_ARTIFACT_CHARS, false);
+    },
+  };
+
+  return [listFailures, getFailure, getRequirement, readArtifact, getEnvironment, readServerLog, ...(differences ? [getDifferences] : [])];
 }

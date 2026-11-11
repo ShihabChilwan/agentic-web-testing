@@ -15,7 +15,8 @@ import { loadTargetConfig } from '../../shared/target-config.js';
 import { buildSourceTree } from '../execution-engine/source-tree.js';
 import { checkDiagnoses, SubmitDiagnoses, type DiagnosisDraft } from './checks.js';
 import { suggestsInstability } from '../script-generator/classify.js';
-import { buildGroupTask, buildNoToolsSystemPrompt, buildNoToolsTask, buildSystemPrompt } from './prompt.js';
+import { groupDifferences, readComparison, type DifferenceEvidence } from './differences.js';
+import { buildDifferenceTask, buildGroupTask, buildNoToolsSystemPrompt, buildNoToolsTask, buildSystemPrompt } from './prompt.js';
 import { createAnalyzerTools, type AnalysisContext } from './tools.js';
 import { triage, type FailureGroup } from './triage.js';
 
@@ -37,6 +38,13 @@ export interface AnalyzeOptions {
   llmConfig?: LLMConfig;
   createLlm?: (config: LLMConfig, callLogFile: string) => Promise<LLMClient>;
   log?: (message: string) => void;
+  /**
+   * A comparison of this execution with a reference run (SPEC §7.6, §8.5): its strong differences are
+   * added as evidence to failing tests, and passing tests that differ get sessions of their own.
+   */
+  differencesFile?: string;
+  /** The file name to write in the execution folder (default diagnoses.json, or diagnoses.differential.json with differences). Run.json's analyze status is only set for the default. */
+  outputName?: string;
 }
 
 export interface AnalyzeResult {
@@ -55,6 +63,7 @@ interface GroupOutcome {
 }
 
 interface SessionDeps {
+  differences?: DifferenceEvidence;
   llm: LLMClient;
   llmConfig: LLMConfig;
   transcriptsDir: string;
@@ -65,11 +74,16 @@ interface SessionDeps {
   unstable: ReadonlyMap<string, string>;
 }
 
-/** One agent session for one group (SPEC §8.1 steps 2–4); a failed session gives an inconclusive diagnosis. */
-async function diagnoseGroup(group: FailureGroup, deps: SessionDeps): Promise<GroupOutcome> {
+/** What a session diagnoses: a group of failing tests, or a group of passing tests that differ from a reference run. */
+type SessionGroup = { basis: 'failure'; group: FailureGroup } | { basis: 'difference'; group: DifferenceEvidence['groups'][number] };
+
+/** One agent session for one group (SPEC §8.1 steps 2–4, §8.5); a failed session gives an inconclusive diagnosis. */
+async function diagnoseGroup(session: SessionGroup, deps: SessionDeps): Promise<GroupOutcome> {
   const { ctx } = deps;
+  const { group } = session;
   const started = Date.now();
-  const otherFailures = deps.failures.size - group.testCaseIds.length;
+  const otherFailures = deps.failures.size - (session.basis === 'failure' ? group.testCaseIds.length : 0);
+  const basis = deps.differences ? { basis: session.basis } : {};
   const toDiagnosis = (d: DiagnosisDraft, toolCalls: number, durationMs: number): Omit<Diagnosis, 'id'> => ({
     testCaseIds: d.testCaseIds,
     classification: d.classification,
@@ -82,19 +96,31 @@ async function diagnoseGroup(group: FailureGroup, deps: SessionDeps): Promise<Gr
     suggestedFix: d.suggestedFix,
     toolCalls,
     durationMs,
+    ...basis,
   });
+  const task = deps.noTools
+    ? buildNoToolsTask({ group: group as FailureGroup, failures: deps.failures, testCases: ctx.testCases })
+    : session.basis === 'difference'
+      ? buildDifferenceTask({ group: session.group, testCases: ctx.testCases, environment: ctx.environment, failingTests: deps.failures.size })
+      : buildGroupTask({
+          group: session.group,
+          failures: deps.failures,
+          testCases: ctx.testCases,
+          environment: ctx.environment,
+          otherFailures,
+          unstable: deps.unstable,
+          ...(deps.differences ? { differences: deps.differences.byFailingTest } : {}),
+        });
   try {
     const result = await runAgent(
       {
         purpose: 'analyzer',
-        system: deps.noTools ? buildNoToolsSystemPrompt() : buildSystemPrompt(),
-        task: deps.noTools
-          ? buildNoToolsTask({ group, failures: deps.failures, testCases: ctx.testCases })
-          : buildGroupTask({ group, failures: deps.failures, testCases: ctx.testCases, environment: ctx.environment, otherFailures, unstable: deps.unstable }),
+        system: deps.noTools ? buildNoToolsSystemPrompt() : buildSystemPrompt({ differences: deps.differences !== undefined }),
+        task,
         tools: deps.noTools ? [] : [...createAnalyzerTools(ctx), ...createRepoTools(deps.scope)],
         submit: {
           name: 'submit_diagnoses',
-          description: 'Submit the diagnoses for your group of failing tests. Every test of the group in exactly one diagnosis.',
+          description: 'Submit the diagnoses for your group of tests. Every test of the group in exactly one diagnosis.',
           schema: SubmitDiagnoses,
           validate: (submit) => checkDiagnoses(submit, { groupTestIds: group.testCaseIds, scope: deps.scope, prd: ctx.prd }),
         },
@@ -125,6 +151,7 @@ async function diagnoseGroup(group: FailureGroup, deps: SessionDeps): Promise<Gr
           suggestedFix: null,
           toolCalls: err.details.toolCalls,
           durationMs,
+          ...basis,
         },
       ],
       turns: err.details.turns,
@@ -182,10 +209,14 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
     ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
     projectRoot,
   });
-  const file = noTools ? paths.diagnosesNoTools(execId) : paths.diagnoses(execId);
+  if (options.differencesFile && noTools) throw new Error('Comparator differences need the tools; they cannot be used with --no-tools');
+  if (options.outputName && !/^diagnoses[\w.-]*\.json$/.test(options.outputName)) throw new Error(`The output name must look like diagnoses<something>.json: ${options.outputName}`);
+  const defaultName = noTools ? 'diagnoses.no-tools.json' : options.differencesFile ? 'diagnoses.differential.json' : 'diagnoses.json';
+  const file = path.join(paths.executionDir(execId), options.outputName ?? defaultName);
   const startedAt = new Date();
   const setStatus = async (analyzeStatus: RunExecution['analyzeStatus'], error?: string) => {
-    if (noTools) return; // the ablation only writes its file
+    // The ablation, a differential analysis and a named output only write their file.
+    if (noTools || options.differencesFile || options.outputName) return;
     const { error: _old, ...rest } = entry;
     await setExecution(paths.dir, { ...rest, analyzeStatus, ...(error ? { error } : {}) });
   };
@@ -194,10 +225,18 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
   try {
     const tri = triage(results);
     const failures = new Map(tri.failures.map((r) => [r.testCaseId, r]));
-    log(`${execId}: ${tri.failures.length} failing tests in ${tri.groups.length} groups${noTools ? ' (no tools)' : ''}`);
+    const differences = options.differencesFile ? groupDifferences(await readComparison(options.differencesFile), new Set(failures.keys())) : undefined;
+    const sessions: SessionGroup[] = [
+      ...tri.groups.map((group) => ({ basis: 'failure' as const, group })),
+      ...(differences?.groups ?? []).map((group) => ({ basis: 'difference' as const, group })),
+    ];
+    log(
+      `${execId}: ${tri.failures.length} failing tests in ${tri.groups.length} groups${noTools ? ' (no tools)' : ''}` +
+        (differences ? `; ${differences.all.length} strong differences (${differences.weak} weak not analysed), ${differences.groups.length} difference groups${differences.leftOut > 0 ? `, ${differences.leftOut} left out by the cap` : ''}` : ''),
+    );
 
     let outcomes: GroupOutcome[] = [];
-    if (tri.groups.length > 0) {
+    if (sessions.length > 0) {
       // The executed version's code, rebuilt from its commit and patch; removed afterwards.
       const tree = await buildSourceTree({
         repoDir,
@@ -216,10 +255,21 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
           environment: tri.environment,
           testCases: new Map(testCases.map((tc) => [tc.id, tc])),
           prd,
+          ...(differences ? { differences: differences.all } : {}),
         };
         const unstable = await unstableTests(paths.scriptsManifest);
-        const deps: SessionDeps = { llm, llmConfig, transcriptsDir: paths.transcriptsDir, ctx, scope: { root: tree.dir, forbiddenPaths: config.forbiddenPaths }, failures, noTools, unstable };
-        outcomes = await Promise.all(tri.groups.map((group) => diagnoseGroup(group, deps)));
+        const deps: SessionDeps = {
+          llm,
+          llmConfig,
+          transcriptsDir: paths.transcriptsDir,
+          ctx,
+          scope: { root: tree.dir, forbiddenPaths: config.forbiddenPaths },
+          failures,
+          noTools,
+          unstable,
+          ...(differences ? { differences } : {}),
+        };
+        outcomes = await Promise.all(sessions.map((session) => diagnoseGroup(session, deps)));
       } finally {
         await tree.remove();
       }
@@ -236,6 +286,8 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
       toolCalls: outcomes.reduce((n, o) => n + o.toolCalls, 0),
       costUsd: costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null,
       durationMs: Date.now() - startedAt.getTime(),
+      differenceGroups: differences?.groups.length ?? 0,
+      differenceGroupsLeftOut: differences?.leftOut ?? 0,
     };
     const output = Diagnoses.parse({
       schemaVersion: SCHEMA_VERSION,
@@ -244,6 +296,7 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
       generatedAt: new Date().toISOString(),
       diagnoses,
       summary,
+      withDifferences: differences !== undefined,
     });
     await writeFile(file, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
     await setStatus('done');
@@ -261,11 +314,11 @@ export function describeAnalysis(result: AnalyzeResult): string[] {
   const by = new Map<string, number>();
   for (const d of diagnoses) by.set(d.classification, (by.get(d.classification) ?? 0) + 1);
   const lines = [
-    `${diagnoses.length} diagnoses${by.size > 0 ? ` (${[...by].map(([k, n]) => `${k} ${n}`).join(', ')})` : ''} for ${diagnoses.reduce((n, d) => n + d.testCaseIds.length, 0)} failing tests`,
+    `${diagnoses.length} diagnoses${by.size > 0 ? ` (${[...by].map(([k, n]) => `${k} ${n}`).join(', ')})` : ''} for ${diagnoses.reduce((n, d) => n + d.testCaseIds.length, 0)} tests`,
   ];
   if (summary) {
     const cost = summary.costUsd === null ? 'unknown' : `$${summary.costUsd.toFixed(4)}`;
-    lines.push(`${summary.groups} groups, ${summary.calls} model calls, ${summary.toolCalls} tool calls, cost ${cost}, ${Math.round(summary.durationMs / 1000)} s`);
+    lines.push(`${summary.groups} failure groups${summary.differenceGroups > 0 ? ` + ${summary.differenceGroups} difference groups` : ''}, ${summary.calls} model calls, ${summary.toolCalls} tool calls, cost ${cost}, ${Math.round(summary.durationMs / 1000)} s`);
     if (summary.failedSessions > 0) lines.push(`Warning: ${summary.failedSessions} sessions ended without an accepted diagnosis (marked inconclusive)`);
   }
   for (const d of diagnoses) {

@@ -1054,6 +1054,8 @@ export const Diagnosis = z
       .nullish(),
     toolCalls: z.number().int().nonnegative(),
     durationMs: DurationMs,
+    /** `failure`: a group of failing tests (with any comparator differences of those tests as evidence); `difference`: tests that passed but whose recorded responses or pages differ from a reference run (SPEC §8.5). Absent in older files. */
+    basis: z.enum(['failure', 'difference']).optional(),
   })
   .refine((d) => d.classification !== 'app_defect' || d.location != null, {
     message: 'location is required for app_defect',
@@ -1071,6 +1073,10 @@ export const DiagnosesSummary = z.object({
   /** Sum of this analysis' lines in llm-calls.jsonl; null when none had a cost. */
   costUsd: z.number().nonnegative().nullable(),
   durationMs: DurationMs,
+  /** Groups of tests that passed but differ from a reference run (SPEC §8.5); 0 without comparator differences. */
+  differenceGroups: z.number().int().nonnegative().default(0),
+  /** Difference groups left out by the per-execution cap (their differences stay readable through get_differences). */
+  differenceGroupsLeftOut: z.number().int().nonnegative().default(0),
 });
 
 export const Diagnoses = z.object({
@@ -1081,6 +1087,8 @@ export const Diagnoses = z.object({
   diagnoses: z.array(Diagnosis),
   /** Absent in files written before it existed. */
   summary: DiagnosesSummary.optional(),
+  /** True when the analysis also got comparator differences against a reference run (SPEC §8.5). */
+  withDifferences: z.boolean().default(false),
 });
 
 export type Classification = z.infer<typeof Classification>;

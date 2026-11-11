@@ -281,12 +281,16 @@ agent
   .option('--run <runId>', 'run to use (default: the newest run with a scripts/manifest.json)')
   .option('--exec <id>', 'execution to analyse (default: the run\'s last finished execution)')
   .option('--no-tools', 'ablation: only the failing tests\' titles and errors, no tools (writes diagnoses.no-tools.json)')
-  .action(async (opts: { run?: string; exec?: string; tools: boolean }) => {
+  .option('--differences <file>', 'a comparison file (agent compare): its strong differences become evidence, and passing tests that differ are diagnosed too (writes diagnoses.differential.json)')
+  .option('--output <name>', 'file name to write in the execution folder instead of the default (e.g. diagnoses.r2.json)')
+  .action(async (opts: { run?: string; exec?: string; tools: boolean; differences?: string; output?: string }) => {
     try {
       const result = await analyzeExecution({
         ...(opts.run ? { runId: opts.run } : {}),
         ...(opts.exec ? { execId: opts.exec } : {}),
         noTools: !opts.tools,
+        ...(opts.differences ? { differencesFile: path.resolve(opts.differences) } : {}),
+        ...(opts.output ? { outputName: opts.output } : {}),
         log: (m) => console.log(m),
       });
       console.log(`diagnoses: ${result.file}`);
