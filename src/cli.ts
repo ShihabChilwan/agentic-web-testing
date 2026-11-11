@@ -283,9 +283,13 @@ agent
   .option('--no-tools', 'ablation: only the failing tests\' titles and errors, no tools (writes diagnoses.no-tools.json)')
   .option('--differences <file>', 'a comparison file (agent compare): its strong differences become evidence, and passing tests that differ are diagnosed too (writes diagnoses.differential.json)')
   .option('--output <name>', 'file name to write in the execution folder instead of the default (e.g. diagnoses.r2.json)')
-  .action(async (opts: { run?: string; exec?: string; tools: boolean; differences?: string; output?: string }) => {
+  .option('--cost-cap <usd>', 'stop before any model call once the spend reaches 80% of this many US dollars', parseFloat)
+  .option('--cost-ledger <dir>', 'with --cost-cap: a folder shared by parallel analyses, so the cap counts all of them')
+  .action(async (opts: { run?: string; exec?: string; tools: boolean; differences?: string; output?: string; costCap?: number; costLedger?: string }) => {
     try {
+      if (opts.costLedger && opts.costCap === undefined) throw new Error('--cost-ledger needs --cost-cap');
       const result = await analyzeExecution({
+        ...(opts.costCap !== undefined ? { costCap: { capUsd: opts.costCap, ...(opts.costLedger ? { ledgerDir: path.resolve(opts.costLedger) } : {}) } } : {}),
         ...(opts.run ? { runId: opts.run } : {}),
         ...(opts.exec ? { execId: opts.exec } : {}),
         noTools: !opts.tools,

@@ -1,0 +1,277 @@
+{
+  "schemaVersion": "1.0",
+  "target": "kutt",
+  "goldenRef": "golden",
+  "goldenCommit": "6ca803373a3c95f1a92674e9066175aff96cb772",
+  "method": "stryker",
+  "seed": 20261111,
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/handlers/{auth,domains,helpers,links,renders,users,validators}.handler.js",
+        "server/queries/*.js",
+        "server/utils/utils.js",
+        "server/passport.js"
+      ],
+      "frontend": []
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "BooleanLiteral",
+      "ArithmeticOperator",
+      "UnaryOperator",
+      "OptionalChaining",
+      "MethodExpression"
+    ],
+    "mutants": 3577,
+    "candidates": 1524,
+    "mutationJsonSha256": "1789872d8530c8c41f597589579d9aca709f41e2126f849d46f994df4ad572d2"
+  },
+  "overlapLines": 5,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "patch": "variants/bug-001.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "965",
+      "file": "server/handlers/links.handler.js",
+      "lines": [
+        330,
+        330
+      ],
+      "original": "      ...(description && { description }),",
+      "mutated": "      ...(false),",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-002",
+      "kind": "code",
+      "patch": "variants/bug-002.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1986",
+      "file": "server/handlers/validators.handler.js",
+      "lines": [
+        213,
+        213
+      ],
+      "original": "    .custom(value => utils.urlRegex.test(value) || /^(?!https?|ftp)(\\w+:|\\/\\/)/.test(value))",
+      "mutated": "    .custom(value => true)",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-003",
+      "kind": "code",
+      "patch": "variants/bug-003.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "2958",
+      "file": "server/queries/user.queries.js",
+      "lines": [
+        25,
+        25
+      ],
+      "original": "    if (match.id) {",
+      "mutated": "    if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-004",
+      "kind": "code",
+      "patch": "variants/bug-004.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "344",
+      "file": "server/handlers/domains.handler.js",
+      "lines": [
+        37,
+        37
+      ],
+      "original": "    ...(banned && { banned_by_id: req.user.id })",
+      "mutated": "    ...(true)",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-005",
+      "kind": "code",
+      "patch": "variants/bug-005.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "11",
+      "file": "server/handlers/auth.handler.js",
+      "lines": [
+        23,
+        23
+      ],
+      "original": "        type === \"oidc\"",
+      "mutated": "        true",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-006",
+      "kind": "code",
+      "patch": "variants/bug-006.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "2360",
+      "file": "server/passport.js",
+      "lines": [
+        81,
+        81
+      ],
+      "original": "      if (!env[key]) {",
+      "mutated": "      if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-007",
+      "kind": "code",
+      "patch": "variants/bug-007.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "33",
+      "file": "server/handlers/auth.handler.js",
+      "lines": [
+        34,
+        34
+      ],
+      "original": "        (user && isStrict && !user.verified) ||",
+      "mutated": "        (user || isStrict && !user.verified) ||",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-008",
+      "kind": "code",
+      "patch": "variants/bug-008.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "567",
+      "file": "server/handlers/helpers.handler.js",
+      "lines": [
+        78,
+        78
+      ],
+      "original": "  const limit = parseInt(req.query.limit) || 10;",
+      "mutated": "  const limit = parseInt(req.query.limit) && 10;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-009",
+      "kind": "code",
+      "patch": "variants/bug-009.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "2871",
+      "file": "server/queries/link.queries.js",
+      "lines": [
+        217,
+        217
+      ],
+      "original": "      expire_in: params.expire_in || null,",
+      "mutated": "      expire_in: params.expire_in && null,",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-010",
+      "kind": "code",
+      "patch": "variants/bug-010.patch",
+      "layer": "backend",
+      "mutator": "MethodExpression",
+      "strykerMutantId": "1848",
+      "file": "server/handlers/validators.handler.js",
+      "lines": [
+        117,
+        120
+      ],
+      "original": "  body(\"address\")\n    .optional({ checkFalsy: true, nullable: true })\n    .isString()\n    .trim()",
+      "mutated": "  body(\"address\").optional({\n  checkFalsy: true,\n  nullable: true\n}).isString()",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-011",
+      "kind": "code",
+      "patch": "variants/bug-011.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1010",
+      "file": "server/handlers/links.handler.js",
+      "lines": [
+        360,
+        360
+      ],
+      "original": "  if (req.isHTML) {",
+      "mutated": "  if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-012",
+      "kind": "code",
+      "patch": "variants/bug-012.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1590",
+      "file": "server/handlers/users.handler.js",
+      "lines": [
+        52,
+        52
+      ],
+      "original": "  if (req.isHTML) {",
+      "mutated": "  if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    }
+  ],
+  "discards": []
+}

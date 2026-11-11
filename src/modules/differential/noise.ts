@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readPagesFile, readResponsesFile } from '../execution-engine/responses.js';
-import { pageRecords } from './pages.js';
+import { pageLineShare, pageRecords, PAGE_METHODS, SAME_PAGE_MIN_SHARE } from './pages.js';
 import { NoiseFields, ResponseComparison, SCHEMA_VERSION } from '../../shared/schemas.js';
-import type { RecordedResponse, ValueShape } from '../../shared/schemas.js';
-import { canonical, comparable, coveredBy, diffPair, endpointOf, matchResponses, isWholeField, normaliseBodies, sharedIdCount, type MatchedPair } from './diff.js';
-import { describeShape, fitsShape, mergeShapes, observeShape } from './shapes.js';
+import type { RecordedResponse, ValueShape, VariableSegment } from '../../shared/schemas.js';
+import { applyVariableSegments, canonical, comparable, coveredBy, diffPair, endpointOf, learnVariableSegments, matchResponses, isWholeField, normaliseBodies, sharedIdCount, type MatchedPair } from './diff.js';
+import { describeShape, fitsShape, mergeShapes, observeShape, relativeTimeOnly } from './shapes.js';
 
 const MAX_EXAMPLE_CHARS = 2000;
 
@@ -50,9 +50,14 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
   let differences = 0;
   let matched = 0;
   let unmatched = 0;
+  // First pass: path parts that vary between the runs, so those calls match in the second pass.
+  const variableSegments: VariableSegment[] = [];
+  for (let i = 0; i < runs.length; i++) {
+    for (let j = i + 1; j < runs.length; j++) learnVariableSegments(matchResponses(runs[i]!, runs[j]!), variableSegments);
+  }
   for (let i = 0; i < runs.length; i++) {
     for (let j = i + 1; j < runs.length; j++) {
-      const pairs = matchResponses(runs[i]!, runs[j]!);
+      const pairs = matchResponses(runs[i]!, runs[j]!, variableSegments);
       matched += pairs.filter((p) => p.a && p.b).length;
       unmatched += pairs.filter((p) => !p.a || !p.b).length;
       for (const pair of pairs) {
@@ -70,6 +75,8 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
         const byField = fields.get(pair.endpoint) ?? new Map<string, NoiseEntry>();
         fields.set(pair.endpoint, byField);
         for (const d of diffs) {
+          // Relative times are a known shape (relativeTimeOnly): never a noise field of their own.
+          if (relativeTimeOnly(d.a, d.b)) continue;
           const entry: NoiseEntry = byField.get(d.field) ?? { tests: new Set<string>(), count: 0, example: { a: short(d.a), b: short(d.b) } };
           entry.tests.add(pair.testCaseId);
           entry.count += 1;
@@ -84,11 +91,12 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
   }
   // List item noise fields: did any list in any correct run hold a value twice?
   const normalised = runs.map((r) => normaliseBodies(comparable(r)));
+  const applyRules = (r: RecordedResponse) => applyVariableSegments(endpointOf(r.method, r.path), r.testCaseId, variableSegments);
   const uniqueOf = (endpoint: string, field: string): boolean | undefined => {
     let lists = 0;
     for (const run of normalised) {
       for (const r of run) {
-        if (r.bodyKind !== 'json' || endpointOf(r.method, r.path) !== endpoint) continue;
+        if (r.bodyKind !== 'json' || applyRules(r) !== endpoint) continue;
         for (const values of listInstances(r.body, field)) {
           if (values.length < 2) continue;
           lists += 1;
@@ -129,6 +137,7 @@ export function findNoise(runs: ReadonlyArray<readonly RecordedResponse[]>, meta
       unstableOrderLists: endpoints.reduce((n, e) => n + e.unstableOrder.length, 0),
     },
     endpoints,
+    variableSegments,
   });
 }
 
@@ -136,7 +145,7 @@ const isAlias = (v: unknown): boolean => (typeof v === 'string' && v.startsWith(
 /** Folded into a setup finding when at least this many strong differences only change id aliases and they are most of them. */
 export const SETUP_FOLD_MIN = 50;
 
-type Kept = { field: string; path: string; base: unknown; other: unknown; strength: 'strong' | 'weak'; reason: 'value' | 'shape' | 'duplicate' | 'request' };
+type Kept = { field: string; path: string; base: unknown; other: unknown; strength: 'strong' | 'weak'; reason: 'value' | 'shape' | 'duplicate' | 'request' | 'other-page' };
 
 /**
  * The differences between two executions that the noise file does not explain (SPEC §7.6), grouped by
@@ -163,7 +172,7 @@ export function compareResponses(
       },
     ]),
   );
-  const pairs = matchResponses(a, b);
+  const pairs = matchResponses(a, b, noise?.variableSegments ?? []);
   let differences = 0;
   let ignored = 0;
   const kept: Array<{ pair: MatchedPair; diffs: Kept[] }> = [];
@@ -174,20 +183,26 @@ export function compareResponses(
     // Weak: a browser call, or a page line, seen in one run only (browser timing can cause either: a test
     // that ends right after a click may or may not see the next answer). Everything else is strong.
     const present = pair.a ?? pair.b;
+    // Two snapshots at the same step that share few lines show different pages: a fast chain of redirects
+    // moved on before one of them was taken. Their differences are weak, like a page line in one run only.
+    const otherPage =
+      pair.a?.source === 'page' && pair.b?.source === 'page' && PAGE_METHODS.has(pair.a.method) &&
+      typeof pair.a.body === 'string' && typeof pair.b.body === 'string' && pageLineShare(pair.a.body, pair.b.body) < SAME_PAGE_MIN_SHARE;
     const strengthOf = (field: string): 'strong' | 'weak' =>
-      (field === '(response)' && present?.source === 'page') || field.endsWith('(line)') ? 'weak' : 'strong';
+      otherPage || (field === '(response)' && present?.source === 'page') || field.endsWith('(line)') ? 'weak' : 'strong';
     const out: Kept[] = [];
     for (const d of diffs) {
       const entry = known?.entries.get(d.field);
       let noisy = false;
-      let reason: Kept['reason'] = d.field === '(request)' ? 'request' : 'value';
-      if (known && isWholeField(d.field)) noisy = known.wholeFor.get(d.field)?.has(pair.testCaseId) === true;
+      let reason: Kept['reason'] = d.field === '(request)' ? 'request' : otherPage ? 'other-page' : 'value';
+      if (relativeTimeOnly(d.a, d.b)) noisy = true;
+      else if (known && isWholeField(d.field)) noisy = known.wholeFor.get(d.field)?.has(pair.testCaseId) === true;
       else if (known) {
         noisy = coveredBy(d.field, known.fields) || known.wholeFor.get('(body)')?.has(pair.testCaseId) === true;
         // An exact noise field whose value leaves the shape the correct runs showed is a real difference.
         if (noisy && entry?.shape && !fitsShape(d.a, d.b, entry.shape)) {
           noisy = false;
-          reason = 'shape';
+          if (!otherPage) reason = 'shape';
         }
       }
       if (noisy) ignored += 1;
@@ -268,7 +283,7 @@ export function comparisonMarkdown(c: ResponseComparison): string {
     '',
     `Matched responses ${s.matched}, unmatched ${s.unmatched}; differences ${s.differences}, ignored as noise ${s.ignoredAsNoise}, **remaining ${s.remaining}: strong ${s.strong}, weak ${s.weak}** in ${s.testsWithDifferences} tests.`,
     '',
-    'Strong: a changed value, status code, list, request or page line, a noise field outside its learned shape, a new duplicate, or an api response present in one run only. Weak: a browser call or a page line present in one run only (browser timing can cause either).',
+    'Strong: a changed value, status code, list, request, page line or HTML element, a noise field outside its learned shape, a new duplicate, or an api response present in one run only. Weak: a browser call or a page line present in one run only, or two snapshots of one step that show different pages (browser timing can cause each).',
   ];
   if (c.findings.length > 0) {
     lines.push('', '## Findings');
@@ -308,6 +323,10 @@ export function noiseMarkdown(n: NoiseFields): string {
     }
     for (const u of e.unstableOrder) lines.push('', `Unstable order: \`${u.array}\`, matched by \`${u.key}\` (${u.tests.join(', ')})`);
   }
+  if (n.variableSegments.length > 0) {
+    lines.push('', '## Path parts that vary', '', '| Endpoint | Part | Shape | Tests |', '|---|---|---|---|');
+    for (const v of n.variableSegments) lines.push(`| \`${v.endpoint}\` | ${v.position} | ${describeShape(v.shape)} | ${v.tests.join(', ')} |`);
+  }
   return `${lines.join('\n')}\n`;
 }
 
@@ -340,6 +359,7 @@ export async function writeNoiseFile(runDir: string, executions: string[], pageE
       pageExecutions,
       summary: { ...noise.summary, noiseFields: noise.summary.noiseFields + pageNoise.summary.noiseFields, pageNoiseFields: pageNoise.summary.noiseFields },
       endpoints: [...noise.endpoints, ...pageNoise.endpoints].sort((x, y) => x.endpoint.localeCompare(y.endpoint)),
+      variableSegments: [...noise.variableSegments, ...pageNoise.variableSegments].sort((x, y) => x.endpoint.localeCompare(y.endpoint) || x.position - y.position),
     });
   }
   const file = path.join(runDir, 'noise-fields.json');

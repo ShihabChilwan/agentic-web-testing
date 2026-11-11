@@ -1,0 +1,1136 @@
+{
+  "totals": {
+    "Comparator-only cases (7), with differences | Class right": [
+      0,
+      0,
+      0
+    ],
+    "Comparator-only cases (7), with differences | File right": [
+      0,
+      0,
+      0
+    ],
+    "Comparator-only cases (7), with differences | Lines right (±5)": [
+      0,
+      0,
+      0
+    ],
+    "Test-caught cases (5), with differences | Class right": [
+      0.8,
+      0,
+      0
+    ],
+    "Test-caught cases (5), with differences | File right": [
+      0.8,
+      0,
+      0
+    ],
+    "Test-caught cases (5), with differences | Lines right (±5)": [
+      0.8,
+      0,
+      0
+    ],
+    "Test-caught cases (5), without differences | Class right": [
+      0,
+      0,
+      0
+    ],
+    "Test-caught cases (5), without differences | File right": [
+      0,
+      0,
+      0
+    ],
+    "Test-caught cases (5), without differences | Lines right (±5)": [
+      0,
+      0,
+      0
+    ],
+    "All 12 cases, with differences | Class right": [
+      0.3333333333333333,
+      0,
+      0
+    ],
+    "All 12 cases, with differences | File right": [
+      0.3333333333333333,
+      0,
+      0
+    ],
+    "All 12 cases, with differences | Lines right (±5)": [
+      0.3333333333333333,
+      0,
+      0
+    ]
+  },
+  "rows": [
+    {
+      "suite": "K1",
+      "bug": "bug-001",
+      "execId": "x-06",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-001",
+      "execId": "x-06",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-001",
+      "execId": "x-06",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-002",
+      "execId": "x-07",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-002",
+      "execId": "x-07",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-002",
+      "execId": "x-07",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-003",
+      "execId": "x-08",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-003",
+      "execId": "x-08",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-003",
+      "execId": "x-08",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-004",
+      "execId": "x-09",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-004",
+      "execId": "x-09",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-004",
+      "execId": "x-09",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "without",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "without",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "mode": "without",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-006",
+      "execId": "x-11",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-006",
+      "execId": "x-11",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-006",
+      "execId": "x-11",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-010",
+        "testCaseIds": [
+          "TC-092"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "Every authenticated HTML page request is redirected to /logout because the jwtPage auth condition mishandles operator precedence, so the logged-in admin never sees the / link with the Admin nav link.",
+        "rootCause": "In server/handlers/auth.handler.js authenticate() the redirect condition is `((!user && isStrict) || (user || isStrict && !user.verified) || (user && user.banned))`. Due to precedence, the second clause `(user || isStrict && !user.verified)` is simply `(user || (isStrict && !user.verified))`; when a valid JWT resolves a user (even a verified, non-banned admin), `user` is truthy and the condition is true, so for req.isHTML with redirect === 'page' (jwtPage) the handler immediately does res.redirect('/logout'), destroying the session. The intended logic is to redirect only when the user is not verified, i.e. the clause should be `(isStrict && !user.verified)` or `(user && !user.verified)`. Hence after login, GET / (and every page) returns 302 to /logout, the page shows 'Logged out. Redirecting to homepage...' and navigation renders 'Log in / Sign up' instead of 'Settings', so a[href=/admin] never exists.",
+        "location": {
+          "file": "server/handlers/auth.handler.js",
+          "lines": [
+            30,
+            46
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "TC-092 trace: POST /api/auth/login → 200 (login OK), then GET / → 302, followed by GET /logout → 200 and GET / → 200; the browser ends on the logged-out homepage."
+          },
+          {
+            "source": "dom",
+            "detail": "Page heading after login is 'Logged out. Redirecting to homepage...' and the nav contains 'Log in / Sign up' instead of 'Settings'; no a[href=/admin] in the navigation (E1 element not found)."
+          },
+          {
+            "source": "code",
+            "detail": "server/handlers/auth.handler.js:30-46: redirect condition contains `(user || isStrict && !user.verified)`, which is always true when a user exists; jwtPage (line 86) passes isStrict=true, redirect='page', triggering res.redirect('/logout') at line 38."
+          },
+          {
+            "source": "test",
+            "detail": "Differences from reference: GET / status 200 → 302 and nav link 'Settings'/settings → 'Log in / Sign up'//login, consistent with a forced logout redirect rather than missing seed data (seedCheck ok, no incidents)."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-058"
+        ],
+        "suggestedFix": {
+          "description": "Fix the redirect predicate so verified, non-banned users are not redirected: change the second clause from `(user || isStrict && !user.verified)` to `(isStrict && !user.verified)` (or equivalently `(user && !user.verified)`), keeping the banned check separate.",
+          "patch": "--- server/handlers/auth.handler.js\n+++ server/handlers/auth.handler.js\n@@\n       if (\n         req.isHTML &&\n         redirect &&\n         ((!user && isStrict) ||\n-        (user || isStrict && !user.verified) ||\n+        (isStrict && !user.verified) ||\n         (user && user.banned))\n       ) {"
+        },
+        "toolCalls": 7,
+        "durationMs": 225434,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-010",
+        "testCaseIds": [
+          "TC-092"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "Every authenticated HTML page request is redirected to /logout because the jwtPage auth condition mishandles operator precedence, so the logged-in admin never sees the / link with the Admin nav link.",
+        "rootCause": "In server/handlers/auth.handler.js authenticate() the redirect condition is `((!user && isStrict) || (user || isStrict && !user.verified) || (user && user.banned))`. Due to precedence, the second clause `(user || isStrict && !user.verified)` is simply `(user || (isStrict && !user.verified))`; when a valid JWT resolves a user (even a verified, non-banned admin), `user` is truthy and the condition is true, so for req.isHTML with redirect === 'page' (jwtPage) the handler immediately does res.redirect('/logout'), destroying the session. The intended logic is to redirect only when the user is not verified, i.e. the clause should be `(isStrict && !user.verified)` or `(user && !user.verified)`. Hence after login, GET / (and every page) returns 302 to /logout, the page shows 'Logged out. Redirecting to homepage...' and navigation renders 'Log in / Sign up' instead of 'Settings', so a[href=/admin] never exists.",
+        "location": {
+          "file": "server/handlers/auth.handler.js",
+          "lines": [
+            30,
+            46
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "TC-092 trace: POST /api/auth/login → 200 (login OK), then GET / → 302, followed by GET /logout → 200 and GET / → 200; the browser ends on the logged-out homepage."
+          },
+          {
+            "source": "dom",
+            "detail": "Page heading after login is 'Logged out. Redirecting to homepage...' and the nav contains 'Log in / Sign up' instead of 'Settings'; no a[href=/admin] in the navigation (E1 element not found)."
+          },
+          {
+            "source": "code",
+            "detail": "server/handlers/auth.handler.js:30-46: redirect condition contains `(user || isStrict && !user.verified)`, which is always true when a user exists; jwtPage (line 86) passes isStrict=true, redirect='page', triggering res.redirect('/logout') at line 38."
+          },
+          {
+            "source": "test",
+            "detail": "Differences from reference: GET / status 200 → 302 and nav link 'Settings'/settings → 'Log in / Sign up'//login, consistent with a forced logout redirect rather than missing seed data (seedCheck ok, no incidents)."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-058"
+        ],
+        "suggestedFix": {
+          "description": "Fix the redirect predicate so verified, non-banned users are not redirected: change the second clause from `(user || isStrict && !user.verified)` to `(isStrict && !user.verified)` (or equivalently `(user && !user.verified)`), keeping the banned check separate.",
+          "patch": "--- server/handlers/auth.handler.js\n+++ server/handlers/auth.handler.js\n@@\n       if (\n         req.isHTML &&\n         redirect &&\n         ((!user && isStrict) ||\n-        (user || isStrict && !user.verified) ||\n+        (isStrict && !user.verified) ||\n         (user && user.banned))\n       ) {"
+        },
+        "toolCalls": 7,
+        "durationMs": 225434,
+        "basis": "failure"
+      },
+      "costUsd": 0.8611842909999994,
+      "durationMs": 830867,
+      "sessions": 30
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "without",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "without",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-007",
+      "execId": "x-12",
+      "mode": "without",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-004",
+        "testCaseIds": [
+          "TC-026",
+          "TC-028",
+          "TC-030",
+          "TC-031",
+          "TC-035"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "A wrong operator in parseQuery makes the default list limit NaN, so GET /api/v2/links returns limit: null instead of 10.",
+        "rootCause": "The parseQuery helper computes `const limit = parseInt(req.query.limit) && 10;` (server/handlers/helpers.handler.js:78). When no `limit` query parameter is sent, `parseInt(undefined)` returns NaN, and due to short-circuit evaluation `NaN && 10` evaluates to NaN. req.context.limit is therefore NaN; JSON.stringify of NaN yields null, so `GET /api/v2/links` reports `limit: null` instead of 10. The same helper builds req.context for all paginated list handlers (links.handler.js:20, users.handler.js:65, domains.handler.js:116), which is why 16+ tests sharing these endpoints all show the same difference. The SQL query itself then passes NaN to .limit(params.limit) (link.queries.js:126), relying on the query builder to fall back.",
+        "location": {
+          "file": "server/handlers/helpers.handler.js",
+          "lines": [
+            78,
+            78
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/handlers/helpers.handler.js:78 `const limit = parseInt(req.query.limit) && 10;` — parseInt(undefined) is NaN, and NaN && 10 evaluates to NaN; the intended default requires `||`."
+          },
+          {
+            "source": "network",
+            "detail": "This run: GET /api/v2/links response for TC-026/028/030/031/035 has limit=null; the reference run has limit=10 in every case (requests for those tests carry no ?limit param)."
+          },
+          {
+            "source": "code",
+            "detail": "All list handlers read the value set here: links.handler.js:20 `const { limit, skip } = req.context;`, echoed into the response at links.handler.js:36; the single faulty line in parseQuery explains all affected endpoints and tests."
+          }
+        ],
+        "violatedRequirementIds": [],
+        "suggestedFix": {
+          "description": "Replace && with || so the default of 10 applies when the query parameter is absent or unparsable.",
+          "patch": "--- a/server/handlers/helpers.handler.js\n+++ b/server/handlers/helpers.handler.js\n@@ -78 +78 @@\n-  const limit = parseInt(req.query.limit) && 10;\n+  const limit = parseInt(req.query.limit) || 10;\n"
+        },
+        "toolCalls": 3,
+        "durationMs": 95381,
+        "basis": "difference"
+      },
+      "located": {
+        "id": "DX-004",
+        "testCaseIds": [
+          "TC-026",
+          "TC-028",
+          "TC-030",
+          "TC-031",
+          "TC-035"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "A wrong operator in parseQuery makes the default list limit NaN, so GET /api/v2/links returns limit: null instead of 10.",
+        "rootCause": "The parseQuery helper computes `const limit = parseInt(req.query.limit) && 10;` (server/handlers/helpers.handler.js:78). When no `limit` query parameter is sent, `parseInt(undefined)` returns NaN, and due to short-circuit evaluation `NaN && 10` evaluates to NaN. req.context.limit is therefore NaN; JSON.stringify of NaN yields null, so `GET /api/v2/links` reports `limit: null` instead of 10. The same helper builds req.context for all paginated list handlers (links.handler.js:20, users.handler.js:65, domains.handler.js:116), which is why 16+ tests sharing these endpoints all show the same difference. The SQL query itself then passes NaN to .limit(params.limit) (link.queries.js:126), relying on the query builder to fall back.",
+        "location": {
+          "file": "server/handlers/helpers.handler.js",
+          "lines": [
+            78,
+            78
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/handlers/helpers.handler.js:78 `const limit = parseInt(req.query.limit) && 10;` — parseInt(undefined) is NaN, and NaN && 10 evaluates to NaN; the intended default requires `||`."
+          },
+          {
+            "source": "network",
+            "detail": "This run: GET /api/v2/links response for TC-026/028/030/031/035 has limit=null; the reference run has limit=10 in every case (requests for those tests carry no ?limit param)."
+          },
+          {
+            "source": "code",
+            "detail": "All list handlers read the value set here: links.handler.js:20 `const { limit, skip } = req.context;`, echoed into the response at links.handler.js:36; the single faulty line in parseQuery explains all affected endpoints and tests."
+          }
+        ],
+        "violatedRequirementIds": [],
+        "suggestedFix": {
+          "description": "Replace && with || so the default of 10 applies when the query parameter is absent or unparsable.",
+          "patch": "--- a/server/handlers/helpers.handler.js\n+++ b/server/handlers/helpers.handler.js\n@@ -78 +78 @@\n-  const limit = parseInt(req.query.limit) && 10;\n+  const limit = parseInt(req.query.limit) || 10;\n"
+        },
+        "toolCalls": 3,
+        "durationMs": 95381,
+        "basis": "difference"
+      },
+      "costUsd": 0.22354528999999992,
+      "durationMs": 254913,
+      "sessions": 9
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "without",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "without",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-008",
+      "execId": "x-13",
+      "mode": "without",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-034"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "The created link's expire_in is null even for a valid '1m' value because the link creation query never stores the sanitized expire_in value.",
+        "rootCause": "The validator correctly sanitizes '1m' into a UTC timestamp (server/handlers/validators.handler.js:64-79, customSanitizer value => utils.dateToUTC(addMilliseconds(new Date(), value))), and links.handler passes expire_in through. But server/queries/link.queries.js:217 inserts `expire_in: params.expire_in && null`, which evaluates to null whenever a value is provided, so the column is always written as null. Hence POST returns 201 with expire_in: null (confirmed in the lastResponse artifact) and E2 fails; the later admin GET returned no useful result in the difference record because the test aborted first at E2.",
+        "location": {
+          "file": "server/queries/link.queries.js",
+          "lines": [
+            217,
+            217
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/v2/links returned 201 with body containing expire_in: null for expire_in '1m'."
+          },
+          {
+            "source": "code",
+            "detail": "link.queries.js:217 `expire_in: params.expire_in && null` — any truthy value becomes null; the sanitized timestamp from validators.handler.js:79 is discarded."
+          },
+          {
+            "source": "code",
+            "detail": "validators.handler.js:64-79 accepts and sanitizes '1m' to a UTC datetime, so validation is fine; the loss happens in the insert."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-021 requires expire_in like '1m' to be accepted; acceptance criteria point at the validator chain."
+          },
+          {
+            "source": "environment",
+            "detail": "No incidents or health problems; data was isolated/restored before the test."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-021"
+        ],
+        "suggestedFix": {
+          "description": "Pass the sanitized value through in the create query: change `expire_in: params.expire_in && null` to `expire_in: params.expire_in || null` so the UTC timestamp is stored.",
+          "patch": "--- a/server/queries/link.queries.js\n+++ b/server/queries/link.queries.js\n@@\n-      expire_in: params.expire_in && null,\n+      expire_in: params.expire_in || null,\n"
+        },
+        "toolCalls": 8,
+        "durationMs": 88876,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-034"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.97,
+        "summary": "The created link's expire_in is null even for a valid '1m' value because the link creation query never stores the sanitized expire_in value.",
+        "rootCause": "The validator correctly sanitizes '1m' into a UTC timestamp (server/handlers/validators.handler.js:64-79, customSanitizer value => utils.dateToUTC(addMilliseconds(new Date(), value))), and links.handler passes expire_in through. But server/queries/link.queries.js:217 inserts `expire_in: params.expire_in && null`, which evaluates to null whenever a value is provided, so the column is always written as null. Hence POST returns 201 with expire_in: null (confirmed in the lastResponse artifact) and E2 fails; the later admin GET returned no useful result in the difference record because the test aborted first at E2.",
+        "location": {
+          "file": "server/queries/link.queries.js",
+          "lines": [
+            217,
+            217
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/v2/links returned 201 with body containing expire_in: null for expire_in '1m'."
+          },
+          {
+            "source": "code",
+            "detail": "link.queries.js:217 `expire_in: params.expire_in && null` — any truthy value becomes null; the sanitized timestamp from validators.handler.js:79 is discarded."
+          },
+          {
+            "source": "code",
+            "detail": "validators.handler.js:64-79 accepts and sanitizes '1m' to a UTC datetime, so validation is fine; the loss happens in the insert."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-021 requires expire_in like '1m' to be accepted; acceptance criteria point at the validator chain."
+          },
+          {
+            "source": "environment",
+            "detail": "No incidents or health problems; data was isolated/restored before the test."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-021"
+        ],
+        "suggestedFix": {
+          "description": "Pass the sanitized value through in the create query: change `expire_in: params.expire_in && null` to `expire_in: params.expire_in || null` so the UTC timestamp is stored.",
+          "patch": "--- a/server/queries/link.queries.js\n+++ b/server/queries/link.queries.js\n@@\n-      expire_in: params.expire_in && null,\n+      expire_in: params.expire_in || null,\n"
+        },
+        "toolCalls": 8,
+        "durationMs": 88876,
+        "basis": "failure"
+      },
+      "costUsd": 0.2598420320000001,
+      "durationMs": 305743,
+      "sessions": 5
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "without",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "without",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-009",
+      "execId": "x-14",
+      "mode": "without",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-010",
+      "execId": "x-15",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-010",
+      "execId": "x-15",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-010",
+      "execId": "x-15",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-054"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "DELETE /api/v2/links/:id always renders an HTML partial (link removed dialog) instead of returning the required JSON {message}, because the branch is gated by a hardcoded `if (true)` instead of `if (req.isHTML)`.",
+        "rootCause": "In the `remove` handler (server/handlers/links.handler.js:349-372), after the link is deleted the response is wrapped in `if (true)` at line 360, so every DELETE renders the HTML partial 'partials/links/dialog/delete_success' (with HX-Reswap/HX-Trigger headers) and returns. The JSON path sending {message: 'Link has been deleted successfully.'} (lines 369-371) is unreachable dead code. Every other handler in this file (get, create, edit, report) branches on `req.isHTML`; it should be the same here. The API client therefore receives the HTML fragment body, so `delBody.message` is undefined and E2 fails (E3 is never reached, so the search request was not sent). The link itself WAS deleted correctly.",
+        "location": {
+          "file": "server/handlers/links.handler.js",
+          "lines": [
+            360,
+            367
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "DELETE /api/v2/links/dd80d710-... returned status 200 but its body is HTML: '<div class=content>...Your link ... has been deleted...' not JSON, so body.message is undefined."
+          },
+          {
+            "source": "code",
+            "detail": "server/handlers/links.handler.js:360 uses `if (true)` to unconditionally render 'partials/links/dialog/delete_success'; lines 369-371 send the required JSON message but are unreachable. Other handlers (e.g. report at 379, create at 149) use `req.isHTML`."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-034 acceptance criterion: DELETE on own link returns 200 {message: 'Link has been deleted successfully.'} and the link no longer appears in GET /api/v2/links."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-034"
+        ],
+        "suggestedFix": {
+          "description": "Replace `if (true)` in the remove handler with `if (req.isHTML)` so HTML rendering only happens for HTMX/browser requests and the API gets the JSON response.",
+          "patch": "--- a/server/handlers/links.handler.js\n+++ b/server/handlers/links.handler.js\n@@ -357,7 +357,7 @@ async function remove(req, res) {\n-  if (true) {\n+  if (req.isHTML) {\n     res.setHeader(\"HX-Reswap\", \"outerHTML\");\n     res.setHeader(\"HX-Trigger\", \"reloadMainTable\");\n     res.render(\"partials/links/dialog/delete_success\", {"
+        },
+        "toolCalls": 6,
+        "durationMs": 49296,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-054"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "DELETE /api/v2/links/:id always renders an HTML partial (link removed dialog) instead of returning the required JSON {message}, because the branch is gated by a hardcoded `if (true)` instead of `if (req.isHTML)`.",
+        "rootCause": "In the `remove` handler (server/handlers/links.handler.js:349-372), after the link is deleted the response is wrapped in `if (true)` at line 360, so every DELETE renders the HTML partial 'partials/links/dialog/delete_success' (with HX-Reswap/HX-Trigger headers) and returns. The JSON path sending {message: 'Link has been deleted successfully.'} (lines 369-371) is unreachable dead code. Every other handler in this file (get, create, edit, report) branches on `req.isHTML`; it should be the same here. The API client therefore receives the HTML fragment body, so `delBody.message` is undefined and E2 fails (E3 is never reached, so the search request was not sent). The link itself WAS deleted correctly.",
+        "location": {
+          "file": "server/handlers/links.handler.js",
+          "lines": [
+            360,
+            367
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "DELETE /api/v2/links/dd80d710-... returned status 200 but its body is HTML: '<div class=content>...Your link ... has been deleted...' not JSON, so body.message is undefined."
+          },
+          {
+            "source": "code",
+            "detail": "server/handlers/links.handler.js:360 uses `if (true)` to unconditionally render 'partials/links/dialog/delete_success'; lines 369-371 send the required JSON message but are unreachable. Other handlers (e.g. report at 379, create at 149) use `req.isHTML`."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-034 acceptance criterion: DELETE on own link returns 200 {message: 'Link has been deleted successfully.'} and the link no longer appears in GET /api/v2/links."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-034"
+        ],
+        "suggestedFix": {
+          "description": "Replace `if (true)` in the remove handler with `if (req.isHTML)` so HTML rendering only happens for HTMX/browser requests and the API gets the JSON response.",
+          "patch": "--- a/server/handlers/links.handler.js\n+++ b/server/handlers/links.handler.js\n@@ -357,7 +357,7 @@ async function remove(req, res) {\n-  if (true) {\n+  if (req.isHTML) {\n     res.setHeader(\"HX-Reswap\", \"outerHTML\");\n     res.setHeader(\"HX-Trigger\", \"reloadMainTable\");\n     res.render(\"partials/links/dialog/delete_success\", {"
+        },
+        "toolCalls": 6,
+        "durationMs": 49296,
+        "basis": "failure"
+      },
+      "costUsd": 0.5764361680000001,
+      "durationMs": 515878,
+      "sessions": 7
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "without",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "without",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-011",
+      "execId": "x-16",
+      "mode": "without",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-012",
+      "execId": "x-17",
+      "mode": "with",
+      "repeat": 1,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-012",
+      "execId": "x-17",
+      "mode": "with",
+      "repeat": 2,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    },
+    {
+      "suite": "K1",
+      "bug": "bug-012",
+      "execId": "x-17",
+      "mode": "with",
+      "repeat": 3,
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    }
+  ]
+}

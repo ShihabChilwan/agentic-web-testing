@@ -1,7 +1,7 @@
 import { modelFor, reasoningEffortFor } from '../shared/config.js';
 import type { LLMConfig } from '../shared/config.js';
 import type { Pricing, ReasoningEffort } from '../shared/schemas.js';
-import { RunBudget } from './budget.js';
+import { CostCap, RunBudget, type CostCapOptions } from './budget.js';
 import { appendCallLog, readCallLog } from './call-log.js';
 import { LLMRequestError, redact } from './errors.js';
 import { OpenAICompatibleProvider } from './openai-compatible.js';
@@ -15,6 +15,8 @@ export interface LLMClientDeps {
   provider: ChatProvider;
   pricing: Pricing | null;
   budget: RunBudget;
+  /** A measurement's cost cap, checked before every call (`--cost-cap`). */
+  costCap?: CostCap;
   /** runs/<runId>/llm-calls.jsonl */
   callLogFile: string;
   retry?: RetryOptions;
@@ -44,9 +46,10 @@ export class RunLLMClient implements LLMClient {
   }
 
   private async call(req: ChatRequest): Promise<ChatResponse> {
-    const { provider, budget } = this.deps;
+    const { provider, budget, costCap } = this.deps;
     const now = this.deps.now ?? (() => new Date());
     budget.check();
+    await costCap?.check();
 
     const model = modelFor(this.config, req.purpose);
     const effort: ReasoningEffort = req.reasoningEffort ?? reasoningEffortFor(this.config, req.purpose);
@@ -97,6 +100,7 @@ export class RunLLMClient implements LLMClient {
       const cost = usage.costUsd ?? priced;
       const costSource = usage.costUsd !== undefined ? 'provider' : priced !== null ? 'pricing' : null;
       budget.add(usage.inputTokens + usage.outputTokens, cost);
+      await costCap?.add(cost);
       await appendCallLog(this.deps.callLogFile, {
         ...logBase(),
         inputTokens: usage.inputTokens,
@@ -111,7 +115,8 @@ export class RunLLMClient implements LLMClient {
         ...(response.upstreamProvider ? { upstreamProvider: response.upstreamProvider } : {}),
         ...(response.systemFingerprint ? { systemFingerprint: response.systemFingerprint } : {}),
       });
-      return response;
+      // The cost this call was logged with (provider or pricing), so a caller can count its own calls.
+      return cost === null ? response : { ...response, usage: { ...usage, costUsd: cost } };
     } catch (err) {
       const safe = this.redactError(err);
       if (safe instanceof LLMRequestError) safe.attempts = requests;
@@ -158,7 +163,7 @@ export function isReasoningEffortRejection(err: unknown): boolean {
  */
 export async function createLLMClient(
   config: LLMConfig,
-  options: { callLogFile: string; pricingFile: string; warn?: (message: string) => void },
+  options: { callLogFile: string; pricingFile: string; warn?: (message: string) => void; costCap?: CostCapOptions },
 ): Promise<RunLLMClient> {
   const warn = options.warn ?? console.warn;
   const pricing = await loadPricing(options.pricingFile);
@@ -169,6 +174,7 @@ export async function createLLMClient(
     provider: createProvider(config),
     pricing,
     budget,
+    ...(options.costCap ? { costCap: new CostCap(options.costCap) } : {}),
     callLogFile: options.callLogFile,
     warn,
   });

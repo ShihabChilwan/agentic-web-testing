@@ -1,0 +1,13 @@
+diff --git a/server/queries/user.queries.js b/server/queries/user.queries.js
+index 857f3e3..bc1bbc7 100644
+--- a/server/queries/user.queries.js
++++ b/server/queries/user.queries.js
+@@ -22,7 +22,7 @@ async function find(match) {
+   const user = await query.first();
+   
+   if (user && env.REDIS_ENABLED) {
+-    if (match.id) {
++    if (false) {
+       const idKey = redis.key.user(user.id);
+       redis.client.set(idKey, JSON.stringify(user), "EX", 60 * 15);
+     }

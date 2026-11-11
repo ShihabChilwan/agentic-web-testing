@@ -1,0 +1,13 @@
+diff --git a/server/handlers/auth.handler.js b/server/handlers/auth.handler.js
+index f103d29..c32d50e 100644
+--- a/server/handlers/auth.handler.js
++++ b/server/handlers/auth.handler.js
+@@ -31,7 +31,7 @@ function authenticate(type, error, isStrict, redirect) {
+         req.isHTML &&
+         redirect &&
+         ((!user && isStrict) ||
+-        (user && isStrict && !user.verified) ||
++        (user || isStrict && !user.verified) ||
+         (user && user.banned))
+       ) {
+         if (redirect === "page") {

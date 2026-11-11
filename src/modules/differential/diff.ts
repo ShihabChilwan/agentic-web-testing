@@ -1,6 +1,6 @@
-import type { RecordedResponse, UnstableOrder } from '../../shared/schemas.js';
-import { ABSENT } from './shapes.js';
-import { diffPageText, PAGE_METHODS } from './pages.js';
+import type { RecordedResponse, UnstableOrder, ValueShape, VariableSegment } from '../../shared/schemas.js';
+import { ABSENT, fitsTail, mergeShapes, wholeTailShape } from './shapes.js';
+import { diffHtml, diffPageText, isHtml, PAGE_METHODS } from './pages.js';
 
 export { ABSENT };
 
@@ -75,6 +75,76 @@ export function endpointOf(method: string, path: string): string {
     })
     .join('&');
   return `${method.toUpperCase()} ${normPath}${normQuery ? `?${normQuery}` : ''}`;
+}
+
+/** What a path part that varies between correct runs becomes in an endpoint (VariableSegment). */
+export const VARIABLE_SEGMENT = ':var';
+
+function splitEndpoint(endpoint: string): { method: string; segments: string[]; query: string } {
+  const space = endpoint.indexOf(' ');
+  const [pathname = '', query = ''] = endpoint.slice(space + 1).split('?', 2);
+  return { method: endpoint.slice(0, space), segments: pathname.split('/'), query };
+}
+
+/**
+ * The endpoint with every path part that a learned VariableSegment rule covers as `:var`: same method,
+ * query and number of parts, the rule's other parts equal, the test one the rule was learned in, and the
+ * part of the shape the correct runs showed (a random address of 6 characters stays one when the app
+ * returns another one; `/settings` in its place does not fit a mixed-case shape).
+ */
+export function applyVariableSegments(endpoint: string, testCaseId: string, rules: readonly VariableSegment[]): string {
+  let out = endpoint;
+  for (const rule of rules) {
+    if (!rule.tests.includes(testCaseId)) continue;
+    const e = splitEndpoint(out);
+    const t = splitEndpoint(rule.endpoint);
+    if (e.method !== t.method || e.query !== t.query || e.segments.length !== t.segments.length) continue;
+    if (!t.segments.every((seg, i) => i === rule.position || seg === e.segments[i])) continue;
+    const seg = e.segments[rule.position]!;
+    if (seg === VARIABLE_SEGMENT || !fitsTail(seg, rule.shape)) continue;
+    e.segments[rule.position] = VARIABLE_SEGMENT;
+    out = `${e.method} ${e.segments.join('/')}${e.query ? `?${e.query}` : ''}`;
+  }
+  return out;
+}
+
+/**
+ * Path parts that vary between two runs of the same version (SPEC §7.6): a call seen in one run only and
+ * a call seen in the other run only, in the same test, with the same method and query, whose paths differ
+ * in exactly one part, and both parts differ from their first character on with a random-looking tail
+ * shape (`/2H3EbB` and `/ubELTW`: an address the app made up at random). Merged by endpoint and position.
+ */
+export function learnVariableSegments(pairs: readonly MatchedPair[], into: VariableSegment[] = []): VariableSegment[] {
+  const onlyA = pairs.filter((p) => p.a && !p.b);
+  const onlyB = pairs.filter((p) => p.b && !p.a);
+  const used = new Set<MatchedPair>();
+  for (const x of onlyA) {
+    const ex = splitEndpoint(x.endpoint);
+    for (const y of onlyB) {
+      if (used.has(y) || y.testCaseId !== x.testCaseId) continue;
+      const ey = splitEndpoint(y.endpoint);
+      if (ex.method !== ey.method || ex.query !== ey.query || ex.segments.length !== ey.segments.length) continue;
+      const differ = ex.segments.map((seg, i) => (seg === ey.segments[i] ? -1 : i)).filter((i) => i >= 0);
+      if (differ.length !== 1) continue;
+      const position = differ[0]!;
+      const shape = wholeTailShape(ex.segments[position]!, ey.segments[position]!);
+      if (!shape) continue;
+      used.add(y);
+      const template = [...ex.segments];
+      template[position] = '*';
+      const endpoint = `${ex.method} ${template.join('/')}${ex.query ? `?${ex.query}` : ''}`;
+      const known = into.find((r) => r.endpoint === endpoint && r.position === position);
+      if (!known) into.push({ endpoint, position, tests: [x.testCaseId], shape });
+      else {
+        const merged: ValueShape = mergeShapes(known.shape, shape);
+        if (merged.kind !== 'tail') continue;
+        known.shape = merged;
+        if (!known.tests.includes(x.testCaseId)) known.tests = [...known.tests, x.testCaseId].sort();
+      }
+      break;
+    }
+  }
+  return into.sort((p, q) => p.endpoint.localeCompare(q.endpoint) || p.position - q.position);
 }
 
 const ID_VALUE = /^(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -170,12 +240,12 @@ export function sameRequestOtherQuery(a: string, b: string): string | undefined 
  * Pairs the responses of two executions by test, endpoint and occurrence (the n-th call of that endpoint
  * in the test), not by arrival order: browser calls made at the same time can arrive in either order.
  */
-export function matchResponses(a: readonly RecordedResponse[], b: readonly RecordedResponse[]): MatchedPair[] {
+export function matchResponses(a: readonly RecordedResponse[], b: readonly RecordedResponse[], variableSegments: readonly VariableSegment[] = []): MatchedPair[] {
   const index = (list: readonly RecordedResponse[]) => {
     const map = new Map<string, { testCaseId: string; endpoint: string; occurrence: number; r: RecordedResponse }>();
     const seen = new Map<string, number>();
     for (const r of [...list].sort((x, y) => x.testCaseId.localeCompare(y.testCaseId) || x.seq - y.seq)) {
-      const endpoint = endpointOf(r.method, r.path);
+      const endpoint = variableSegments.length > 0 ? applyVariableSegments(endpointOf(r.method, r.path), r.testCaseId, variableSegments) : endpointOf(r.method, r.path);
       const base = `${r.testCaseId}\u0000${endpoint}`;
       const occurrence = (seen.get(base) ?? 0) + 1;
       seen.set(base, occurrence);
@@ -383,6 +453,10 @@ export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDif
   }
   if (PAGE_METHODS.has(a.method) && a.bodyKind === 'text' && typeof a.body === 'string' && typeof b.body === 'string') return [...out, ...diffPageText(a.body, b.body)];
   if (a.bodyKind === 'json') return diffJson(a.body, b.body, options, '', '', out);
+  // HTML pages and fragments element by element; other text as one value.
+  if (a.bodyKind === 'text' && typeof a.body === 'string' && typeof b.body === 'string' && a.body !== b.body && isHtml(a.contentType, a.body) && isHtml(b.contentType, b.body)) {
+    return [...out, ...diffHtml(a.body, b.body)];
+  }
   if (a.bodyKind === 'text' && a.body !== b.body) out.push({ field: '(body)', path: '(body)', a: a.body, b: b.body });
   return out;
 }
@@ -390,9 +464,9 @@ export function diffPair(pair: MatchedPair, options: DiffOptions = {}): FieldDif
 /** Fields about the whole response; as noise they hold only for the tests they were seen in. */
 export const WHOLE_RESPONSE_FIELDS: ReadonlySet<string> = new Set(['(response)', '(status)', '(body)', '(request)']);
 
-/** A field about the whole response, or a page line present on one side only: as noise, it holds only for the tests it was seen in. */
+/** A field about the whole response, or a page line or HTML element present on one side only: as noise, it holds only for the tests it was seen in. */
 export function isWholeField(field: string): boolean {
-  return WHOLE_RESPONSE_FIELDS.has(field) || field.endsWith('(line)');
+  return WHOLE_RESPONSE_FIELDS.has(field) || field.endsWith('(line)') || field.endsWith('(element)');
 }
 
 /** True when `field` is a noise field or lies inside one (`items[*]` covers `items[*].price`). */

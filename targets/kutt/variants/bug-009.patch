@@ -1,0 +1,13 @@
+diff --git a/server/queries/link.queries.js b/server/queries/link.queries.js
+index 12f5480..c60b860 100644
+--- a/server/queries/link.queries.js
++++ b/server/queries/link.queries.js
+@@ -214,7 +214,7 @@ async function create(params) {
+       user_id: params.user_id || null,
+       address: params.address,
+       description: params.description || null,
+-      expire_in: params.expire_in || null,
++      expire_in: params.expire_in && null,
+       target: params.target
+     },
+     "*"
