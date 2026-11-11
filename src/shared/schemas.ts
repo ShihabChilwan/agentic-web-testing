@@ -289,6 +289,8 @@ export const LLMCallLogLine = z.object({
   latencyMs: DurationMs,
   ok: z.boolean(),
   attempts: z.number().int().min(1),
+  /** Time spent waiting between attempts (rate limits, server errors), when there was a retry. */
+  retryWaitMs: DurationMs.optional(),
   costUsd: z.number().nonnegative().nullable(),
   /** provider: exact cost reported in the response; pricing: computed from config/pricing.json; null: unknown. */
   costSource: z.enum(['provider', 'pricing']).nullable().optional(),
@@ -833,6 +835,173 @@ export const ExecutionResults = z.object({
   results: z.array(TestResult),
 });
 
+/**
+ * One line of executions/<execId>/responses.jsonl (SPEC §7.6): an HTTP response a test received from the
+ * app, written only when the execution records responses. `seq` counts the test's responses in arrival
+ * order (api object and browser page together). Login tokens, passwords and secrets are redacted.
+ */
+export const RecordedResponse = z.object({
+  testCaseId: ScriptTestId,
+  seq: z.number().int().positive(),
+  /** `api`: the scripts' api object; `page`: a fetch/XHR call the browser page made to the backend. */
+  source: z.enum(['api', 'page']),
+  method: z.string().min(1),
+  /** URL path with the query string, as requested (no origin). */
+  path: z.string().min(1),
+  status: z.number().int(),
+  contentType: z.string().default(''),
+  /** `json`: body holds the parsed value; `text`: a string; `binary`: body is null; `none`: no body or unreadable. */
+  bodyKind: z.enum(['json', 'text', 'binary', 'none']),
+  body: z.unknown(),
+  /** Why the body could not be read (e.g. the page navigated away first). */
+  error: z.string().optional(),
+});
+
+/**
+ * One line of executions/<execId>/pages.jsonl (SPEC §7.6): the page's accessibility snapshot (Playwright's
+ * text outline of roles, names and text; not a screenshot) after a main-frame navigation, or at the end of
+ * a browser test. Written only when the execution records pages. `seq` counts the test's snapshots.
+ */
+export const RecordedPage = z.object({
+  testCaseId: ScriptTestId,
+  seq: z.number().int().positive(),
+  kind: z.enum(['navigation', 'end']),
+  /** URL path with the query string (no origin). */
+  path: z.string().min(1),
+  /** Null when the snapshot could not be taken (see `error`). JWT-looking strings are redacted. */
+  snapshot: z.string().nullable(),
+  error: z.string().optional(),
+});
+
+/** A field path in a response with array positions generalised (`items[*].price`); `(status)`, `(body)` and `(response)` name the whole status, a non-JSON body and a missing response. */
+const FieldPath = z.string().min(1);
+
+/**
+ * What the values of a noise field looked like in the correct runs: `time` (ISO times), `digits` (texts
+ * equal apart from some digit runs, e.g. a time inside a sentence), `tail` (the same
+ * start and a varying tail of a learned length and character classes: `a` lower, `A` upper, `9` digit,
+ * other characters as themselves), or only `type`. `types` lists the value types seen.
+ */
+export const ValueShape = z.object({
+  kind: z.enum(['time', 'digits', 'tail', 'type']),
+  types: z.array(z.string()),
+  /** `digits`: texts equal apart from their digit groups (digit runs joined by `-:/.T`); the positions (0-based) of the groups that varied, and how many groups the text has. */
+  digitRuns: z.array(z.number().int().nonnegative()).optional(),
+  runCount: z.number().int().nonnegative().optional(),
+  tailLength: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]).optional(),
+  tailChars: z.string().optional(),
+});
+
+/** A list whose order changed between two runs of the same version, and the key its items are matched by. */
+export const UnstableOrder = z.object({
+  array: FieldPath,
+  /** An item field unique in both lists (`_id`, `id`, ...), `(value)` for a list of plain values, `(item)` for whole equal items. */
+  key: z.string().min(1),
+  tests: z.array(ScriptTestId),
+});
+
+/** runs/<runId>/noise-fields.json (SPEC §7.6): fields that differ between two executions of the same version. */
+export const NoiseFields = z.object({
+  schemaVersion: SchemaVersion,
+  createdAt: Timestamp,
+  /** The run folder name and the suite's own run id from run.json. */
+  run: z.string(),
+  sourceRunId: z.string(),
+  /** The correct-app executions the noise was learned from (two or more; every pair is compared). */
+  executions: z.array(ExecId).min(2),
+  /** The correct-app executions the page noise (endpoints `PAGE …`, `END …`) was learned from, when pages were recorded. */
+  pageExecutions: z.array(ExecId).min(2).optional(),
+  summary: z.object({
+    /** Responses per execution, in the order of `executions`. */
+    responses: z.array(z.number().int().nonnegative()).default([]),
+    responsesA: z.number().int().nonnegative().optional(),
+    responsesB: z.number().int().nonnegative().optional(),
+    matched: z.number().int().nonnegative(),
+    unmatched: z.number().int().nonnegative(),
+    differences: z.number().int().nonnegative(),
+    noiseFields: z.number().int().nonnegative(),
+    unstableOrderLists: z.number().int().nonnegative(),
+    /** Noise fields learned from the page snapshots (included in `noiseFields`). */
+    pageNoiseFields: z.number().int().nonnegative().default(0),
+  }),
+  /** One entry per endpoint (`METHOD /normalised/path`), sorted. */
+  endpoints: z.array(
+    z.object({
+      endpoint: z.string(),
+      fields: z.array(
+        z.object({
+          field: FieldPath,
+          tests: z.array(ScriptTestId),
+          count: z.number().int().positive(),
+          example: z.object({ a: z.unknown(), b: z.unknown() }),
+          /** Value fields: the shape the correct runs showed; a value outside it is a real difference. */
+          shape: ValueShape.optional(),
+          /** List item fields: true when no list in the correct runs held a value twice; a duplicate is then a real difference. */
+          unique: z.boolean().optional(),
+        }),
+      ),
+      unstableOrder: z.array(UnstableOrder),
+    }),
+  ),
+});
+
+/** runs/<runId>/differential/compare-<base>-<other>.json (SPEC §7.6): differences left after the noise filter. */
+export const ResponseComparison = z.object({
+  schemaVersion: SchemaVersion,
+  createdAt: Timestamp,
+  run: z.string(),
+  base: ExecId,
+  other: ExecId,
+  noiseFile: z.string().nullable(),
+  summary: z.object({
+    matched: z.number().int().nonnegative(),
+    unmatched: z.number().int().nonnegative(),
+    differences: z.number().int().nonnegative(),
+    ignoredAsNoise: z.number().int().nonnegative(),
+    /** strong + weak. */
+    remaining: z.number().int().nonnegative(),
+    strong: z.number().int().nonnegative().default(0),
+    weak: z.number().int().nonnegative().default(0),
+    testsWithDifferences: z.number().int().nonnegative(),
+  }),
+  /**
+   * Differences folded into one finding each, counted as one strong difference: `setup-changed` when most
+   * strong differences only change id aliases because the other run's tests no longer share seeded
+   * records (the data snapshot failed and every test re-seeded).
+   */
+  findings: z.array(z.object({ kind: z.enum(['setup-changed']), message: z.string(), count: z.number().int().nonnegative() })).default([]),
+  tests: z.array(
+    z.object({
+      testCaseId: ScriptTestId,
+      endpoints: z.array(
+        z.object({
+          endpoint: z.string(),
+          /** 1 = the first response of this endpoint in the test, 2 = the second, ... */
+          occurrence: z.number().int().positive(),
+          differences: z.array(
+            z.object({
+              field: FieldPath,
+              path: z.string(),
+              base: z.unknown(),
+              other: z.unknown(),
+              /** `weak`: a browser call (page source) or a page line present in one run only; `strong`: every other difference (a changed value, status, list, request or page line, an api response missing). */
+              strength: z.enum(['strong', 'weak']).default('strong'),
+              /** `shape`: a noise field's value outside its learned shape; `duplicate`: a value twice in a list that had none in the correct runs; `request`: a changed request; `value`: anything else. */
+              reason: z.enum(['value', 'shape', 'duplicate', 'request']).default('value'),
+            }),
+          ),
+        }),
+      ),
+    }),
+  ),
+});
+
+export type RecordedResponse = z.infer<typeof RecordedResponse>;
+export type RecordedPage = z.infer<typeof RecordedPage>;
+export type NoiseFields = z.infer<typeof NoiseFields>;
+export type ResponseComparison = z.infer<typeof ResponseComparison>;
+export type UnstableOrder = z.infer<typeof UnstableOrder>;
+export type ValueShape = z.infer<typeof ValueShape>;
 export type ConfigOverride = z.infer<typeof ConfigOverride>;
 export type ExecutionRequest = z.infer<typeof ExecutionRequest>;
 export type ExecutionResults = z.infer<typeof ExecutionResults>;
@@ -887,6 +1056,8 @@ export const Diagnosis = z
       .nullish(),
     toolCalls: z.number().int().nonnegative(),
     durationMs: DurationMs,
+    /** `failure`: a group of failing tests (with any comparator differences of those tests as evidence); `difference`: tests that passed but whose recorded responses or pages differ from a reference run (SPEC §8.5). Absent in older files. */
+    basis: z.enum(['failure', 'difference']).optional(),
   })
   .refine((d) => d.classification !== 'app_defect' || d.location != null, {
     message: 'location is required for app_defect',
@@ -904,6 +1075,10 @@ export const DiagnosesSummary = z.object({
   /** Sum of this analysis' lines in llm-calls.jsonl; null when none had a cost. */
   costUsd: z.number().nonnegative().nullable(),
   durationMs: DurationMs,
+  /** Groups of tests that passed but differ from a reference run (SPEC §8.5); 0 without comparator differences. */
+  differenceGroups: z.number().int().nonnegative().optional(),
+  /** Difference groups left out by the per-execution cap (their differences stay readable through get_differences). */
+  differenceGroupsLeftOut: z.number().int().nonnegative().optional(),
 });
 
 export const Diagnoses = z.object({
@@ -914,6 +1089,8 @@ export const Diagnoses = z.object({
   diagnoses: z.array(Diagnosis),
   /** Absent in files written before it existed. */
   summary: DiagnosesSummary.optional(),
+  /** True when the analysis also got comparator differences against a reference run (SPEC §8.5); absent otherwise. */
+  withDifferences: z.boolean().optional(),
 });
 
 export type Classification = z.infer<typeof Classification>;

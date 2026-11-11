@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LLMRequestError } from '../../src/llm/errors.js';
+import { LLMRequestError, parseRetryAfter } from '../../src/llm/errors.js';
 import { OpenAICompatibleProvider } from '../../src/llm/openai-compatible.js';
 import type { ProviderRequest } from '../../src/llm/types.js';
 
@@ -10,7 +10,7 @@ interface Captured {
 }
 
 /** A stub fetch that records each request and answers with the given responses in order. */
-function stubFetch(responses: Array<{ status?: number; body: unknown } | Error | 'hang'>) {
+function stubFetch(responses: Array<{ status?: number; body: unknown; headers?: Record<string, string> } | Error | 'hang'>) {
   const captured: Captured[] = [];
   const fetchStub = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     captured.push({
@@ -28,7 +28,7 @@ function stubFetch(responses: Array<{ status?: number; body: unknown } | Error |
     if (next instanceof Error) throw next;
     return new Response(JSON.stringify(next.body), {
       status: next.status ?? 200,
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...next.headers },
     });
   };
   return { fetch: fetchStub as typeof fetch, captured };
@@ -215,6 +215,15 @@ describe('OpenAICompatibleProvider errors', () => {
     const err = await errorOf(provider(stub.fetch).chat(request));
     expect(err.kind).toBe(kind);
     expect(err.status).toBe(status);
+  });
+
+  it('reads Retry-After from a 429 (seconds or a date)', async () => {
+    const seconds = stubFetch([{ status: 429, body: { error: { message: 'slow down' } }, headers: { 'retry-after': '7' } }]);
+    expect((await errorOf(provider(seconds.fetch).chat(request))).retryAfterMs).toBe(7000);
+    const none = stubFetch([{ status: 429, body: { error: { message: 'slow down' } } }]);
+    expect((await errorOf(provider(none.fetch).chat(request))).retryAfterMs).toBeUndefined();
+    expect(parseRetryAfter('Wed, 11 Nov 2026 10:00:05 GMT', Date.parse('Wed, 11 Nov 2026 10:00:00 GMT'))).toBe(5000);
+    expect(parseRetryAfter('soon')).toBeUndefined();
   });
 
   it('makes exactly one request (SDK retries are off)', async () => {

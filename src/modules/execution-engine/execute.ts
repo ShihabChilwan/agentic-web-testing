@@ -14,6 +14,7 @@ import { TestIsolation, type TestRecord } from './isolation.js';
 import { startTarget, type RunningTarget, type StartOptions } from './lifecycle.js';
 import { readReport, sortResult, type PlaywrightReport, type ReportedTest } from './report.js';
 import { buildSourceTree, resolveCommit, type SourceTree } from './source-tree.js';
+import { writePagesFile, writeResponsesFile } from './responses.js';
 import { buildSuite } from './suite.js';
 
 const require = createRequire(import.meta.url);
@@ -37,11 +38,19 @@ export interface ExecuteVersionOptions {
   log?: (message: string) => void;
   /** Replaces the app start (tests). */
   startApp?: (options: StartOptions) => Promise<RunningTarget>;
+  /** Write every response the tests receive to responses.jsonl (SPEC §7.6). Off by default. */
+  recordResponses?: boolean;
+  /** Write the pages' accessibility snapshots (after each navigation and at the end of a browser test) to pages.jsonl (SPEC §7.6). Off by default. */
+  recordPages?: boolean;
 }
 
 export interface ExecuteVersionResult {
   results: ExecutionResults;
   resultsFile: string;
+  /** Only when responses were recorded. */
+  responses?: { file: string; count: number; testsWithout: string[] };
+  /** Only when page snapshots were recorded. */
+  pages?: { file: string; count: number };
   /** The commit that was executed. Recorded in run.json, never in the execution folder (SPEC §8.4). */
   commit: string;
 }
@@ -171,7 +180,7 @@ export async function executeVersion(options: ExecuteVersionOptions): Promise<Ex
     : await sourceTreeFor(options.config, options.repoDir, request, options.projectRoot);
   try {
     await mkdir(execDir);
-    await buildSuite(execDir, scriptsDir, scripts.run, options.config);
+    await buildSuite(execDir, scriptsDir, scripts.run, options.config, { recordResponses: options.recordResponses === true, recordPages: options.recordPages === true });
     return await runSuite(options, request, { execDir, paths, scripts, tree, commit });
   } finally {
     await tree.remove();
@@ -246,6 +255,18 @@ async function runSuite(options: ExecuteVersionOptions, request: ExecutionReques
       const artifacts = sorted.status === 'passed' ? {} : await collectArtifacts(execDir, id, reported, record, backendLog);
       results.push({ testCaseId: id, ...sorted, isolated: record?.isolated ?? false, artifacts });
     }
+    let responses: ExecuteVersionResult['responses'];
+    if (options.recordResponses) {
+      const file = path.join(execDir, 'responses.jsonl');
+      const written = await writeResponsesFile(file, run.map((id) => ({ testCaseId: id, outputDir: isolation.records.get(id)?.outputDir })));
+      responses = { file, count: written.responses, testsWithout: written.missing };
+    }
+    let pages: ExecuteVersionResult['pages'];
+    if (options.recordPages) {
+      const file = path.join(execDir, 'pages.jsonl');
+      const written = await writePagesFile(file, run.map((id) => ({ testCaseId: id, outputDir: isolation.records.get(id)?.outputDir })));
+      pages = { file, count: written.pages };
+    }
     await rm(path.join(execDir, 'test-results'), { recursive: true, force: true });
 
     const count = (status: TestResult['status']) => results.filter((r) => r.status === status).length;
@@ -270,7 +291,7 @@ async function runSuite(options: ExecuteVersionOptions, request: ExecutionReques
     });
     const resultsFile = paths.results(request.execId);
     await writeFile(resultsFile, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
-    return { results: output, resultsFile, commit: target.commit };
+    return { results: output, resultsFile, commit: target.commit, ...(responses ? { responses } : {}), ...(pages ? { pages } : {}) };
   } finally {
     await control?.close();
     await target.stop();
@@ -302,6 +323,8 @@ export interface ExecuteRunOptions {
   signal?: AbortSignal;
   log?: (message: string) => void;
   startApp?: ExecuteVersionOptions['startApp'];
+  recordResponses?: boolean;
+  recordPages?: boolean;
 }
 
 export interface ExecuteRunResult extends ExecuteVersionResult {
@@ -358,6 +381,8 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
       ...(options.signal ? { signal: options.signal } : {}),
       ...(options.log ? { log: options.log } : {}),
       ...(options.startApp ? { startApp: options.startApp } : {}),
+      ...(options.recordResponses ? { recordResponses: true } : {}),
+      ...(options.recordPages ? { recordPages: true } : {}),
     });
     await setExecution(paths.dir, { ...entry, executeStatus: 'done' });
     const atGenerationRef = ref === manifest.generationRef && !patch && !options.skipSeed && !options.configOverride;
@@ -379,6 +404,11 @@ export function describeExecution(result: ExecuteRunResult): string[] {
     `${summary.total} executed: ${summary.passed} passed, ${summary.failed} failed, ${summary.errored} errored; ${summary.skipped} skipped (dry run did not pass)`,
   ];
   if (timing) lines.push(`Start-up ${s(timing.startupMs)}, suite ${s(timing.suiteMs)}, ${timing.restores} restores ${s(timing.restoreMs)}`);
+  if (result.responses) {
+    const { count, testsWithout } = result.responses;
+    lines.push(`Recorded ${count} responses in responses.jsonl${testsWithout.length > 0 ? ` (no responses from ${testsWithout.length} tests: ${testsWithout.join(', ')})` : ''}`);
+  }
+  if (result.pages) lines.push(`Recorded ${result.pages.count} page snapshots in pages.jsonl`);
   if (incidents.length > 0) lines.push(`Incidents: ${incidents.map((i) => `${i.kind}${i.beforeTestCaseId ? ` (before ${i.beforeTestCaseId})` : ''}`).join(', ')}`);
   if (summary.notIsolated > 0) {
     lines.push(`Warning: ${summary.notIsolated} results ran without a data restore (isolated: false); they may depend on earlier tests and are not isolated results`);

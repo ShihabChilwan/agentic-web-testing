@@ -7,6 +7,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { measureCoverage } from '../../src/modules/execution-engine/coverage.js';
 import { executeRun, executeVersion, nextExecId } from '../../src/modules/execution-engine/execute.js';
+import { readPagesFile, readResponsesFile } from '../../src/modules/execution-engine/responses.js';
 import { loadTargetConfig } from '../../src/shared/target-config.js';
 import type { StartOptions } from '../../src/modules/execution-engine/lifecycle.js';
 import { PROJECT_ROOT } from '../../src/shared/paths.js';
@@ -29,7 +30,7 @@ http.createServer((req, res) => {
   req.on('data', (c) => (body += c));
   req.on('end', () => {
     console.log(req.method + ' ' + req.url);
-    const json = (status, v) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(v));
+    const json = (status, v) => res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }).end(JSON.stringify(v));
     const db = load();
     if (req.url === '/health') return json(200, { ok: true });
     if (req.url === '/api/auth/register') { db.users.push(JSON.parse(body).email); save(db); return json(200, { ok: true }); }
@@ -43,7 +44,9 @@ http.createServer((req, res) => {
 
 const FRONTEND = `
 const http = require('http');
-http.createServer((req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><title>Shop</title><h1>Shop</h1>'))
+// The page asks the backend for its items once (a browser call that response recording keeps).
+const page = '<!doctype html><title>Shop</title><h1>Shop</h1><script>fetch(' + JSON.stringify(process.env.BACKEND_URL + '/api/items') + ')</script>';
+http.createServer((req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end(page))
   .listen(Number(process.env.PORT), '127.0.0.1');
 `;
 
@@ -139,7 +142,7 @@ beforeAll(async () => {
       cwd: 'api', install: 'true', start: 'node server.cjs', baseUrl: backendUrl, apiPrefix: '/api',
       healthCheckUrl: `${backendUrl}/health`, env: { PORT: String(backendPort) }, disabledServices: {},
     },
-    frontend: { cwd: 'web', install: 'true', start: 'node server.cjs', baseUrl: frontendUrl, healthCheckUrl: frontendUrl, env: { PORT: String(frontendPort) } },
+    frontend: { cwd: 'web', install: 'true', start: 'node server.cjs', baseUrl: frontendUrl, healthCheckUrl: frontendUrl, env: { PORT: String(frontendPort), BACKEND_URL: backendUrl } },
     lifecycle: { reset: 'rm -f api/db.json', resetCwd: '.', startupTimeoutMs: 10_000 },
     fixtures: { users: { alice: { email: 'alice@x.test', password: 'pw', role: 'member' } } },
     seed: [{ method: 'POST', path: '/api/auth/register', body: { email: '{{fixtures.users.alice.email}}' } }],
@@ -191,7 +194,7 @@ describe('executeRun (real Playwright)', () => {
     expect(results.incidents).toEqual([{ beforeTestCaseId: 'TC-004', kind: 'backend-crashed', detail: 'the backend process had exited (code 1)' }]);
 
     expect(byId['TC-005']?.error).toMatchObject({ expectationId: 'E1', category: 'assertion_failed' });
-    expect(Object.keys(byId['TC-005']!.artifacts).sort()).toEqual(['console', 'dom', 'network', 'screenshot', 'trace']);
+    expect(Object.keys(byId['TC-005']!.artifacts).sort()).toEqual(['console', 'dom', 'network', 'screenshot', 'serverLog', 'trace']);
     expect(byId['TC-006']?.artifacts).toEqual({
       trace: 'artifacts/TC-006/trace.zip',
       lastResponse: 'artifacts/TC-006/last-response.json',
@@ -216,6 +219,33 @@ describe('executeRun (real Playwright)', () => {
       { execId: 'x-01', ref: 'golden', commit: result.commit, executeStatus: 'done', analyzeStatus: 'pending' },
     ]);
     expect(logs).toContain('[7/7] TC-007');
+  }, 180_000);
+});
+
+describe('executeRun with recorded responses (real Playwright)', () => {
+  it('writes every response of the api object and the page\'s backend calls to responses.jsonl, in test order', async () => {
+    const result = await executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, execId: 'x-60', recordResponses: true, recordPages: true });
+    const execDir = path.join(runsDir, runId, 'executions', 'x-60');
+    expect(result.responses?.file).toBe(path.join(execDir, 'responses.jsonl'));
+    const lines = (await readResponsesFile(path.join(execDir, 'responses.jsonl'))).map((r) => [r.testCaseId, r.seq, r.source, r.method, r.path, r.status, r.body]);
+    // TC-003's crash request gets no response; TC-005's page load is not a backend call, its fetch is.
+    expect(lines).toEqual([
+      ['TC-001', 1, 'api', 'POST', '/api/items', 201, { ok: true }],
+      ['TC-001', 2, 'api', 'GET', '/api/items', 200, { items: [expect.stringMatching(/^item/)], users: 1 }],
+      ['TC-002', 1, 'api', 'POST', '/api/items', 201, { ok: true }],
+      ['TC-002', 2, 'api', 'GET', '/api/items', 200, { items: [expect.stringMatching(/^item/)], users: 1 }],
+      ['TC-004', 1, 'api', 'GET', '/api/items', 200, { items: [], users: 1 }],
+      ['TC-005', 1, 'page', 'GET', '/api/items', 200, { items: [], users: 1 }],
+      ['TC-006', 1, 'api', 'GET', '/api/items?probe=TC-006', 404, { error: 'not found' }],
+      ['TC-007', 1, 'api', 'GET', '/api/items', 200, { items: [], users: 1 }],
+    ]);
+    expect(result.responses?.testsWithout).toEqual([]); // TC-003 used the api object: an empty list, not a missing file
+    // The browser test (TC-005) has a snapshot after its navigation and one at its end; api tests have none.
+    const pages = (await readPagesFile(path.join(execDir, 'pages.jsonl')))!;
+    expect(pages.map((p) => [p.testCaseId, p.seq, p.kind, p.path])).toEqual([['TC-005', 1, 'navigation', '/'], ['TC-005', 2, 'end', '/']]);
+    expect(pages[1]!.snapshot).toContain('heading "Shop" [level=1]');
+    // The results are the same as without recording.
+    expect(result.results.summary).toEqual({ total: 7, passed: 4, failed: 2, errored: 1, skipped: 2, notIsolated: 0 });
   }, 180_000);
 });
 
