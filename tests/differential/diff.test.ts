@@ -270,7 +270,10 @@ describe('page snapshots', () => {
     expect(noise.endpoints.map((e) => [e.endpoint, e.fields.map((f) => [f.field, f.shape?.kind])])).toEqual([['END /orders', [['main>table>row', 'digits']]]]);
     expect(compareResponses(page('TC-001', at('2026-11-10T10:00:00Z')), page('TC-001', at('2026-11-10T11:30:00Z')), noise, cmeta).summary.remaining).toBe(0);
     const extra = compareResponses(page('TC-001', at('2026-11-10T10:00:00Z')), page('TC-001', `${at('2026-11-10T11:30:00Z')}\n  - button "Delete"`), noise, cmeta);
-    expect(extra.tests[0]!.endpoints[0]!.differences).toMatchObject([{ field: 'main>button(line)', base: '(absent)', other: 'button "Delete"', strength: 'strong' }]);
+    // A line on one side only is weak (timing can cause it); a changed line is strong.
+    expect(extra.tests[0]!.endpoints[0]!.differences).toMatchObject([{ field: 'main>button(line)', base: '(absent)', other: 'button "Delete"', strength: 'weak' }]);
+    const changed = compareResponses(page('TC-001', snap(['Total $12'])), page('TC-001', snap(['Total $13'])), null, cmeta);
+    expect(changed.tests[0]!.endpoints[0]!.differences).toMatchObject([{ field: 'main>table>row', strength: 'strong' }]);
   });
 });
 

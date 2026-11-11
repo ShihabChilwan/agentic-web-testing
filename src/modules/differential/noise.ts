@@ -171,9 +171,11 @@ export function compareResponses(
     const known = noiseBy.get(pair.endpoint);
     const diffs = diffPair(pair, { keyedArrays: (f) => known?.keyed.get(f) });
     differences += diffs.length;
-    // Weak: a browser call seen in one run only (browser timing can cause it); everything else is strong.
+    // Weak: a browser call, or a page line, seen in one run only (browser timing can cause either: a test
+    // that ends right after a click may or may not see the next answer). Everything else is strong.
     const present = pair.a ?? pair.b;
-    const strengthOf = (field: string): 'strong' | 'weak' => (field === '(response)' && present?.source === 'page' ? 'weak' : 'strong');
+    const strengthOf = (field: string): 'strong' | 'weak' =>
+      (field === '(response)' && present?.source === 'page') || field.endsWith('(line)') ? 'weak' : 'strong';
     const out: Kept[] = [];
     for (const d of diffs) {
       const entry = known?.entries.get(d.field);
@@ -266,7 +268,7 @@ export function comparisonMarkdown(c: ResponseComparison): string {
     '',
     `Matched responses ${s.matched}, unmatched ${s.unmatched}; differences ${s.differences}, ignored as noise ${s.ignoredAsNoise}, **remaining ${s.remaining}: strong ${s.strong}, weak ${s.weak}** in ${s.testsWithDifferences} tests.`,
     '',
-    'Strong: a changed value, status code, list or request, a noise field outside its learned shape, a new duplicate, or an api response present in one run only. Weak: a browser call present in one run only (browser timing can cause it).',
+    'Strong: a changed value, status code, list, request or page line, a noise field outside its learned shape, a new duplicate, or an api response present in one run only. Weak: a browser call or a page line present in one run only (browser timing can cause either).',
   ];
   if (c.findings.length > 0) {
     lines.push('', '## Findings');

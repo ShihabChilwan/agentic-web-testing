@@ -982,7 +982,7 @@ export const ResponseComparison = z.object({
               path: z.string(),
               base: z.unknown(),
               other: z.unknown(),
-              /** `weak`: a browser call (page source) present in one run only; `strong`: every other difference (a changed value, status or list, an api response missing). */
+              /** `weak`: a browser call (page source) or a page line present in one run only; `strong`: every other difference (a changed value, status, list, request or page line, an api response missing). */
               strength: z.enum(['strong', 'weak']).default('strong'),
               /** `shape`: a noise field's value outside its learned shape; `duplicate`: a value twice in a list that had none in the correct runs; `request`: a changed request; `value`: anything else. */
               reason: z.enum(['value', 'shape', 'duplicate', 'request']).default('value'),
