@@ -1,0 +1,13 @@
+diff --git a/server/handlers/users.handler.js b/server/handlers/users.handler.js
+index 99023d8..db45d48 100644
+--- a/server/handlers/users.handler.js
++++ b/server/handlers/users.handler.js
+@@ -49,7 +49,7 @@ async function removeByAdmin(req, res) {
+   
+   await query.user.remove(user);
+ 
+-  if (req.isHTML) {
++  if (false) {
+     res.setHeader("HX-Reswap", "outerHTML");
+     res.setHeader("HX-Trigger", "reloadMainTable");
+     res.render("partials/admin/dialog/delete_user_success", {

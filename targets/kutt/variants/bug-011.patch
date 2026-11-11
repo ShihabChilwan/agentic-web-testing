@@ -1,0 +1,13 @@
+diff --git a/server/handlers/links.handler.js b/server/handlers/links.handler.js
+index 93a0a64..59f2149 100644
+--- a/server/handlers/links.handler.js
++++ b/server/handlers/links.handler.js
+@@ -357,7 +357,7 @@ async function remove(req, res) {
+     throw new CustomError(messsage);
+   }
+ 
+-  if (req.isHTML) {
++  if (true) {
+     res.setHeader("HX-Reswap", "outerHTML");
+     res.setHeader("HX-Trigger", "reloadMainTable");
+     res.render("partials/links/dialog/delete_success", {

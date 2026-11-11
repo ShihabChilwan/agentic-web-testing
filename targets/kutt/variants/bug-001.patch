@@ -1,0 +1,13 @@
+diff --git a/server/handlers/links.handler.js b/server/handlers/links.handler.js
+index 93a0a64..90e24f0 100644
+--- a/server/handlers/links.handler.js
++++ b/server/handlers/links.handler.js
+@@ -327,7 +327,7 @@ async function editAdmin(req, res) {
+     },
+     {
+       ...(address && { address }),
+-      ...(description && { description }),
++      ...(false),
+       ...(target && { target }),
+       ...(expire_in && { expire_in }),
+       ...((password || password === null) && { password })

@@ -1,0 +1,13 @@
+diff --git a/server/handlers/auth.handler.js b/server/handlers/auth.handler.js
+index f103d29..60098b1 100644
+--- a/server/handlers/auth.handler.js
++++ b/server/handlers/auth.handler.js
+@@ -20,7 +20,7 @@ function authenticate(type, error, isStrict, redirect) {
+     passport.authenticate(type, (err, user, info) => {
+       if (
+         (err || info instanceof Error) &&
+-        type === "oidc"
++        true
+       ) {
+         return next(new CustomError("OIDC authentication failed.", 401));
+       };

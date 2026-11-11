@@ -1,0 +1,13 @@
+diff --git a/server/handlers/validators.handler.js b/server/handlers/validators.handler.js
+index c479eca..5cd2631 100644
+--- a/server/handlers/validators.handler.js
++++ b/server/handlers/validators.handler.js
+@@ -210,7 +210,7 @@ const addDomainAdmin = [
+   body("homepage")
+     .optional({ checkFalsy: true, nullable: true })
+     .customSanitizer(utils.addProtocol)
+-    .custom(value => utils.urlRegex.test(value) || /^(?!https?|ftp)(\w+:|\/\/)/.test(value))
++    .custom(value => true)
+     .withMessage("Homepage is not valid."),
+   body("banned")
+     .optional({ nullable: true })

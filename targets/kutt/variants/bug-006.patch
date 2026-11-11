@@ -1,0 +1,13 @@
+diff --git a/server/passport.js b/server/passport.js
+index a59b71c..0f20a47 100644
+--- a/server/passport.js
++++ b/server/passport.js
+@@ -78,7 +78,7 @@ if (env.OIDC_ENABLED) {
+   async function enableOIDC() {
+     const requiredKeys = ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_SCOPE", "OIDC_EMAIL_CLAIM"];
+     requiredKeys.forEach((key) => {
+-      if (!env[key]) {
++      if (false) {
+         throw new Error(`Missing required env ${key}`);
+       }
+     });

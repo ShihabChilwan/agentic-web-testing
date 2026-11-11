@@ -1,0 +1,13 @@
+diff --git a/server/handlers/domains.handler.js b/server/handlers/domains.handler.js
+index 75a9d01..9a03788 100644
+--- a/server/handlers/domains.handler.js
++++ b/server/handlers/domains.handler.js
+@@ -34,7 +34,7 @@ async function addAdmin(req, res) {
+     address,
+     homepage,
+     banned,
+-    ...(banned && { banned_by_id: req.user.id })
++    ...(true)
+   });
+ 
+   if (req.isHTML) {

@@ -1,0 +1,19 @@
+diff --git a/server/handlers/validators.handler.js b/server/handlers/validators.handler.js
+index c479eca..c0473d1 100644
+--- a/server/handlers/validators.handler.js
++++ b/server/handlers/validators.handler.js
+@@ -114,10 +114,10 @@ const editLink = [
+     .isString()
+     .isLength({ min: 3, max: 64 })
+     .withMessage("Password length must be between 3 and 64."),
+-  body("address")
+-    .optional({ checkFalsy: true, nullable: true })
+-    .isString()
+-    .trim()
++  body("address").optional({
++  checkFalsy: true,
++  nullable: true
++}).isString()
+     .isLength({ min: 1, max: 64 })
+     .withMessage("Custom URL length must be between 1 and 64.")
+     .custom(value => utils.customAddressRegex.test(value) || utils.customAlphabetRegex.test(value))

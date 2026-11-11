@@ -1,0 +1,13 @@
+diff --git a/server/handlers/helpers.handler.js b/server/handlers/helpers.handler.js
+index ff53454..c8107d5 100644
+--- a/server/handlers/helpers.handler.js
++++ b/server/handlers/helpers.handler.js
+@@ -75,7 +75,7 @@ function parseQuery(req, res, next) {
+     return res.status(400).json({ error: "search query is not valid." });
+   }
+ 
+-  const limit = parseInt(req.query.limit) || 10;
++  const limit = parseInt(req.query.limit) && 10;
+ 
+   req.context = {
+     limit: limit > 50 ? 50 : limit,
