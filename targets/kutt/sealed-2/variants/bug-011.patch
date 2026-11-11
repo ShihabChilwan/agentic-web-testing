@@ -1,0 +1,13 @@
+diff --git a/server/handlers/validators.handler.js b/server/handlers/validators.handler.js
+index c479eca..dc0327c 100644
+--- a/server/handlers/validators.handler.js
++++ b/server/handlers/validators.handler.js
+@@ -153,7 +153,7 @@ const editLink = [
+ 
+ const redirectProtected = [
+   body("password", "Password is invalid.")
+-    .exists({ checkFalsy: true, checkNull: true })
++    .exists({ checkFalsy: false, checkNull: true })
+     .isString()
+     .isLength({ min: 3, max: 64 })
+     .withMessage("Password length must be between 3 and 64."),

@@ -1,0 +1,13 @@
+diff --git a/server/queries/user.queries.js b/server/queries/user.queries.js
+index 857f3e3..f42c3f9 100644
+--- a/server/queries/user.queries.js
++++ b/server/queries/user.queries.js
+@@ -251,7 +251,7 @@ async function findAny() {
+     redis.client.set("any-user", JSON.stringify(anyuser), "EX", 60 * 5);
+   }
+ 
+-  return !!anyuser;
++  return !anyuser;
+ }
+ 
+ module.exports = {

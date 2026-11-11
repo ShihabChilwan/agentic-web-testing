@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/review.js b/server/routes/api/review.js
+index 5d0705f..b0d0ddb 100644
+--- a/server/routes/api/review.js
++++ b/server/routes/api/review.js
+@@ -69,7 +69,7 @@ router.get('/:slug', async (req, res) => {
+     const productDoc = await Product.findOne({ slug: req.params.slug });
+ 
+     const hasNoBrand =
+-      productDoc?.brand === null || productDoc?.brand?.isActive === false;
++      productDoc?.brand === null || productDoc?.brand.isActive === false;
+ 
+     if (!productDoc || hasNoBrand) {
+       return res.status(404).json({

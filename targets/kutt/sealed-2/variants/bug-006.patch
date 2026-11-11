@@ -1,0 +1,13 @@
+diff --git a/server/passport.js b/server/passport.js
+index a59b71c..a329202 100644
+--- a/server/passport.js
++++ b/server/passport.js
+@@ -39,7 +39,7 @@ if (!env.DISALLOW_LOGIN_FORM) {
+     new LocalStrategy(localOptions, async (email, password, done) => {
+       try {
+         const user = await query.user.find({ email });
+-        if (!user) {
++        if (true) {
+           return done(null, false);
+         }
+         const isMatch = await bcrypt.compare(password, user.password);

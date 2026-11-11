@@ -1,0 +1,13 @@
+diff --git a/server/queries/host.queries.js b/server/queries/host.queries.js
+index de5cf96..f8c3916 100644
+--- a/server/queries/host.queries.js
++++ b/server/queries/host.queries.js
+@@ -34,7 +34,7 @@ async function add(params) {
+     banned_by_id: params.banned_by_id,
+   };
+ 
+-  if (id) {
++  if (false) {
+     await knex("hosts").where("id", id).update({
+       ...newHost,
+       updated_at: params.updated_at || utils.dateToUTC(new Date())

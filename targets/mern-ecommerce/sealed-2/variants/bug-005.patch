@@ -1,0 +1,22 @@
+diff --git a/client/app/components/Manager/Support/MessageList.js b/client/app/components/Manager/Support/MessageList.js
+index b2bf46a..c7e80bb 100644
+--- a/client/app/components/Manager/Support/MessageList.js
++++ b/client/app/components/Manager/Support/MessageList.js
+@@ -84,16 +84,7 @@ const Message = memo(props => {
+             </div>
+           ) : (
+             <div className={`d-flex mb-2 text-right`}>
+-              {!noHeader && (
+-                <>
+-                  <p className={`mb-0 fw-normal text-black`}>
+-                    {message.user.name}
+-                  </p>
+-                  <div className='ml-2 text-black'>
+-                    {formatTime(message.time)}
+-                  </div>
+-                </>
+-              )}
++              {true}
+             </div>
+           )}
+ 

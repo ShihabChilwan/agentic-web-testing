@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/order.js b/server/routes/api/order.js
+index 5431be8..5b030f7 100644
+--- a/server/routes/api/order.js
++++ b/server/routes/api/order.js
+@@ -284,7 +284,7 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
+     const status = req.body.status || CART_ITEM_STATUS.Cancelled;
+ 
+     const foundCart = await Cart.findOne({ 'products._id': itemId });
+-    const foundCartProduct = foundCart.products.find(p => p._id == itemId);
++    const foundCartProduct = foundCart.products.find(p => true);
+ 
+     await Cart.updateOne(
+       { 'products._id': itemId },

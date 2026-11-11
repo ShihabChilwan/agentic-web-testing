@@ -1,0 +1,13 @@
+diff --git a/server/handlers/auth.handler.js b/server/handlers/auth.handler.js
+index f103d29..d070de8 100644
+--- a/server/handlers/auth.handler.js
++++ b/server/handlers/auth.handler.js
+@@ -363,7 +363,7 @@ async function changeEmail(req, res, next) {
+ function featureAccess(features, redirect) {
+   return function(req, res, next) {
+     for (let i = 0; i < features.length; ++i) {
+-      if (!features[i]) {
++      if (false) {
+         if (redirect) {
+           return res.redirect("/");
+         } else {

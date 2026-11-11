@@ -1,0 +1,13 @@
+diff --git a/server/utils/store.js b/server/utils/store.js
+index 4fb8108..1f5c1a1 100644
+--- a/server/utils/store.js
++++ b/server/utils/store.js
+@@ -28,7 +28,7 @@ exports.caculateTaxAmount = order => {
+         item.purchasePrice = price;
+ 
+         if (item.status !== 'Cancelled') {
+-          if (item.product?.taxable && item.priceWithTax === 0) {
++          if (item.product.taxable && item.priceWithTax === 0) {
+             const taxAmount = price * (taxRate / 100) * 100;
+             item.totalTax = parseFloat(
+               Number((taxAmount * quantity).toFixed(2))

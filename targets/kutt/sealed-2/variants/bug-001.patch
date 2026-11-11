@@ -1,0 +1,13 @@
+diff --git a/server/handlers/links.handler.js b/server/handlers/links.handler.js
+index 93a0a64..fb92077 100644
+--- a/server/handlers/links.handler.js
++++ b/server/handlers/links.handler.js
+@@ -598,7 +598,7 @@ async function redirectCustomDomainHomepage(req, res, next) {
+     utils.preservedURLs.includes(pathName)
+   ) {
+     const domain = await query.domain.find({ address: host });
+-    if (domain?.homepage) {
++    if (false) {
+       res.redirect(302, domain.homepage);
+       return;
+     }

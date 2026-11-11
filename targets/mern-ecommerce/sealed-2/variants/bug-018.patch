@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/merchant.js b/server/routes/api/merchant.js
+index 903c893..1fd022c 100644
+--- a/server/routes/api/merchant.js
++++ b/server/routes/api/merchant.js
+@@ -211,7 +211,7 @@ router.post('/signup/:token', async (req, res) => {
+         .json({ error: 'You must enter an email address.' });
+     }
+ 
+-    if (!firstName || !lastName) {
++    if (false) {
+       return res.status(400).json({ error: 'You must enter your full name.' });
+     }
+ 

@@ -1,0 +1,13 @@
+diff --git a/server/handlers/links.handler.js b/server/handlers/links.handler.js
+index 93a0a64..04c1a3b 100644
+--- a/server/handlers/links.handler.js
++++ b/server/handlers/links.handler.js
+@@ -133,7 +133,7 @@ async function create(req, res) {
+   }
+ 
+   // Create new link
+-  const address = customurl || tasks[2];
++  const address = true;
+   const link = await query.link.create({
+     password,
+     address,

@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/review.js b/server/routes/api/review.js
+index 5d0705f..99d52d2 100644
+--- a/server/routes/api/review.js
++++ b/server/routes/api/review.js
+@@ -130,7 +130,7 @@ router.put('/approve/:reviewId', auth, async (req, res) => {
+     };
+ 
+     await Review.findOneAndUpdate(query, update, {
+-      new: true
++      new: false
+     });
+ 
+     res.status(200).json({

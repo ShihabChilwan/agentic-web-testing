@@ -1,0 +1,289 @@
+{
+  "schemaVersion": "1.0",
+  "target": "kutt",
+  "goldenRef": "golden",
+  "goldenCommit": "6ca803373a3c95f1a92674e9066175aff96cb772",
+  "method": "stryker",
+  "seed": 20261113,
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/handlers/{auth,domains,helpers,links,renders,users,validators}.handler.js",
+        "server/queries/*.js",
+        "server/utils/utils.js",
+        "server/passport.js"
+      ],
+      "frontend": []
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "BooleanLiteral",
+      "ArithmeticOperator",
+      "UnaryOperator",
+      "OptionalChaining",
+      "MethodExpression"
+    ],
+    "mutants": 3577,
+    "candidates": 1524,
+    "mutationJsonSha256": "f6fc74ec3f2f986be94f2020d43d230ae72b67932d4084f52ffcc57902de1f5a"
+  },
+  "overlapLines": 5,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "patch": "variants/bug-001.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1240",
+      "file": "server/handlers/links.handler.js",
+      "lines": [
+        601,
+        601
+      ],
+      "original": "    if (domain?.homepage) {",
+      "mutated": "    if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-002",
+      "kind": "code",
+      "patch": "variants/bug-002.patch",
+      "layer": "backend",
+      "mutator": "ArithmeticOperator",
+      "strykerMutantId": "3297",
+      "file": "server/queries/visit.queries.js",
+      "lines": [
+        121,
+        121
+      ],
+      "original": "          firefox: period.browser.firefox + visit.br_firefox,",
+      "mutated": "          firefox: period.browser.firefox - visit.br_firefox,",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-003",
+      "kind": "code",
+      "patch": "variants/bug-003.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "317",
+      "file": "server/handlers/auth.handler.js",
+      "lines": [
+        366,
+        366
+      ],
+      "original": "      if (!features[i]) {",
+      "mutated": "      if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-004",
+      "kind": "code",
+      "patch": "variants/bug-004.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "707",
+      "file": "server/handlers/links.handler.js",
+      "lines": [
+        136,
+        136
+      ],
+      "original": "  const address = customurl || tasks[2];",
+      "mutated": "  const address = true;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-005",
+      "kind": "code",
+      "patch": "variants/bug-005.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "2630",
+      "file": "server/queries/host.queries.js",
+      "lines": [
+        37,
+        37
+      ],
+      "original": "  if (id) {",
+      "mutated": "  if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-006",
+      "kind": "code",
+      "patch": "variants/bug-006.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "2323",
+      "file": "server/passport.js",
+      "lines": [
+        42,
+        42
+      ],
+      "original": "        if (!user) {",
+      "mutated": "        if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-007",
+      "kind": "code",
+      "patch": "variants/bug-007.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "3208",
+      "file": "server/queries/user.queries.js",
+      "lines": [
+        254,
+        254
+      ],
+      "original": "  return !!anyuser;",
+      "mutated": "  return !anyuser;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-008",
+      "kind": "code",
+      "patch": "variants/bug-008.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "3178",
+      "file": "server/queries/user.queries.js",
+      "lines": [
+        228,
+        228
+      ],
+      "original": "    verified: params.verified ?? false,",
+      "mutated": "    verified: params.verified && false,",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-009",
+      "kind": "code",
+      "patch": "variants/bug-009.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "510",
+      "file": "server/handlers/helpers.handler.js",
+      "lines": [
+        26,
+        26
+      ],
+      "original": "  if (req.isHTML) {",
+      "mutated": "  if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-010",
+      "kind": "code",
+      "patch": "variants/bug-010.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "45",
+      "file": "server/handlers/auth.handler.js",
+      "lines": [
+        41,
+        41
+      ],
+      "original": "        if (redirect === \"header\") {",
+      "mutated": "        if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-011",
+      "kind": "code",
+      "patch": "variants/bug-011.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "1906",
+      "file": "server/handlers/validators.handler.js",
+      "lines": [
+        156,
+        156
+      ],
+      "original": "    .exists({ checkFalsy: true, checkNull: true })",
+      "mutated": "    .exists({ checkFalsy: false, checkNull: true })",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-012",
+      "kind": "code",
+      "patch": "variants/bug-012.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1813",
+      "file": "server/handlers/validators.handler.js",
+      "lines": [
+        93,
+        93
+      ],
+      "original": "      req.body.fetched_domain = domain || null;",
+      "mutated": "      req.body.fetched_domain = false;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    }
+  ],
+  "discards": [
+    {
+      "strykerMutantId": "566",
+      "file": "server/handlers/helpers.handler.js",
+      "lines": [
+        78,
+        78
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of existing-eval/bug-008.patch (line 78)"
+    }
+  ]
+}

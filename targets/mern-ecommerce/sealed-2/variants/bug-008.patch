@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/category.js b/server/routes/api/category.js
+index 02be459..647ca3a 100644
+--- a/server/routes/api/category.js
++++ b/server/routes/api/category.js
+@@ -15,7 +15,7 @@ router.post('/add', auth, role.check(ROLES.Admin), (req, res) => {
+   const products = req.body.products;
+   const isActive = req.body.isActive;
+ 
+-  if (!description || !name) {
++  if (!description || name) {
+     return res
+       .status(400)
+       .json({ error: 'You must enter description & name.' });
