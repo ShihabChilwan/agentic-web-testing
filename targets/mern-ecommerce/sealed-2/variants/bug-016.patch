@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/product.js b/server/routes/api/product.js
+index 6f89954..8c74471 100644
+--- a/server/routes/api/product.js
++++ b/server/routes/api/product.js
+@@ -129,7 +129,7 @@ router.get('/list', async (req, res) => {
+     const productsCount = await Product.aggregate(basicQuery);
+     const count = productsCount.length;
+     const size = count > limit ? page - 1 : 0;
+-    const currentPage = count > limit ? Number(page) : 1;
++    const currentPage = count >= limit ? Number(page) : 1;
+ 
+     // paginate query
+     const paginateQuery = [

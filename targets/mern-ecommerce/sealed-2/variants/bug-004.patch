@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Store/ProductReviews/index.js b/client/app/components/Store/ProductReviews/index.js
+index 2a8fc09..abfb6fb 100644
+--- a/client/app/components/Store/ProductReviews/index.js
++++ b/client/app/components/Store/ProductReviews/index.js
+@@ -21,7 +21,7 @@ const ProductReviews = props => {
+           )}
+         </Col>
+         <Col xs='12' md='7' lg='7' className='mb-3 px-3 px-md-2'>
+-          {props.reviews.length > 0 && <ReviewList reviews={props.reviews} />}
++          {props.reviews.length <= 0 && <ReviewList reviews={props.reviews} />}
+           <AddReview
+             reviewFormData={props.reviewFormData}
+             reviewChange={props.reviewChange}

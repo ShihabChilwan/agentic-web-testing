@@ -1,0 +1,13 @@
+diff --git a/server/handlers/validators.handler.js b/server/handlers/validators.handler.js
+index c479eca..997ae1f 100644
+--- a/server/handlers/validators.handler.js
++++ b/server/handlers/validators.handler.js
+@@ -90,7 +90,7 @@ const createLink = [
+         address,
+         user_id: req.user.id
+       });
+-      req.body.fetched_domain = domain || null;
++      req.body.fetched_domain = false;
+ 
+       if (!domain) return Promise.reject();
+     })

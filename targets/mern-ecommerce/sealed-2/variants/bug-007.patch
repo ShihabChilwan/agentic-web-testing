@@ -1,0 +1,13 @@
+diff --git a/client/app/containers/Order/actions.js b/client/app/containers/Order/actions.js
+index 80d3f4f..9dd3f4a 100644
+--- a/client/app/containers/Order/actions.js
++++ b/client/app/containers/Order/actions.js
+@@ -40,7 +40,7 @@ export const setOrderLoading = value => {
+ export const fetchOrders = (page = 1) => {
+   return async (dispatch, getState) => {
+     try {
+-      dispatch(setOrderLoading(true));
++      dispatch(setOrderLoading(false));
+ 
+       const response = await axios.get(`${API_URL}/order`, {
+         params: {

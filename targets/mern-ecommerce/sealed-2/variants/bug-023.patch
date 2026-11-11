@@ -1,0 +1,13 @@
+diff --git a/server/models/merchant.js b/server/models/merchant.js
+index 1dd61b2..0c246f2 100644
+--- a/server/models/merchant.js
++++ b/server/models/merchant.js
+@@ -8,7 +8,7 @@ const { Schema } = Mongoose;
+ const MerchantSchema = new Schema({
+   name: {
+     type: String,
+-    trim: true
++    trim: false
+   },
+   email: {
+     type: String

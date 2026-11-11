@@ -1,0 +1,13 @@
+diff --git a/server/handlers/helpers.handler.js b/server/handlers/helpers.handler.js
+index ff53454..3e9745c 100644
+--- a/server/handlers/helpers.handler.js
++++ b/server/handlers/helpers.handler.js
+@@ -23,7 +23,7 @@ function error(error, req, res, _next) {
+     return;
+   }
+ 
+-  if (req.isHTML) {
++  if (false) {
+     res.render("error", {
+       message: "An error occurred. Please try again later."
+     });

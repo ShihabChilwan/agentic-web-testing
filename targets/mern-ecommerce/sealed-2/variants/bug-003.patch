@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Manager/ReviewList/index.js b/client/app/components/Manager/ReviewList/index.js
+index cb81af2..136bda2 100644
+--- a/client/app/components/Manager/ReviewList/index.js
++++ b/client/app/components/Manager/ReviewList/index.js
+@@ -26,7 +26,7 @@ const ReviewList = props => {
+           className='d-flex flex-column justify-content-center align-items-center fw-normal text-white avatar'
+           style={{ backgroundColor: color ? color : 'red' }}
+         >
+-          {review.user.firstName.charAt(0)}
++          {review.user.firstName}
+         </div>
+       );
+     }

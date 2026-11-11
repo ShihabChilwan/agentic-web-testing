@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "seed": 20261112,
+  "mutate": {
+    "backend": [
+      "server/routes/api/*.js",
+      "server/middleware/*.js",
+      "server/models/*.js",
+      "server/utils/{auth,queries,store}.js"
+    ],
+    "frontend": [
+      "client/app/containers/**/{actions,reducer,index}.js",
+      "client/app/components/**/*.js",
+      "client/app/utils/validation.js"
+    ]
+  },
+  "codeVariants": {
+    "backend": 19,
+    "frontend": 6,
+    "maxPerFile": 2
+  },
+  "buildErrorPattern": {
+    "frontend": "Failed to compile"
+  },
+  "environmentFaults": [],
+  "cloud": {
+    "replace": {
+      "mongo:": "127.0.0.1:"
+    },
+    "imageSetup": "curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg && echo 'deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main' > /etc/apt/sources.list.d/mongodb-org-7.0.list && apt-get update && apt-get install -y --no-install-recommends mongodb-org-server mongodb-mongosh && rm -rf /var/lib/apt/lists/*",
+    "startServices": "mkdir -p /tmp/mongo && mongod --dbpath /tmp/mongo --bind_ip 127.0.0.1 --port 27017 --wiredTigerCacheSizeGB 0.25 --fork --logpath /tmp/mongod.log --quiet",
+    "serviceLogs": [
+      "/tmp/mongod.log"
+    ]
+  }
+}

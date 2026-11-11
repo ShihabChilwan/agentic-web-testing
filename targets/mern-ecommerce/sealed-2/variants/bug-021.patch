@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/auth.js b/server/routes/api/auth.js
+index 8e1109b..05b8e81 100644
+--- a/server/routes/api/auth.js
++++ b/server/routes/api/auth.js
+@@ -90,7 +90,7 @@ router.post('/register', async (req, res) => {
+         .json({ error: 'You must enter an email address.' });
+     }
+ 
+-    if (!firstName || !lastName) {
++    if (!firstName || lastName) {
+       return res.status(400).json({ error: 'You must enter your full name.' });
+     }
+ 

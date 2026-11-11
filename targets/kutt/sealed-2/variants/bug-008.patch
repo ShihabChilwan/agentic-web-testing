@@ -1,0 +1,13 @@
+diff --git a/server/queries/user.queries.js b/server/queries/user.queries.js
+index 857f3e3..f22706e 100644
+--- a/server/queries/user.queries.js
++++ b/server/queries/user.queries.js
+@@ -225,7 +225,7 @@ async function create(params) {
+     email: params.email,
+     password: params.password,
+     role: params.role ?? ROLES.USER,
+-    verified: params.verified ?? false,
++    verified: params.verified && false,
+     banned: params.banned ?? false,
+   }, "*");
+ 

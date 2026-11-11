@@ -1,0 +1,13 @@
+diff --git a/server/handlers/auth.handler.js b/server/handlers/auth.handler.js
+index f103d29..26376a4 100644
+--- a/server/handlers/auth.handler.js
++++ b/server/handlers/auth.handler.js
+@@ -38,7 +38,7 @@ function authenticate(type, error, isStrict, redirect) {
+           res.redirect("/logout");
+           return;
+         }
+-        if (redirect === "header") {
++        if (true) {
+           res.setHeader("HX-Redirect", "/logout");
+           res.send("NOT_AUTHENTICATED");
+           return;

@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/address.js b/server/routes/api/address.js
+index 167e8e7..efd03b3 100644
+--- a/server/routes/api/address.js
++++ b/server/routes/api/address.js
+@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
+ 
+     const addressDoc = await Address.findOne({ _id: addressId });
+ 
+-    if (!addressDoc) {
++    if (true) {
+       res.status(404).json({
+         message: `Cannot find Address with the id: ${addressId}.`
+       });

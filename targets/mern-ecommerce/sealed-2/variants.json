@@ -1,0 +1,586 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "goldenRef": "golden",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
+  "method": "stryker",
+  "seed": 20261112,
+  "stryker": {
+    "version": "10.0.0",
+    "mutate": {
+      "backend": [
+        "server/routes/api/*.js",
+        "server/middleware/*.js",
+        "server/models/*.js",
+        "server/utils/{auth,queries,store}.js"
+      ],
+      "frontend": [
+        "client/app/containers/**/{actions,reducer,index}.js",
+        "client/app/components/**/*.js",
+        "client/app/utils/validation.js"
+      ]
+    },
+    "mutators": [
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "BooleanLiteral",
+      "ArithmeticOperator",
+      "UnaryOperator",
+      "OptionalChaining",
+      "MethodExpression"
+    ],
+    "mutants": 6607,
+    "candidates": 1930,
+    "mutationJsonSha256": "abdc33500b5f30dea0182e5852e5b82ee45419350ef70963bbf0d95cd7c93b9a"
+  },
+  "overlapLines": 5,
+  "variants": [
+    {
+      "id": "bug-001",
+      "kind": "code",
+      "patch": "variants/bug-001.patch",
+      "layer": "backend",
+      "mutator": "OptionalChaining",
+      "strykerMutantId": "6648",
+      "file": "server/routes/api/review.js",
+      "lines": [
+        72,
+        72
+      ],
+      "original": "      productDoc?.brand === null || productDoc?.brand?.isActive === false;",
+      "mutated": "      productDoc?.brand === null || productDoc?.brand.isActive === false;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-002",
+      "kind": "code",
+      "patch": "variants/bug-002.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "4283",
+      "file": "client/app/containers/ResetPassword/index.js",
+      "lines": [
+        25,
+        25
+      ],
+      "original": "    if (authenticated) return <Redirect to='/dashboard' />;",
+      "mutated": "    if (true) return <Redirect to='/dashboard' />;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-003",
+      "kind": "code",
+      "patch": "variants/bug-003.patch",
+      "layer": "frontend",
+      "mutator": "MethodExpression",
+      "strykerMutantId": "1241",
+      "file": "client/app/components/Manager/ReviewList/index.js",
+      "lines": [
+        29,
+        29
+      ],
+      "original": "          {review.user.firstName.charAt(0)}",
+      "mutated": "          {review.user.firstName}",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-004",
+      "kind": "code",
+      "patch": "variants/bug-004.patch",
+      "layer": "frontend",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "1747",
+      "file": "client/app/components/Store/ProductReviews/index.js",
+      "lines": [
+        24,
+        24
+      ],
+      "original": "          {props.reviews.length > 0 && <ReviewList reviews={props.reviews} />}",
+      "mutated": "          {props.reviews.length <= 0 && <ReviewList reviews={props.reviews} />}",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-005",
+      "kind": "code",
+      "patch": "variants/bug-005.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1340",
+      "file": "client/app/components/Manager/Support/MessageList.js",
+      "lines": [
+        87,
+        96
+      ],
+      "original": "              {!noHeader && (\n                <>\n                  <p className={`mb-0 fw-normal text-black`}>\n                    {message.user.name}\n                  </p>\n                  <div className='ml-2 text-black'>\n                    {formatTime(message.time)}\n                  </div>\n                </>\n              )}",
+      "mutated": "              {true}",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-006",
+      "kind": "code",
+      "patch": "variants/bug-006.patch",
+      "layer": "frontend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "1322",
+      "file": "client/app/components/Manager/Support/MessageList.js",
+      "lines": [
+        55,
+        55
+      ],
+      "original": "    if (m.user.name) {",
+      "mutated": "    if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-007",
+      "kind": "code",
+      "patch": "variants/bug-007.patch",
+      "layer": "frontend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "3535",
+      "file": "client/app/containers/Order/actions.js",
+      "lines": [
+        43,
+        43
+      ],
+      "original": "      dispatch(setOrderLoading(true));",
+      "mutated": "      dispatch(setOrderLoading(false));",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-008",
+      "kind": "code",
+      "patch": "variants/bug-008.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5660",
+      "file": "server/routes/api/category.js",
+      "lines": [
+        18,
+        18
+      ],
+      "original": "  if (!description || !name) {",
+      "mutated": "  if (!description || name) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-009",
+      "kind": "code",
+      "patch": "variants/bug-009.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "6266",
+      "file": "server/routes/api/order.js",
+      "lines": [
+        287,
+        287
+      ],
+      "original": "    const foundCartProduct = foundCart.products.find(p => p._id == itemId);",
+      "mutated": "    const foundCartProduct = foundCart.products.find(p => true);",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-010",
+      "kind": "code",
+      "patch": "variants/bug-010.patch",
+      "layer": "backend",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "6207",
+      "file": "server/routes/api/order.js",
+      "lines": [
+        207,
+        207
+      ],
+      "original": "    if (req.user.role === ROLES.Admin) {",
+      "mutated": "    if (req.user.role !== ROLES.Admin) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-011",
+      "kind": "code",
+      "patch": "variants/bug-011.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "5548",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+        191,
+        191
+      ],
+      "original": "      if (!update.isActive) {",
+      "mutated": "      if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-012",
+      "kind": "code",
+      "patch": "variants/bug-012.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "6693",
+      "file": "server/routes/api/review.js",
+      "lines": [
+        133,
+        133
+      ],
+      "original": "      new: true",
+      "mutated": "      new: false",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-013",
+      "kind": "code",
+      "patch": "variants/bug-013.patch",
+      "layer": "backend",
+      "mutator": "OptionalChaining",
+      "strykerMutantId": "6972",
+      "file": "server/utils/store.js",
+      "lines": [
+        31,
+        31
+      ],
+      "original": "          if (item.product?.taxable && item.priceWithTax === 0) {",
+      "mutated": "          if (item.product.taxable && item.priceWithTax === 0) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-014",
+      "kind": "code",
+      "patch": "variants/bug-014.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "6452",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        200,
+        200
+      ],
+      "original": "      if (!description || !name) {",
+      "mutated": "      if (!description || name) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-015",
+      "kind": "code",
+      "patch": "variants/bug-015.patch",
+      "layer": "backend",
+      "mutator": "LogicalOperator",
+      "strykerMutantId": "5432",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+        19,
+        19
+      ],
+      "original": "    if (!description || !name) {",
+      "mutated": "    if (!description && !name) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-016",
+      "kind": "code",
+      "patch": "variants/bug-016.patch",
+      "layer": "backend",
+      "mutator": "EqualityOperator",
+      "strykerMutantId": "6405",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        132,
+        132
+      ],
+      "original": "    const currentPage = count > limit ? Number(page) : 1;",
+      "mutated": "    const currentPage = count >= limit ? Number(page) : 1;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-017",
+      "kind": "code",
+      "patch": "variants/bug-017.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "4929",
+      "file": "server/middleware/role.js",
+      "lines": [
+        9,
+        9
+      ],
+      "original": "    if (!hasRole) {",
+      "mutated": "    if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-018",
+      "kind": "code",
+      "patch": "variants/bug-018.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "5988",
+      "file": "server/routes/api/merchant.js",
+      "lines": [
+        214,
+        214
+      ],
+      "original": "    if (!firstName || !lastName) {",
+      "mutated": "    if (false) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-019",
+      "kind": "code",
+      "patch": "variants/bug-019.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "5142",
+      "file": "server/routes/api/address.js",
+      "lines": [
+        52,
+        52
+      ],
+      "original": "    if (!addressDoc) {",
+      "mutated": "    if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-020",
+      "kind": "code",
+      "patch": "variants/bug-020.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5186",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        23,
+        23
+      ],
+      "original": "    if (!email) {",
+      "mutated": "    if (email) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-021",
+      "kind": "code",
+      "patch": "variants/bug-021.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5250",
+      "file": "server/routes/api/auth.js",
+      "lines": [
+        93,
+        93
+      ],
+      "original": "    if (!firstName || !lastName) {",
+      "mutated": "    if (!firstName || lastName) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-022",
+      "kind": "code",
+      "patch": "variants/bug-022.patch",
+      "layer": "backend",
+      "mutator": "ArithmeticOperator",
+      "strykerMutantId": "7020",
+      "file": "server/utils/store.js",
+      "lines": [
+        98,
+        98
+      ],
+      "original": "      const taxAmount = price * (taxRate / 100) * 100;",
+      "mutated": "      const taxAmount = price / (taxRate / 100) * 100;",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-023",
+      "kind": "code",
+      "patch": "variants/bug-023.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "5013",
+      "file": "server/models/merchant.js",
+      "lines": [
+        11,
+        11
+      ],
+      "original": "    trim: true",
+      "mutated": "    trim: false",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-024",
+      "kind": "code",
+      "patch": "variants/bug-024.patch",
+      "layer": "backend",
+      "mutator": "BooleanLiteral",
+      "strykerMutantId": "4943",
+      "file": "server/models/address.js",
+      "lines": [
+        27,
+        27
+      ],
+      "original": "    default: false",
+      "mutated": "    default: true",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    },
+    {
+      "id": "bug-025",
+      "kind": "code",
+      "patch": "variants/bug-025.patch",
+      "layer": "backend",
+      "mutator": "ConditionalExpression",
+      "strykerMutantId": "6067",
+      "file": "server/routes/api/newsletter.js",
+      "lines": [
+        10,
+        10
+      ],
+      "original": "  if (!email) {",
+      "mutated": "  if (true) {",
+      "healthChecks": {
+        "backend": true,
+        "frontend": true
+      },
+      "expectedClassification": "app_defect"
+    }
+  ],
+  "discards": [
+    {
+      "strykerMutantId": "6340",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        38,
+        38
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-002.patch (line 36)"
+    },
+    {
+      "strykerMutantId": "6988",
+      "file": "server/utils/store.js",
+      "lines": [
+        50,
+        50
+      ],
+      "mutator": "EqualityOperator",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-003.patch (line 53)"
+    },
+    {
+      "strykerMutantId": "6556",
+      "file": "server/routes/api/product.js",
+      "lines": [
+        359,
+        359
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-009.patch (line 359)"
+    },
+    {
+      "strykerMutantId": "5707",
+      "file": "server/routes/api/category.js",
+      "lines": [
+        84,
+        84
+      ],
+      "mutator": "ConditionalExpression",
+      "reason": "overlaps-dev-bug",
+      "detail": "within 5 lines of trial-20261022/variants/bug-011.patch (line 84)"
+    }
+  ]
+}

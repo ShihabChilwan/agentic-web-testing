@@ -1,0 +1,13 @@
+diff --git a/server/models/address.js b/server/models/address.js
+index 266e29d..5115f34 100644
+--- a/server/models/address.js
++++ b/server/models/address.js
+@@ -24,7 +24,7 @@ const AddressSchema = new Schema({
+   },
+   isDefault: {
+     type: Boolean,
+-    default: false
++    default: true
+   },
+   updated: Date,
+   created: {

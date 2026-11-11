@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/auth.js b/server/routes/api/auth.js
+index 8e1109b..4657af5 100644
+--- a/server/routes/api/auth.js
++++ b/server/routes/api/auth.js
+@@ -20,7 +20,7 @@ router.post('/login', async (req, res) => {
+   try {
+     const { email, password } = req.body;
+ 
+-    if (!email) {
++    if (email) {
+       return res
+         .status(400)
+         .json({ error: 'You must enter an email address.' });

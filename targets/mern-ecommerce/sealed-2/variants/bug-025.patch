@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/newsletter.js b/server/routes/api/newsletter.js
+index b2e6eaf..c3bad3c 100644
+--- a/server/routes/api/newsletter.js
++++ b/server/routes/api/newsletter.js
+@@ -7,7 +7,7 @@ const mailgun = require('../../services/mailgun');
+ router.post('/subscribe', async (req, res) => {
+   const email = req.body.email;
+ 
+-  if (!email) {
++  if (true) {
+     return res.status(400).json({ error: 'You must enter an email address.' });
+   }
+ 

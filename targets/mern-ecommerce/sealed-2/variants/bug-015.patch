@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/brand.js b/server/routes/api/brand.js
+index 653810f..89ac48c 100644
+--- a/server/routes/api/brand.js
++++ b/server/routes/api/brand.js
+@@ -16,7 +16,7 @@ router.post('/add', auth, role.check(ROLES.Admin), async (req, res) => {
+     const description = req.body.description;
+     const isActive = req.body.isActive;
+ 
+-    if (!description || !name) {
++    if (!description && !name) {
+       return res
+         .status(400)
+         .json({ error: 'You must enter description & name.' });

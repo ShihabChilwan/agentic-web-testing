@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/order.js b/server/routes/api/order.js
+index 5431be8..9deff3e 100644
+--- a/server/routes/api/order.js
++++ b/server/routes/api/order.js
+@@ -204,7 +204,7 @@ router.get('/:orderId', auth, async (req, res) => {
+ 
+     let orderDoc = null;
+ 
+-    if (req.user.role === ROLES.Admin) {
++    if (req.user.role !== ROLES.Admin) {
+       orderDoc = await Order.findOne({ _id: orderId }).populate({
+         path: 'cart',
+         populate: {

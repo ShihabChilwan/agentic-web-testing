@@ -1,0 +1,13 @@
+diff --git a/server/queries/visit.queries.js b/server/queries/visit.queries.js
+index d9a62b3..03d2e19 100644
+--- a/server/queries/visit.queries.js
++++ b/server/queries/visit.queries.js
+@@ -118,7 +118,7 @@ async function find(match, total) {
+         browser: {
+           chrome: period.browser.chrome + visit.br_chrome,
+           edge: period.browser.edge + visit.br_edge,
+-          firefox: period.browser.firefox + visit.br_firefox,
++          firefox: period.browser.firefox - visit.br_firefox,
+           ie: period.browser.ie + visit.br_ie,
+           opera: period.browser.opera + visit.br_opera,
+           other: period.browser.other + visit.br_other,

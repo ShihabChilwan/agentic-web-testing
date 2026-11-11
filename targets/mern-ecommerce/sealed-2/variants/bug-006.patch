@@ -1,0 +1,13 @@
+diff --git a/client/app/components/Manager/Support/MessageList.js b/client/app/components/Manager/Support/MessageList.js
+index b2bf46a..6b55ca7 100644
+--- a/client/app/components/Manager/Support/MessageList.js
++++ b/client/app/components/Manager/Support/MessageList.js
+@@ -52,7 +52,7 @@ const Message = memo(props => {
+   const getAvatar = m => {
+     const color = getMemoizedRandomColors(m.from);
+ 
+-    if (m.user.name) {
++    if (true) {
+       return (
+         <div
+           className='d-flex flex-column justify-content-center align-items-center fw-normal text-white avatar '

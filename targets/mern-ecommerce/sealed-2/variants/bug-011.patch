@@ -1,0 +1,13 @@
+diff --git a/server/routes/api/brand.js b/server/routes/api/brand.js
+index 653810f..164fec4 100644
+--- a/server/routes/api/brand.js
++++ b/server/routes/api/brand.js
+@@ -188,7 +188,7 @@ router.put(
+       const query = { _id: brandId };
+ 
+       // disable brand(brandId) products
+-      if (!update.isActive) {
++      if (true) {
+         const products = await Product.find({ brand: brandId });
+         store.disableProducts(products);
+       }
