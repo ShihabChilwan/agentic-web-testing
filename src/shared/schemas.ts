@@ -900,6 +900,18 @@ export const UnstableOrder = z.object({
   tests: z.array(ScriptTestId),
 });
 
+/**
+ * A path part that varied between correct runs (SPEC §7.6, comparator v3): in the tests listed, a part at
+ * `position` of `endpoint` (the path with `*` there) that fits `shape` (a tail shape of the whole part)
+ * becomes `:var`, so the call matches across runs.
+ */
+export const VariableSegment = z.object({
+  endpoint: z.string().min(1),
+  position: z.number().int().nonnegative(),
+  tests: z.array(ScriptTestId),
+  shape: ValueShape,
+});
+
 /** runs/<runId>/noise-fields.json (SPEC §7.6): fields that differ between two executions of the same version. */
 export const NoiseFields = z.object({
   schemaVersion: SchemaVersion,
@@ -943,6 +955,8 @@ export const NoiseFields = z.object({
       unstableOrder: z.array(UnstableOrder),
     }),
   ),
+  /** Path parts that varied between the correct runs (comparator v3); absent in older files. */
+  variableSegments: z.array(VariableSegment).default([]),
 });
 
 /** runs/<runId>/differential/compare-<base>-<other>.json (SPEC §7.6): differences left after the noise filter. */
@@ -984,10 +998,10 @@ export const ResponseComparison = z.object({
               path: z.string(),
               base: z.unknown(),
               other: z.unknown(),
-              /** `weak`: a browser call (page source) or a page line present in one run only; `strong`: every other difference (a changed value, status, list, request or page line, an api response missing). */
+              /** `weak`: a browser call (page source) or a page line present in one run only, or any difference of two snapshots that show different pages (`other-page`); `strong`: every other difference (a changed value, status, list, request, page line or HTML element, an api response missing). */
               strength: z.enum(['strong', 'weak']).default('strong'),
-              /** `shape`: a noise field's value outside its learned shape; `duplicate`: a value twice in a list that had none in the correct runs; `request`: a changed request; `value`: anything else. */
-              reason: z.enum(['value', 'shape', 'duplicate', 'request']).default('value'),
+              /** `shape`: a noise field's value outside its learned shape; `duplicate`: a value twice in a list that had none in the correct runs; `request`: a changed request; `other-page`: the two snapshots at this step show different pages (a fast redirect chain); `value`: anything else. */
+              reason: z.enum(['value', 'shape', 'duplicate', 'request', 'other-page']).default('value'),
             }),
           ),
         }),
@@ -997,6 +1011,7 @@ export const ResponseComparison = z.object({
 });
 
 export type RecordedResponse = z.infer<typeof RecordedResponse>;
+export type VariableSegment = z.infer<typeof VariableSegment>;
 export type RecordedPage = z.infer<typeof RecordedPage>;
 export type NoiseFields = z.infer<typeof NoiseFields>;
 export type ResponseComparison = z.infer<typeof ResponseComparison>;

@@ -133,3 +133,60 @@ export function describeShape(shape: ValueShape): string {
   }
   return `any ${shape.types.join(' or ')}`;
 }
+
+const UNIT_SECONDS: Record<string, number> = { second: 1, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000 };
+/**
+ * A relative time in text, as libraries write it: `0 seconds ago`, `1 minute ago`, `in 2 hours`,
+ * `about 1 hour ago`, `less than a minute ago`, `a few seconds ago`, `just now`.
+ */
+const RELATIVE_TIME =
+  /\b(?:just now|(?:(?:less than|about|over|almost|nearly)\s+)?(?:(\d+|an?|a few|one)\s+(second|minute|hour|day|week|month|year)s?\s+ago|in\s+(\d+|an?|a few|one)\s+(second|minute|hour|day|week|month|year)s?))\b/gi;
+
+/** Seconds of one relative time (0 for `just now`). */
+function relativeSeconds(match: RegExpMatchArray): { seconds: number; unit: number } {
+  const count = (match[1] ?? match[3])?.toLowerCase();
+  const unitName = (match[2] ?? match[4])?.toLowerCase();
+  if (!count || !unitName) return { seconds: 0, unit: 1 };
+  const unit = UNIT_SECONDS[unitName]!;
+  const n = /^\d+$/.test(count) ? Number(count) : count === 'a few' ? 3 : 1;
+  return { seconds: n * unit, unit };
+}
+
+/** How far two relative times of one value may lie apart in correct runs: the time a test takes, or one unit of the larger. */
+const RELATIVE_SLACK_SECONDS = 120;
+
+/**
+ * True when two texts are equal apart from relative times, and each pair of them lies within the time a
+ * run takes (two minutes, or one unit of the larger: `3 days ago` and `4 days ago`). A known shape like
+ * an ISO time: the run's clock, not the app, makes `0 seconds ago` and `1 second ago` differ. A relative
+ * time that moves further (`0 seconds ago` against `2 days ago`) stays a difference.
+ */
+export function relativeTimeOnly(a: unknown, b: unknown): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string' || a === b) return false;
+  const ma = [...a.matchAll(RELATIVE_TIME)];
+  const mb = [...b.matchAll(RELATIVE_TIME)];
+  if (ma.length === 0 || ma.length !== mb.length) return false;
+  if (a.replace(RELATIVE_TIME, '\u0000') !== b.replace(RELATIVE_TIME, '\u0000')) return false;
+  return ma.every((x, i) => {
+    const [p, q] = [relativeSeconds(x), relativeSeconds(mb[i]!)];
+    const ago = (m: RegExpMatchArray) => m[3] === undefined;
+    if (ago(x) !== ago(mb[i]!)) return false;
+    return Math.abs(p.seconds - q.seconds) <= Math.max(RELATIVE_SLACK_SECONDS, p.unit, q.unit);
+  });
+}
+
+/** True when one value alone fits a `tail` shape learned from whole values: its length and character classes. */
+export function fitsTail(value: string, shape: ValueShape): boolean {
+  if (shape.kind !== 'tail') return false;
+  const [min, max] = shape.tailLength!;
+  const allowed = new Set(shape.tailChars ?? '');
+  return value.length >= min && value.length <= max && [...classes(value)].every((c) => allowed.has(c));
+}
+
+/** The shape of two whole values that differ from their first character on (no common start), else undefined. */
+export function wholeTailShape(a: string, b: string): ValueShape | undefined {
+  const { prefix } = splitTail(a, b);
+  if (prefix !== '' || !a || !b) return undefined;
+  const shape = observeShape(a, b);
+  return shape.kind === 'tail' ? shape : undefined;
+}

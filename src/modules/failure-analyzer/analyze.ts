@@ -3,8 +3,8 @@ import path from 'node:path';
 import { createRepoTools, type RepoScope } from '../../agent/tools/repo-tools.js';
 import { runAgent } from '../../agent/runtime.js';
 import { AgentBudgetError, AgentSubmitError } from '../../agent/types.js';
-import { readCallLog } from '../../llm/call-log.js';
 import { createLLMClient } from '../../llm/client.js';
+import type { CostCapOptions } from '../../llm/budget.js';
 import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig, type LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
@@ -45,6 +45,8 @@ export interface AnalyzeOptions {
   differencesFile?: string;
   /** The file name to write in the execution folder (default diagnoses.json, or diagnoses.differential.json with differences). Run.json's analyze status is only set for the default. */
   outputName?: string;
+  /** A cost cap checked before every model call (`--cost-cap`, `--cost-ledger`; SPEC §2.4). */
+  costCap?: CostCapOptions;
 }
 
 export interface AnalyzeResult {
@@ -238,6 +240,7 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
     );
 
     let outcomes: GroupOutcome[] = [];
+    const costs: number[] = [];
     if (sessions.length > 0) {
       // The executed version's code, rebuilt from its commit and patch; removed afterwards.
       const tree = await buildSourceTree({
@@ -247,9 +250,17 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
       });
       try {
         const llmConfig = options.llmConfig ?? (await loadLLMConfig());
-        const llm = options.createLlm
+        const client = options.createLlm
           ? await options.createLlm(llmConfig, paths.llmCalls)
-          : await createLLMClient(llmConfig, { callLogFile: paths.llmCalls, pricingFile: PRICING_FILE });
+          : await createLLMClient(llmConfig, { callLogFile: paths.llmCalls, pricingFile: PRICING_FILE, ...(options.costCap ? { costCap: options.costCap } : {}) });
+        // This analysis's own calls, so analyses running in parallel on one run do not count each other's.
+        const llm: LLMClient = {
+          chat: async (req) => {
+            const response = await client.chat(req);
+            if (typeof response.usage.costUsd === 'number') costs.push(response.usage.costUsd);
+            return response;
+          },
+        };
         const ctx: AnalysisContext = {
           execDir: paths.executionDir(execId),
           scriptsDir: paths.scriptsDir,
@@ -278,8 +289,6 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
     }
 
     const diagnoses: Diagnosis[] = outcomes.flatMap((o) => o.drafts).map((d, i) => ({ id: `DX-${String(i + 1).padStart(3, '0')}`, ...d }));
-    const calls = (await readCallLog(paths.llmCalls)).lines.filter((l) => l.purpose === 'analyzer' && l.ts >= startedAt.toISOString());
-    const costs = calls.map((l) => l.costUsd).filter((c): c is number => c !== null);
     const summary: DiagnosesSummary = {
       groups: tri.groups.length,
       sessions: outcomes.length,

@@ -189,6 +189,19 @@ describe('analyzeExecution', () => {
     await expect(run(llm, { noTools: true, differencesFile: 'c.json' })).rejects.toThrow(/need the tools/);
   });
 
+  it('counts only its own calls in the cost, not another analysis writing to the same call log', async () => {
+    const paid = (r: ReturnType<typeof submit>, costUsd: number) => ({ ...r, usage: { inputTokens: 1, outputTokens: 1, costUsd } });
+    // Another analysis running in parallel on the same run logged an expensive call during this one.
+    const other = { ts: '2099-01-01T00:00:00.000Z', purpose: 'analyzer', provider: 'openai-compatible', model: 'm', reasoningEffort: 'medium', inputTokens: 1, outputTokens: 1, latencyMs: 1, ok: true, attempts: 1, costUsd: 5 };
+    await writeFile(path.join(f.runsDir, f.runId, 'llm-calls.jsonl'), `${JSON.stringify(other)}\n`);
+    const { llm } = fakeByGroup({
+      'TC-001': [paid(submit([appDefect]), 0.01)],
+      'TC-003': [paid(submit([{ ...appDefect, testCaseIds: ['TC-003'], classification: 'environment_issue', location: null }]), 0.02)],
+    });
+    const result = await run(llm);
+    expect(result.diagnoses.summary?.costUsd).toBeCloseTo(0.03);
+  });
+
   it('an execution without failures needs no model call', async () => {
     const results = JSON.parse(await readFile(f.paths.results('x-04'), 'utf8'));
     results.results = results.results.filter((r: { status: string }) => r.status === 'passed');
