@@ -289,6 +289,8 @@ export const LLMCallLogLine = z.object({
   latencyMs: DurationMs,
   ok: z.boolean(),
   attempts: z.number().int().min(1),
+  /** Time spent waiting between attempts (rate limits, server errors), when there was a retry. */
+  retryWaitMs: DurationMs.optional(),
   costUsd: z.number().nonnegative().nullable(),
   /** provider: exact cost reported in the response; pricing: computed from config/pricing.json; null: unknown. */
   costSource: z.enum(['provider', 'pricing']).nullable().optional(),
@@ -1074,9 +1076,9 @@ export const DiagnosesSummary = z.object({
   costUsd: z.number().nonnegative().nullable(),
   durationMs: DurationMs,
   /** Groups of tests that passed but differ from a reference run (SPEC §8.5); 0 without comparator differences. */
-  differenceGroups: z.number().int().nonnegative().default(0),
+  differenceGroups: z.number().int().nonnegative().optional(),
   /** Difference groups left out by the per-execution cap (their differences stay readable through get_differences). */
-  differenceGroupsLeftOut: z.number().int().nonnegative().default(0),
+  differenceGroupsLeftOut: z.number().int().nonnegative().optional(),
 });
 
 export const Diagnoses = z.object({
@@ -1087,8 +1089,8 @@ export const Diagnoses = z.object({
   diagnoses: z.array(Diagnosis),
   /** Absent in files written before it existed. */
   summary: DiagnosesSummary.optional(),
-  /** True when the analysis also got comparator differences against a reference run (SPEC §8.5). */
-  withDifferences: z.boolean().default(false),
+  /** True when the analysis also got comparator differences against a reference run (SPEC §8.5); absent otherwise. */
+  withDifferences: z.boolean().optional(),
 });
 
 export type Classification = z.infer<typeof Classification>;

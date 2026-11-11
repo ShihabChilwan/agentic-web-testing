@@ -28,6 +28,37 @@ describe('withRetry', () => {
     expect(delays).toEqual([100, 200, 250]);
   });
 
+  it('gives rate limits more patience: their own backoff and attempt limit, server errors keep theirs', async () => {
+    const delays: number[] = [];
+    const rl = { ...options(delays), maxRateLimitAttempts: 6, rateLimitBaseDelayMs: 5, rateLimitMaxDelayMs: 60 };
+    const attempt = failing(['rate_limit', 'rate_limit', 'rate_limit', 'rate_limit', 'rate_limit']);
+    await expect(withRetry(attempt.fn, rl)).resolves.toBe('ok');
+    expect(attempt.calls()).toBe(6);
+    expect(delays).toEqual([5, 10, 20, 40, 60]);
+    const tooMany = failing(Array(6).fill('rate_limit') as LLMErrorKind[]);
+    await expect(withRetry(tooMany.fn, rl)).rejects.toThrow('rate_limit');
+    expect(tooMany.calls()).toBe(6);
+    const server = failing(Array(5).fill('server') as LLMErrorKind[]);
+    await expect(withRetry(server.fn, rl)).rejects.toThrow('server');
+    expect(server.calls()).toBe(4);
+  });
+
+  it('waits as long as the provider asks (Retry-After), capped, and reports every wait', async () => {
+    const delays: number[] = [];
+    const waits: number[] = [];
+    let calls = 0;
+    const fn = async () => {
+      calls += 1;
+      if (calls === 1) throw new LLMRequestError('429', 'rate_limit', 429, 7);
+      if (calls === 2) throw new LLMRequestError('429', 'rate_limit', 429, 999);
+      return 'ok';
+    };
+    const opts = { ...options(delays), maxRateLimitAttempts: 6, rateLimitBaseDelayMs: 5, rateLimitMaxDelayMs: 60, onWait: (ms: number) => void waits.push(ms) };
+    await expect(withRetry(fn, opts)).resolves.toBe('ok');
+    expect(delays).toEqual([7, 60]);
+    expect(waits).toEqual([7, 60]);
+  });
+
   it('gives up after 4 attempts in total', async () => {
     const attempt = failing(['server', 'server', 'server', 'server', 'server']);
     await expect(withRetry(attempt.fn, options([]))).rejects.toThrow('server');

@@ -6,7 +6,7 @@ import type {
   ChatCompletionTool,
 } from 'openai/resources/chat/completions';
 import type { ReasoningParam } from '../shared/config.js';
-import { errorKindForStatus, LLMRequestError } from './errors.js';
+import { errorKindForStatus, parseRetryAfter, LLMRequestError } from './errors.js';
 import type {
   ChatProvider,
   ChatResponse,
@@ -202,7 +202,9 @@ function toRequestError(err: unknown): LLMRequestError {
   if (err instanceof APIConnectionTimeoutError) return new LLMRequestError('request timed out', 'timeout');
   if (err instanceof APIConnectionError) return new LLMRequestError(`network error: ${err.message}`, 'network');
   if (err instanceof APIError && typeof err.status === 'number') {
-    return new LLMRequestError(err.message, errorKindForStatus(err.status), err.status);
+    const headers = err.headers as Headers | Record<string, string> | undefined;
+    const retryAfter = headers instanceof Headers ? headers.get('retry-after') : headers?.['retry-after'];
+    return new LLMRequestError(err.message, errorKindForStatus(err.status), err.status, parseRetryAfter(retryAfter));
   }
   return new LLMRequestError(err instanceof Error ? err.message : String(err), 'client');
 }

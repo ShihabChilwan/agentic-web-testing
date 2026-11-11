@@ -7,6 +7,8 @@ import { readCallLog, upstreamProvidersSeen } from '../../src/llm/call-log.js';
 import { createLLMClient, isReasoningEffortRejection, RunLLMClient } from '../../src/llm/client.js';
 import { LLMBudgetExceededError, LLMRequestError } from '../../src/llm/errors.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
+import { DEFAULT_RETRY } from '../../src/llm/retry.js';
+import type { RetryOptions } from '../../src/llm/retry.js';
 import type { FakeStep } from '../../src/llm/fake.js';
 import type { ChatRequest } from '../../src/llm/types.js';
 import { parseLLMConfig } from '../../src/shared/config.js';
@@ -31,7 +33,7 @@ const request: ChatRequest = {
   maxTokens: 100,
 };
 
-async function setup(steps: FakeStep[], opts: { pricing?: Pricing; budget?: RunBudget } = {}) {
+async function setup(steps: FakeStep[], opts: { pricing?: Pricing; budget?: RunBudget; retry?: RetryOptions } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'llm-client-'));
   const callLogFile = path.join(dir, 'llm-calls.jsonl');
   const provider = new FakeLLMClient(steps);
@@ -41,7 +43,7 @@ async function setup(steps: FakeStep[], opts: { pricing?: Pricing; budget?: RunB
     pricing: opts.pricing ?? null,
     budget: opts.budget ?? new RunBudget({ maxTokens: 1_000_000, maxCostUsd: 2 }),
     callLogFile,
-    retry: { maxAttempts: 4, maxTimeoutRetries: 1, baseDelayMs: 0, maxDelayMs: 0, sleep: async () => {} },
+    retry: opts.retry ?? { maxAttempts: 4, maxTimeoutRetries: 1, baseDelayMs: 0, maxDelayMs: 0, sleep: async () => {} },
     warn: (m) => warnings.push(m),
   });
   const log = async () => (await readCallLog(callLogFile)).lines;
@@ -100,6 +102,22 @@ describe('RunLLMClient call log', () => {
     ]);
     await client.chat(request);
     expect((await log())[0]).toMatchObject({ ok: true, attempts: 3 });
+  });
+
+  it('rides out a provider that answers 429 several times, and logs the attempts and the wait', async () => {
+    const slept: number[] = [];
+    const retry: RetryOptions = { ...DEFAULT_RETRY, sleep: async (ms) => void slept.push(ms) };
+    const limited = () => new LLMRequestError('429 Provider returned error', 'rate_limit', 429);
+    const { client, log } = await setup([limited(), limited(), limited(), limited(), FakeLLMClient.text('ok')], { retry });
+    await client.chat(request);
+    expect(slept).toEqual([5_000, 10_000, 20_000, 40_000]);
+    expect((await log())[0]).toMatchObject({ ok: true, attempts: 5, retryWaitMs: 75_000 });
+
+    // Six 429s in a row: the call fails after 6 attempts, and the log says so.
+    const failing = await setup(Array.from({ length: 6 }, limited), { retry: { ...DEFAULT_RETRY, sleep: async () => {} } });
+    const err = await failing.client.chat(request).catch((e: unknown) => e);
+    expect((err as LLMRequestError).attempts).toBe(6);
+    expect((await failing.log())[0]).toMatchObject({ ok: false, attempts: 6, retryWaitMs: 135_000 });
   });
 
   it('logs a failed call and rethrows, without any key or header value', async () => {

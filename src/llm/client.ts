@@ -59,6 +59,7 @@ export class RunLLMClient implements LLMClient {
 
     const started = now();
     let requests = 0;
+    let waited = 0;
     const send = async (): Promise<ChatResponse> => {
       const withEffort = !this.reasoningEffortRejected;
       requests++;
@@ -88,7 +89,8 @@ export class RunLLMClient implements LLMClient {
     });
 
     try {
-      const response = await withRetry(send, this.deps.retry ?? DEFAULT_RETRY);
+      const retry = this.deps.retry ?? DEFAULT_RETRY;
+      const response = await withRetry(send, { ...retry, onWait: (ms, err) => { waited += ms; retry.onWait?.(ms, err); } });
       const { usage } = response;
       // Prefer the exact cost the provider reports; fall back to config/pricing.json.
       const priced = costUsd(this.deps.pricing, model, usage);
@@ -101,6 +103,7 @@ export class RunLLMClient implements LLMClient {
         outputTokens: usage.outputTokens,
         ok: true,
         attempts: requests,
+        ...(waited > 0 ? { retryWaitMs: waited } : {}),
         costUsd: cost,
         costSource,
         ...(usage.cachedInputTokens !== undefined ? { cachedInputTokens: usage.cachedInputTokens } : {}),
@@ -118,6 +121,7 @@ export class RunLLMClient implements LLMClient {
         outputTokens: 0,
         ok: false,
         attempts: Math.max(requests, 1),
+        ...(waited > 0 ? { retryWaitMs: waited } : {}),
         costUsd: null,
         costSource: null,
         error: safe.message,
