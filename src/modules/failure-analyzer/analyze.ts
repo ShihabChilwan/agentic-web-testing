@@ -120,7 +120,9 @@ async function diagnoseGroup(session: SessionGroup, deps: SessionDeps): Promise<
         tools: deps.noTools ? [] : [...createAnalyzerTools(ctx), ...createRepoTools(deps.scope)],
         submit: {
           name: 'submit_diagnoses',
-          description: 'Submit the diagnoses for your group of tests. Every test of the group in exactly one diagnosis.',
+          description: deps.differences
+            ? 'Submit the diagnoses for your group of tests. Every test of the group in exactly one diagnosis.'
+            : 'Submit the diagnoses for your group of failing tests. Every test of the group in exactly one diagnosis.',
           schema: SubmitDiagnoses,
           validate: (submit) => checkDiagnoses(submit, { groupTestIds: group.testCaseIds, scope: deps.scope, prd: ctx.prd }),
         },
@@ -286,8 +288,8 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
       toolCalls: outcomes.reduce((n, o) => n + o.toolCalls, 0),
       costUsd: costs.length > 0 ? costs.reduce((a, b) => a + b, 0) : null,
       durationMs: Date.now() - startedAt.getTime(),
-      differenceGroups: differences?.groups.length ?? 0,
-      differenceGroupsLeftOut: differences?.leftOut ?? 0,
+      // Only a differential analysis writes these, so a plain analysis writes the same file as before.
+      ...(differences ? { differenceGroups: differences.groups.length, differenceGroupsLeftOut: differences.leftOut } : {}),
     };
     const output = Diagnoses.parse({
       schemaVersion: SCHEMA_VERSION,
@@ -296,7 +298,7 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
       generatedAt: new Date().toISOString(),
       diagnoses,
       summary,
-      withDifferences: differences !== undefined,
+      ...(differences ? { withDifferences: true } : {}),
     });
     await writeFile(file, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
     await setStatus('done');
@@ -314,11 +316,11 @@ export function describeAnalysis(result: AnalyzeResult): string[] {
   const by = new Map<string, number>();
   for (const d of diagnoses) by.set(d.classification, (by.get(d.classification) ?? 0) + 1);
   const lines = [
-    `${diagnoses.length} diagnoses${by.size > 0 ? ` (${[...by].map(([k, n]) => `${k} ${n}`).join(', ')})` : ''} for ${diagnoses.reduce((n, d) => n + d.testCaseIds.length, 0)} tests`,
+    `${diagnoses.length} diagnoses${by.size > 0 ? ` (${[...by].map(([k, n]) => `${k} ${n}`).join(', ')})` : ''} for ${diagnoses.reduce((n, d) => n + d.testCaseIds.length, 0)} ${result.diagnoses.withDifferences ? 'tests' : 'failing tests'}`,
   ];
   if (summary) {
     const cost = summary.costUsd === null ? 'unknown' : `$${summary.costUsd.toFixed(4)}`;
-    lines.push(`${summary.groups} failure groups${summary.differenceGroups > 0 ? ` + ${summary.differenceGroups} difference groups` : ''}, ${summary.calls} model calls, ${summary.toolCalls} tool calls, cost ${cost}, ${Math.round(summary.durationMs / 1000)} s`);
+    lines.push(`${summary.groups}${summary.differenceGroups ? ` failure groups + ${summary.differenceGroups} difference groups` : ' groups'}, ${summary.calls} model calls, ${summary.toolCalls} tool calls, cost ${cost}, ${Math.round(summary.durationMs / 1000)} s`);
     if (summary.failedSessions > 0) lines.push(`Warning: ${summary.failedSessions} sessions ended without an accepted diagnosis (marked inconclusive)`);
   }
   for (const d of diagnoses) {

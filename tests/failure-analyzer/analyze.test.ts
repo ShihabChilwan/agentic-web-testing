@@ -77,6 +77,13 @@ describe('analyzeExecution', () => {
     expect(written.diagnoses[0]).toMatchObject({ toolCalls: 2, location: { file: 'server/routes/auth.js', lines: [6, 8] } });
     expect(written.diagnoses[1]).toMatchObject({ confidence: 0, rootCause: expect.stringMatching(/^AgentSubmitError/) });
     expect(written.summary).toMatchObject({ groups: 2, sessions: 2, failedSessions: 1, calls: 7, toolCalls: 2 });
+    // A plain analysis writes the same keys as before differences existed.
+    const raw = JSON.parse(await readFile(result.file, 'utf8')) as Record<string, Record<string, unknown>>;
+    expect(Object.keys(raw).sort()).toEqual(['diagnoses', 'execId', 'generatedAt', 'mode', 'schemaVersion', 'summary']);
+    expect(Object.keys(raw.summary!).sort()).toEqual(['calls', 'costUsd', 'durationMs', 'failedSessions', 'groups', 'sessions', 'toolCalls']);
+    expect(Object.keys((raw.diagnoses as unknown as Array<Record<string, unknown>>)[0]!)).not.toContain('basis');
+    expect(requests.flatMap((r) => r.tools ?? []).find((t) => t.name === 'submit_diagnoses')?.description).toBe('Submit the diagnoses for your group of failing tests. Every test of the group in exactly one diagnosis.');
+    expect(requests.flatMap((r) => r.tools ?? []).some((t) => t.name === 'get_differences')).toBe(false);
 
     // The session read the patched code, and the rejected range came back with its reason.
     const session = requests.filter((r) => taskOf(r).includes('- TC-001'));

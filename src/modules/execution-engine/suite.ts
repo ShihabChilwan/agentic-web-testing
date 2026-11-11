@@ -207,7 +207,8 @@ export const test = isolated.extend<{ _responses: Recorded[] }>({
 
 /** The suite's `_helpers.ts` text: the restore before every test, plus response and page recording when asked. */
 export function executionHelpers(record: { responses?: boolean; pages?: boolean } = {}): string {
-  if (!record.responses && !record.pages) return `${EXECUTION_HELPERS}\nexport const test = isolated;\n`;
+  // Without recording, the file is exactly the one executions wrote before recording existed.
+  if (!record.responses && !record.pages) return EXECUTION_HELPERS.replace('const isolated = base.extend', 'export const test = base.extend');
   const flags = `\nconst RECORD_RESPONSES = ${record.responses === true};\nconst RECORD_PAGES = ${record.pages === true};\n`;
   return `${EXECUTION_HELPERS}${RECORDING_HELPERS}${flags}`;
 }
