@@ -1,0 +1,166 @@
+{
+  "variants": "targets/mern-ecommerce/variants.json",
+  "repeats": 3,
+  "cases": [
+    {
+      "suite": "S1",
+      "bug": "bug-002",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-24",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-19-x-24.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-003",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-09",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-09.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-004",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-10",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-10.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-007",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-13",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-13.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-008",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-14",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-14.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-011",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-17",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-17.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-012",
+      "run": "runs/mern-ecommerce-20261030-125711-diff",
+      "execId": "x-18",
+      "comparison": "runs/mern-ecommerce-20261030-125711-diff/differential/compare-x-02-x-18.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-004",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-09",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-09.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-007",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-12",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-12.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-008",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-13",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-13.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-009",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-14",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-14.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-011",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-16",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-16.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-012",
+      "run": "runs/mern-ecommerce-20261030-211147-diff",
+      "execId": "x-17",
+      "comparison": "runs/mern-ecommerce-20261030-211147-diff/differential/compare-x-02-x-17.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-004",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-09",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-09.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-006",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-11",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-11.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-007",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-12",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-12.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-008",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-13",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-13.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-009",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-14",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-14.json",
+      "testCaught": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-011",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-16",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-16.json",
+      "testCaught": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-012",
+      "run": "runs/mern-ecommerce-20261031-201456-diff",
+      "execId": "x-17",
+      "comparison": "runs/mern-ecommerce-20261031-201456-diff/differential/compare-x-02-x-17.json",
+      "testCaught": true
+    }
+  ]
+}
