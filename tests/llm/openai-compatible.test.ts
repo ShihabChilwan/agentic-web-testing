@@ -263,6 +263,21 @@ describe('OpenAICompatibleProvider: extra body, reasoning format and optional re
     }
   });
 
+  it('sends LLM_PROVIDER_ORDER as the provider field and returns the generation id', async () => {
+    const stub = stubFetch([{ body: completion({ content: 'hi' }) }]);
+    const routing = { order: ['wafer/us', 'wafer'], only: ['wafer/us', 'wafer'], allow_fallbacks: false as const };
+    const p = new OpenAICompatibleProvider({ baseUrl: 'http://model.test/v1', apiKey: 'k', extraHeaders: {}, providerRouting: routing, timeoutMs: 5_000, fetch: stub.fetch });
+    const response = await p.chat(request);
+    expect(stub.captured[0]?.body.provider).toEqual(routing);
+    expect(response.generationId).toBe('c1');
+  });
+
+  it('sends no provider field without routing or extra body', async () => {
+    const stub = stubFetch([{ body: completion({ content: 'hi' }) }]);
+    await provider(stub.fetch).chat(request);
+    expect(stub.captured[0]?.body).not.toHaveProperty('provider');
+  });
+
   it('sends reasoning: { effort } in the reasoning_object format', async () => {
     const stub = stubFetch([{ body: completion({ content: 'hi' }) }, { body: completion({ content: 'hi' }) }]);
     const p = new OpenAICompatibleProvider({

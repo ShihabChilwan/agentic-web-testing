@@ -127,3 +127,24 @@ describe('LLM_EXTRA_BODY and LLM_REASONING_PARAM', () => {
     expect(configError({ ...minimal, LLM_REASONING_PARAM: 'effort' })).toContain('LLM_REASONING_PARAM');
   });
 });
+
+describe('LLM_PROVIDER_ORDER', () => {
+  it('is absent by default, so requests carry no routing of their own', () => {
+    expect(parseLLMConfig(minimal).providerRouting).toBeNull();
+    expect(parseLLMConfig({ ...minimal, LLM_PROVIDER_ORDER: '' }).providerRouting).toBeNull();
+  });
+
+  it('tries the endpoints in order and allows no other provider', () => {
+    expect(parseLLMConfig({ ...minimal, LLM_PROVIDER_ORDER: 'wafer/us, wafer' }).providerRouting).toEqual({
+      order: ['wafer/us', 'wafer'],
+      only: ['wafer/us', 'wafer'],
+      allow_fallbacks: false,
+    });
+  });
+
+  it('refuses a bad slug, a repeated one, and routing given twice', () => {
+    expect(configError({ ...minimal, LLM_PROVIDER_ORDER: 'Wafer US' })).toMatch(/LLM_PROVIDER_ORDER/);
+    expect(configError({ ...minimal, LLM_PROVIDER_ORDER: 'wafer,wafer' })).toMatch(/twice/);
+    expect(configError({ ...minimal, LLM_PROVIDER_ORDER: 'wafer', LLM_EXTRA_BODY: '{"provider":{"only":["wafer"]}}' })).toMatch(/one place/);
+  });
+});

@@ -298,6 +298,8 @@ export const LLMCallLogLine = z.object({
   reasoningTokens: TokenCount.optional(),
   /** Upstream provider that served the call, when a router reports it (e.g. OpenRouter). */
   upstreamProvider: z.string().min(1).optional(),
+  /** The response id; on OpenRouter it names the generation, whose record says which endpoint served it. */
+  generationId: z.string().min(1).optional(),
   systemFingerprint: z.string().min(1).optional(),
   error: z.string().optional(),
 });
@@ -1291,6 +1293,8 @@ export const FreezeRecord = z.strictObject({
     timeoutMs: z.number().int().positive(),
     /** LLM_EXTRA_BODY: provider routing only. */
     extraBody: z.record(z.string(), z.unknown()),
+    /** LLM_PROVIDER_ORDER as sent (`provider` request field); absent when the setting was not given (and in older files). */
+    providerRouting: z.strictObject({ order: z.array(z.string().min(1)).min(1), only: z.array(z.string().min(1)).min(1), allow_fallbacks: z.literal(false) }).optional(),
     maxTokensPerCall: z.number().int().positive(),
   }),
   limits: z.strictObject({
@@ -1333,6 +1337,8 @@ export const RunManifest = z.object({
     topP: z.number().gt(0).max(1),
     reasoningEffort: PerModule(ReasoningEffort).extend({ other: ReasoningEffort.optional() }),
     concurrency: z.number().int().positive(),
+    /** LLM_PROVIDER_ORDER, when it was set: the endpoints tried in order, no others. Absent otherwise and in older files. */
+    providerOrder: z.array(z.string().min(1)).min(1).optional(),
     /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Wafer"]). */
     upstreamProviders: z.array(z.string().min(1)).optional(),
   }),

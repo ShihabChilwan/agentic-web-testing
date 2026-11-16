@@ -70,6 +70,7 @@ export async function buildFreezeRecord(config: LLMConfig, options: FreezeOption
       contextTokens: config.contextTokens,
       timeoutMs: config.timeoutMs,
       extraBody: config.extraBody,
+      ...(config.providerRouting ? { providerRouting: config.providerRouting } : {}),
       maxTokensPerCall: DEFAULT_MAX_TOKENS_PER_CALL,
     },
     limits: { maxTestCases: MAX_TEST_CASES, firstPassTestCases: FIRST_PASS_TEST_CASES, maxTestCasesPerRequirement: MAX_TEST_CASES_PER_REQUIREMENT },
@@ -116,8 +117,10 @@ export function settingsDifferences(record: FreezeRecord, config: LLMConfig): st
     contextTokens: config.contextTokens,
     timeoutMs: config.timeoutMs,
     extraBody: config.extraBody,
+    providerRouting: config.providerRouting ?? null,
   };
-  const then = record.llm as Record<string, unknown>;
+  // A record written before provider routing existed (or without it) means no routing setting.
+  const then: Record<string, unknown> = { ...(record.llm as Record<string, unknown>), providerRouting: record.llm.providerRouting ?? null };
   return Object.entries(now)
     .filter(([key, value]) => JSON.stringify(sortKeys(value)) !== JSON.stringify(sortKeys(then[key])))
     .map(([key]) => `model setting ${key} differs from freeze.json`);

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseLLMConfig } from '../../src/shared/config.js';
-import { checkFrozen, currentFrozen, recordFreeze, requireFrozen } from '../../src/shared/freeze.js';
+import { buildFreezeRecord, checkFrozen, currentFrozen, recordFreeze, requireFrozen, settingsDifferences } from '../../src/shared/freeze.js';
 
 const config = parseLLMConfig({ LLM_BASE_URL: 'https://model.test/v1', LLM_API_KEY: 'sk-very-secret', LLM_EXTRA_BODY: '{"provider":{"order":["Wafer"]}}' });
 let root: string;
@@ -134,5 +134,20 @@ describe('freeze check', () => {
     const other = parseLLMConfig({ LLM_BASE_URL: 'https://model.test/v1', LLM_EXTRA_BODY: '{"provider":{"order":["Wafer"]}}', LLM_TEMPERATURE: '0.2' });
     const status = await checkFrozen({ projectRoot: root, llmConfig: other });
     expect(status.state === 'not-frozen' && status.reasons).toEqual(['model setting temperature differs from freeze.json']);
+  });
+});
+
+describe('provider routing in the freeze record', () => {
+  it('is recorded when set and compared with the settings in force; a record without it means no routing', async () => {
+    const routed = parseLLMConfig({ LLM_BASE_URL: 'https://model.test/v1', LLM_PROVIDER_ORDER: 'wafer/us,wafer' });
+    const record = await buildFreezeRecord(routed, { projectRoot: root, tag: 'x-1' });
+    expect(record.llm.providerRouting).toEqual({ order: ['wafer/us', 'wafer'], only: ['wafer/us', 'wafer'], allow_fallbacks: false });
+    expect(settingsDifferences(record, routed)).toEqual([]);
+    const plain = parseLLMConfig({ LLM_BASE_URL: 'https://model.test/v1' });
+    expect(settingsDifferences(record, plain)).toContain('model setting providerRouting differs from freeze.json');
+    const old = await buildFreezeRecord(plain, { projectRoot: root, tag: 'x-2' });
+    expect(old.llm).not.toHaveProperty('providerRouting');
+    expect(settingsDifferences(old, plain)).toEqual([]);
+    expect(settingsDifferences(old, routed)).toContain('model setting providerRouting differs from freeze.json');
   });
 });
