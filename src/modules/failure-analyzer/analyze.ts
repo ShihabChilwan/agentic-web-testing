@@ -9,7 +9,7 @@ import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig, type LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
-import { Diagnoses, ExecutionResults, Prd, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
+import { Diagnoses, ExecutionResults, Prd, SCHEMA_VERSION, ScriptManifest, SuiteCases, TestCases } from '../../shared/schemas.js';
 import type { Diagnosis, DiagnosesSummary, RunExecution, TestResult } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { buildSourceTree } from '../execution-engine/source-tree.js';
@@ -208,7 +208,10 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
   const execId = entry.execId;
   const results = ExecutionResults.parse(JSON.parse(await readFile(paths.results(execId), 'utf8')));
   const prd = Prd.parse(JSON.parse(await readFile(paths.prd, 'utf8')));
-  const testCases = TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8'))).testCases;
+  // An execution of another scripts folder (a suite with scenarios, §6.5) reads that folder's scripts, cases and manifest.
+  const scriptsDir = entry.scriptsDir ? path.join(paths.dir, entry.scriptsDir) : paths.scriptsDir;
+  const suiteCases = entry.scriptsDir ? await readFile(path.join(scriptsDir, 'cases.json'), 'utf8').catch(() => null) : null;
+  const testCases: SuiteCases['testCases'] = suiteCases !== null ? SuiteCases.parse(JSON.parse(suiteCases)).testCases : TestCases.parse(JSON.parse(await readFile(paths.testCases, 'utf8'))).testCases;
   const { config, repoDir } = await loadTargetConfig(manifest.target, {
     ...(options.targetsDir ? { targetsDir: options.targetsDir } : {}),
     projectRoot,
@@ -263,14 +266,14 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
         };
         const ctx: AnalysisContext = {
           execDir: paths.executionDir(execId),
-          scriptsDir: paths.scriptsDir,
+          scriptsDir,
           results,
           environment: tri.environment,
           testCases: new Map(testCases.map((tc) => [tc.id, tc])),
           prd,
           ...(differences ? { differences: differences.all } : {}),
         };
-        const unstable = await unstableTests(paths.scriptsManifest);
+        const unstable = await unstableTests(path.join(scriptsDir, 'manifest.json'));
         const deps: SessionDeps = {
           llm,
           llmConfig,

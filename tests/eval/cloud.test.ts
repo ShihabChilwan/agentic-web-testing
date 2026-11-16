@@ -116,6 +116,11 @@ describe('version list and opaque ids', () => {
     ]);
   });
 
+  it('adds further golden runs after golden when asked', () => {
+    expect(versionsFrom(variants, 'targets/fake', 3).map((v) => v.version)).toEqual(['golden', 'golden-2', 'golden-3', 'bug-001', 'env-01']);
+    expect(() => versionsFrom(variants, 'targets/fake', 0)).toThrow(/at least 1/);
+  });
+
   it('gives every repeat its own shuffle of x-01..x-NN, the same in every task', () => {
     const names = Array.from({ length: 18 }, (_, i) => `v${i}`);
     const a = execIdsFor(names, 'eval-9b-abcde');
@@ -174,6 +179,26 @@ describe('cloud task', () => {
     expect(status.summary).toEqual({ total: summary.total, passed: summary.passed, failed: summary.failed, errored: summary.errored, skipped: summary.skipped ?? 0 });
     expect(s.logLines.at(-1)).toMatch(new RegExp(`^done in \\d+ s; ${summary.passed} passed, ${summary.failed} failed, ${summary.errored} errored, ${summary.skipped ?? 0} skipped; peak memory 2048 MiB of 4096 MiB, OOM kills 0`));
     expect(execFileSync('tar', ['-tzf', path.join(out, 'execution.tar.gz')], { encoding: 'utf8' })).toContain(`${execId}/server/backend.log`);
+  });
+
+  it('runs the build\'s scripts folder with recordings when the image was built for a combined suite', async () => {
+    const s = await imageSetup();
+    const b = CloudBuild.parse({ ...JSON.parse(await readFile(path.join(s.imageDir, 'build.json'), 'utf8')), execution: { scriptsDir: 'scripts-with-scenarios', recordResponses: true, recordPages: true } });
+    await writeFile(path.join(s.imageDir, 'build.json'), JSON.stringify(b));
+    let seen: Parameters<typeof executeRun>[0];
+    const execute = fakeExecute();
+    await runCloudTask({
+      resultsDir: s.resultsDir, imageDir: s.imageDir, runsDir: s.runsDir, projectRoot: s.root,
+      env: { CLOUD_RUN_TASK_INDEX: '0', CLOUD_RUN_EXECUTION: 'local-1' }, cgroupDir: s.cgroupDir,
+      execute: (async (o) => {
+        seen = o;
+        return execute(o);
+      }) as typeof executeRun,
+      log: s.log,
+    });
+    expect(seen!).toMatchObject({ scriptsDir: 'scripts-with-scenarios', recordResponses: true, recordPages: true });
+    const status = CloudTaskStatus.parse(JSON.parse(await readFile(path.join(s.resultsDir, 'local-1', 'golden', 'status.json'), 'utf8')));
+    expect(status.execution.scriptsDir).toBe('scripts-with-scenarios');
   });
 
   it('exits 1 but still saves status and results when the execution itself fails, and never runs a version twice', async () => {
@@ -306,6 +331,22 @@ describe('import', () => {
     expect((await readdir(s.sourceRuns)).sort()).toEqual([SOURCE_RUN]);
   });
 
+  it('imports a combined suite: its scripts folder is copied and every execution records it', async () => {
+    const s = await imageSetup();
+    const source = path.join(s.sourceRuns, SOURCE_RUN);
+    await mkdir(path.join(source, 'scripts-with-scenarios'), { recursive: true });
+    await writeFile(path.join(source, 'scripts-with-scenarios', 'SC-001.spec.ts'), "test('SC-001', async () => {});\n");
+    const b = CloudBuild.parse({ ...(await build(source)), suiteHash: await suiteHash(source, 'scripts-with-scenarios'), execution: { scriptsDir: 'scripts-with-scenarios' } });
+    await writeFile(path.join(s.imageDir, 'build.json'), JSON.stringify(b));
+    const from = await runRepeat(s, 'local-1');
+    const { runId } = await importRepeat({ from, runsDir: s.sourceRuns });
+    const paths = runPaths(runId, s.sourceRuns);
+    expect(await readFile(path.join(paths.dir, 'scripts-with-scenarios', 'SC-001.spec.ts'), 'utf8')).toContain('SC-001');
+    expect((await readRunManifest(paths.runJson)).executions.map((e) => e.scriptsDir)).toEqual(['scripts-with-scenarios', 'scripts-with-scenarios', 'scripts-with-scenarios']);
+    await writeFile(path.join(source, 'scripts-with-scenarios', 'SC-001.spec.ts'), '// changed\n');
+    await expect(importRepeat({ from, runsDir: s.sourceRuns })).rejects.toThrow(/changed since the image was built/);
+  });
+
   it('refuses results whose suite differs from the source run', async () => {
     const s = await imageSetup();
     const from = await runRepeat(s, 'local-1');
@@ -423,6 +464,18 @@ describe('build folder', () => {
     expect(entrypoint).toContain('node_modules/.bin/tsx src/cli.ts eval cloud-task --results "$RESULTS_DIR" --service-log /tmp/db.log &');
     expect(await stat(path.join(outDir, 'image', 'fallback-status.cjs'))).toBeTruthy();
     expect(execFileSync('git', ['bundle', 'list-heads', path.join(outDir, 'target.bundle')], { encoding: 'utf8' })).toContain(`${golden} refs/heads/golden`);
+
+    // A combined suite: its scripts folder goes into the image and into the suite hash, with the recordings and golden runs asked for.
+    await mkdir(path.join(runDir, 'scripts-with-scenarios'), { recursive: true });
+    await writeFile(path.join(runDir, 'scripts-with-scenarios', 'SC-001.spec.ts'), "test('SC-001', async () => {});\n");
+    await writeFile(path.join(runDir, 'scripts-with-scenarios', 'manifest.json'), '{}');
+    const combined = await createCloudContext({ ...options, scriptsDir: 'scripts-with-scenarios', recordResponses: true, recordPages: true, goldenRuns: 4 });
+    expect(combined.build.execution).toEqual({ scriptsDir: 'scripts-with-scenarios', recordResponses: true, recordPages: true });
+    expect(combined.build.versions.map((v) => v.version)).toEqual(['golden', 'golden-2', 'golden-3', 'golden-4', 'bug-001', 'env-01']);
+    expect(combined.build.suiteHash).toBe(await suiteHash(runDir, 'scripts-with-scenarios'));
+    expect(combined.build.suiteHash).not.toBe(await suiteHash(runDir));
+    expect(await readFile(path.join(outDir, 'image', 'run', 'scripts-with-scenarios', 'SC-001.spec.ts'), 'utf8')).toContain('SC-001');
+    await expect(createCloudContext({ ...options, scriptsDir: 'no-such-folder' })).rejects.toThrow(/no-such-folder\/manifest.json is missing/);
 
     // A development draw under dev-bugs/: only its patches are copied into the image, not the rest of dev-bugs/.
     await write('targets/fake/dev-bugs/trial-1/variants.json', JSON.stringify({ ...example('variants.json'), target: 'fake', goldenCommit: golden, variants: [{ ...example('variants.json').variants[0], patch: 'dev-bugs/trial-1/variants/bug-001.patch' }] }));

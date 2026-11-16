@@ -249,6 +249,29 @@ describe('executeRun with recorded responses (real Playwright)', () => {
   }, 180_000);
 });
 
+describe('executeRun of another scripts folder (real Playwright)', () => {
+  it('runs a suite with scenario tests from its own folder, reads its cases.json and records the folder in run.json', async () => {
+    const runDir = path.join(runsDir, runId);
+    const dir = path.join(runDir, 'scripts-with-scenarios');
+    await mkdir(dir, { recursive: true });
+    await copyFile(path.join(runDir, 'scripts', 'TC-001.spec.ts'), path.join(dir, 'TC-001.spec.ts'));
+    await copyFile(path.join(runDir, 'scripts', '_helpers.ts'), path.join(dir, '_helpers.ts'));
+    await writeFile(path.join(dir, 'SC-001.spec.ts'), script('SC-001', 'api', `  E1: { description: 'The list answers' },`, `  const res = await api.get('/api/items?sort=desc');
+  expect(res.status(), 'E1').toBeLessThan(500);`));
+    const entry = (id: string) => ({ testCaseId: id, file: `scripts-with-scenarios/${id}.spec.ts`, status: 'validated', validationOutcome: 'passed', attempts: 1, attemptLog: [ATTEMPT], failureCategory: null });
+    await writeFile(path.join(dir, 'manifest.json'), JSON.stringify({ schemaVersion: '1.0', generationRef: 'golden', scripts: [entry('TC-001'), entry('SC-001')] }));
+    await writeFile(path.join(dir, 'cases.json'), JSON.stringify({ schemaVersion: '1.0', testCases: [testCase('TC-001', 1), { ...testCase('SC-001', 1), expected: [{ id: 'E1', description: 'The list answers' }] }] }));
+
+    const result = await executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, execId: 'x-70', scriptsDir: 'scripts-with-scenarios', recordResponses: true });
+    expect(result.results.results.map((r) => [r.testCaseId, r.status])).toEqual([['TC-001', 'passed'], ['SC-001', 'passed']]);
+    const recorded = (await readResponsesFile(path.join(runDir, 'executions', 'x-70', 'responses.jsonl'))).map((r) => [r.testCaseId, r.path]);
+    expect(recorded).toContainEqual(['SC-001', '/api/items?sort=desc']);
+    const manifest = await readRunManifest(path.join(runDir, 'run.json'));
+    expect(manifest.executions.find((e) => e.execId === 'x-70')).toMatchObject({ scriptsDir: 'scripts-with-scenarios', executeStatus: 'done' });
+    await expect(executeRun({ runId, runsDir, targetsDir: path.join(root, 'targets'), projectRoot: root, execId: 'x-71', scriptsDir: '../elsewhere' })).rejects.toThrow(/inside the run folder/);
+  }, 180_000);
+});
+
 describe('executeVersion settings', () => {
   it('starts the app with the request\'s own configOverride and skipSeed (restores reuse them)', async () => {
     const seen: StartOptions[] = [];

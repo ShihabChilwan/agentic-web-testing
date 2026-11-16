@@ -30,12 +30,14 @@ export const FeatureId = z.string().regex(/^F-\d{2,}$/, 'expected a feature id l
 export const RequirementId = z.string().regex(/^REQ-\d{3,}$/, 'expected a requirement id like REQ-001');
 export const TestCaseId = z.string().regex(/^TC-\d{3,}$/, 'expected a test case id like TC-001');
 export const OnePromptScriptId = z.string().regex(/^OP-\d{3,}$/, 'expected a one-prompt script id like OP-001');
+/** Scenario tests added to a suite by the scenario generator (SPEC §6.5), kept apart from the TC cases. */
+export const ScenarioId = z.string().regex(/^SC-\d{3,}$/, 'expected a scenario id like SC-001');
 export const ExpectationId = z.string().regex(/^E\d+$/, 'expected an expectation id like E1');
 export const DiagnosisId = z.string().regex(/^DX-\d{3,}$/, 'expected a diagnosis id like DX-001');
 export const CodeVariantId = z.string().regex(/^bug-\d{3,}$/, 'expected a code variant id like bug-001');
 export const EnvVariantId = z.string().regex(/^env-\d{2,}$/, 'expected an environment variant id like env-01');
-/** Results from the full suite use TC ids; the one-prompt ablation uses OP ids. */
-export const ScriptTestId = z.union([TestCaseId, OnePromptScriptId]);
+/** Results from the full suite use TC ids; the one-prompt ablation uses OP ids; scenario tests use SC ids. */
+export const ScriptTestId = z.union([TestCaseId, OnePromptScriptId, ScenarioId]);
 /** Execution ids appear in folder names, so they are restricted to safe characters. Opaque in practice: x-01, x-02, … */
 export const ExecId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'expected an execution id like x-07');
 export const CommitSha = z.string().regex(/^[0-9a-f]{7,40}$/, 'expected a git commit sha');
@@ -298,6 +300,8 @@ export const LLMCallLogLine = z.object({
   reasoningTokens: TokenCount.optional(),
   /** Upstream provider that served the call, when a router reports it (e.g. OpenRouter). */
   upstreamProvider: z.string().min(1).optional(),
+  /** The response id; on OpenRouter it names the generation, whose record says which endpoint served it. */
+  generationId: z.string().min(1).optional(),
   systemFingerprint: z.string().min(1).optional(),
   error: z.string().optional(),
 });
@@ -570,6 +574,16 @@ export const TestCases = z.object({
 
 export type TestCase = z.infer<typeof TestCase>;
 export type TestCases = z.infer<typeof TestCases>;
+
+/**
+ * `<scripts folder>/cases.json` of a suite built from more than one source (SPEC §6.5): every case the folder's scripts
+ * were written from, TC and SC ids together. Read in place of testcases.json by the execution and the analyzer.
+ */
+export const SuiteCases = z.object({
+  schemaVersion: SchemaVersion,
+  testCases: z.array(TestCase.extend({ id: ScriptTestId })),
+});
+export type SuiteCases = z.infer<typeof SuiteCases>;
 export type Expectation = z.infer<typeof Expectation>;
 export type TestCategory = z.infer<typeof TestCategory>;
 export type UncoveredReasonKind = z.infer<typeof UncoveredReasonKind>;
@@ -1261,6 +1275,8 @@ export const RunExecution = z.object({
   skipSeed: z.boolean().optional(),
   /** Values merged over the target config for this execution (environment variants). */
   configOverride: ConfigOverride.optional(),
+  /** The scripts folder the execution ran (relative to the run folder) when it was not scripts/ (e.g. a suite with scenarios, §6.5). */
+  scriptsDir: RelPath.optional(),
   executeStatus: ExecutionStepStatus,
   analyzeStatus: ExecutionStepStatus,
   /** Why the execution or its analysis failed. No secrets. */
@@ -1291,6 +1307,8 @@ export const FreezeRecord = z.strictObject({
     timeoutMs: z.number().int().positive(),
     /** LLM_EXTRA_BODY: provider routing only. */
     extraBody: z.record(z.string(), z.unknown()),
+    /** LLM_PROVIDER_ORDER as sent (`provider` request field); absent when the setting was not given (and in older files). */
+    providerRouting: z.strictObject({ order: z.array(z.string().min(1)).min(1), only: z.array(z.string().min(1)).min(1), allow_fallbacks: z.literal(false) }).optional(),
     maxTokensPerCall: z.number().int().positive(),
   }),
   limits: z.strictObject({
@@ -1333,6 +1351,8 @@ export const RunManifest = z.object({
     topP: z.number().gt(0).max(1),
     reasoningEffort: PerModule(ReasoningEffort).extend({ other: ReasoningEffort.optional() }),
     concurrency: z.number().int().positive(),
+    /** LLM_PROVIDER_ORDER, when it was set: the endpoints tried in order, no others. Absent otherwise and in older files. */
+    providerOrder: z.array(z.string().min(1)).min(1).optional(),
     /** Distinct upstream providers seen in the run's call log, sorted (e.g. ["Wafer"]). */
     upstreamProviders: z.array(z.string().min(1)).optional(),
   }),
@@ -1494,7 +1514,9 @@ export type EvaluationConfig = z.infer<typeof EvaluationConfig>;
 // Cloud executor (§11.7): image/build.json, <repeat>/<version>/status.json, eval/mapping.json
 // ---------------------------------------------------------------------------
 
-export const VersionId = z.union([z.literal('golden'), CodeVariantId, EnvVariantId]);
+/** golden-2, golden-3, …: further executions of the correct version in one repeat (noise runs for the comparator, §7.6). */
+export const GoldenRepeatId = z.string().regex(/^golden-\d+$/, 'expected a further golden run like golden-2');
+export const VersionId = z.union([z.literal('golden'), GoldenRepeatId, CodeVariantId, EnvVariantId]);
 
 export const CloudVersion = z.strictObject({
   version: VersionId,
@@ -1515,6 +1537,13 @@ export const CloudBuild = z.strictObject({
   imageTag: z.string().min(1),
   createdAt: Timestamp,
   replace: z.record(z.string(), z.string()),
+  /**
+   * How every task executes (absent: scripts/ without recordings, as before): another scripts folder of the run (a suite
+   * with scenarios, §6.5) and the recordings the comparator reads (§7.6).
+   */
+  execution: z
+    .strictObject({ scriptsDir: RelPath.optional(), recordResponses: z.boolean().optional(), recordPages: z.boolean().optional() })
+    .optional(),
   /** Task index = position in this list. */
   versions: z.array(CloudVersion).min(1),
 });
@@ -1541,6 +1570,7 @@ export const CloudTaskStatus = z.strictObject({
     patch: RelPath.optional(),
     configOverride: ConfigOverride.optional(),
     skipSeed: z.boolean().optional(),
+    scriptsDir: RelPath.optional(),
   }),
   /** From the container's cgroup; null where it cannot be read. */
   memory: z.strictObject({
@@ -1588,6 +1618,118 @@ export type VariantDiscard = z.infer<typeof VariantDiscard>;
 export type CodeVariant = z.infer<typeof CodeVariant>;
 export type Variant = z.infer<typeof Variant>;
 export type Variants = z.infer<typeof Variants>;
+
+// ---------------------------------------------------------------------------
+// Scenario generator (SPEC §6.5): runs/<runId>/scenarios/
+// ---------------------------------------------------------------------------
+
+/** What a scenario varies. `role` points are made by code; the model proposes the others. */
+export const VariationKind = z.enum(['role', 'list', 'unused-option', 'state-after-action', 'boundary']);
+export const ProposedVariationKind = z.enum(['list', 'unused-option', 'state-after-action', 'boundary']);
+export const VariationPointId = z.string().regex(/^VP-\d{3,}$/, 'expected a variation point id like VP-001');
+const ScenarioValue = z.union([z.string().max(300), z.number(), z.boolean()]);
+
+/** One variation point as the model submits it (submit_variation_points). */
+export const ProposedVariationPoint = z.object({
+  kind: ProposedVariationKind,
+  layer: TestLayer,
+  /** api: the PRD endpoint the varied request goes to, "METHOD /path" as listed. */
+  endpoint: z.string().min(1).max(300).optional(),
+  /** ui: the page opened, a path that fits a PRD page route. */
+  page: z.string().startsWith('/').max(300).optional(),
+  /** What is varied and why the suite misses it, in one or two sentences. */
+  description: z.string().min(10).max(400),
+  /** The option, query or input values to use (unused-option: each must appear in the cited code). */
+  values: z.array(ScenarioValue).max(6).default([]),
+  /** What to create or do first, through the API where possible. */
+  setup: z.array(z.string().min(1).max(300)).max(6).default([]),
+  /** The one action whose answer the comparison looks at. */
+  action: z.string().min(5).max(400),
+  /** Fixture user path ("users.<name>") or "visitor" (not logged in). */
+  user: z.string().min(1).max(60),
+  /** list: records to create first (at least 3). */
+  records: z.number().int().min(0).max(20).optional(),
+  /** The code that shows the variation (at the generation commit, at most 80 lines). */
+  citation: Evidence,
+});
+export const SubmitVariationPoints = z.object({
+  points: z.array(ProposedVariationPoint).max(8),
+});
+
+export const VariationPoint = ProposedVariationPoint.extend({
+  id: VariationPointId,
+  kind: VariationKind,
+  featureId: FeatureId,
+  /** code: a role point made from the PRD and the fixture users; model: proposed by a discovery session. */
+  origin: z.enum(['code', 'model']),
+  /** The role of `user` ("visitor" when not logged in). */
+  role: z.string().min(1),
+  /** The requirement the scenario is linked to (its code is the script writer's evidence). */
+  requirementId: RequirementId,
+  /** True when the cited lines hold code no test of the suite ran (from coverage/coverage.json); false without coverage. */
+  unrunLines: z.boolean(),
+});
+
+/** A scenario test case: the TestCase shape with an SC id and the point it comes from. */
+export const ScenarioCase = TestCase.extend({
+  id: ScenarioId,
+  scenario: z.object({ variationPointId: VariationPointId, kind: VariationKind }),
+});
+
+/** runs/<runId>/scenarios/variation-points.json */
+export const VariationPoints = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  points: z.array(VariationPoint),
+  /** In selection order: the scenarios to write. */
+  selected: z.array(VariationPointId),
+  /** In selection order: used when a selected scenario is dropped. */
+  reserve: z.array(VariationPointId),
+});
+
+/** runs/<runId>/scenarios/scenarios.json: every scenario case written (kept or dropped). */
+export const ScenarioCases = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  cases: z.array(ScenarioCase),
+});
+
+/** Why a scenario is not in the combined suite. */
+export const ScenarioDrop = z.object({
+  id: ScenarioId,
+  reason: z.enum(['assertion_failed', 'invalid', 'unstable-outcome', 'unstable-responses', 'not-run']),
+  detail: z.string(),
+});
+
+/** runs/<runId>/scenarios/summary.json */
+export const ScenarioSummary = z.object({
+  schemaVersion: SchemaVersion,
+  sourceRunId: z.string().min(1),
+  startedAt: Timestamp,
+  finishedAt: Timestamp,
+  status: z.enum(['done', 'failed']),
+  error: z.string().optional(),
+  cap: z.number().int().positive(),
+  costCapUsd: z.number().positive().nullable(),
+  costUsd: z.number().nonnegative(),
+  calls: z.number().int().nonnegative(),
+  discovery: z.object({ sessions: z.number().int().nonnegative(), failedSessions: z.number().int().nonnegative(), rejected: z.number().int().nonnegative() }),
+  points: z.object({ total: z.number().int().nonnegative(), byKind: z.record(z.string(), z.number().int().nonnegative()), byOrigin: z.record(z.string(), z.number().int().nonnegative()) }),
+  written: z.number().int().nonnegative(),
+  kept: z.array(ScenarioId),
+  dropped: z.array(ScenarioDrop),
+  /** The combined suite folder (relative to the run folder), when one was written. */
+  combined: z.object({ scriptsDir: RelPath, tc: z.number().int().nonnegative(), sc: z.number().int().nonnegative() }).nullable(),
+  timing: z.object({ discoveryMs: DurationMs, scriptsMs: DurationMs, stabilityMs: DurationMs }),
+  warnings: z.array(z.string()),
+});
+
+export type VariationKind = z.infer<typeof VariationKind>;
+export type ProposedVariationPoint = z.infer<typeof ProposedVariationPoint>;
+export type VariationPoint = z.infer<typeof VariationPoint>;
+export type ScenarioCase = z.infer<typeof ScenarioCase>;
+export type ScenarioDrop = z.infer<typeof ScenarioDrop>;
+export type ScenarioSummary = z.infer<typeof ScenarioSummary>;
 
 // ---------------------------------------------------------------------------
 // One-prompt ablation submission

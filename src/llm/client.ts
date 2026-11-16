@@ -113,6 +113,7 @@ export class RunLLMClient implements LLMClient {
         ...(usage.cachedInputTokens !== undefined ? { cachedInputTokens: usage.cachedInputTokens } : {}),
         ...(usage.reasoningTokens !== undefined ? { reasoningTokens: usage.reasoningTokens } : {}),
         ...(response.upstreamProvider ? { upstreamProvider: response.upstreamProvider } : {}),
+        ...(response.generationId ? { generationId: response.generationId } : {}),
         ...(response.systemFingerprint ? { systemFingerprint: response.systemFingerprint } : {}),
       });
       // The cost this call was logged with (provider or pricing), so a caller can count its own calls.
@@ -190,6 +191,7 @@ function createProvider(config: LLMConfig): ChatProvider {
     apiKey: config.apiKey,
     extraHeaders: config.extraHeaders,
     extraBody: config.extraBody,
+    providerRouting: config.providerRouting,
     reasoningParam: config.reasoningParam,
     timeoutMs: config.timeoutMs,
   });

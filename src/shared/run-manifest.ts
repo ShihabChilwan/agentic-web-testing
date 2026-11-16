@@ -17,6 +17,7 @@ export function llmSettings(config: LLMConfig): RunManifest['llm'] {
     topP: config.topP,
     reasoningEffort: { ...config.reasoningEfforts, other: config.reasoningEffort },
     concurrency: config.concurrency,
+    ...(config.providerRouting ? { providerOrder: config.providerRouting.order } : {}),
   };
 }
 

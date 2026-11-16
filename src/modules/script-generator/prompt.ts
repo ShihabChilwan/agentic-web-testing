@@ -66,6 +66,8 @@ export interface ScriptTaskInput {
   pageSnapshots?: Array<{ path: string; user?: string; snapshot: { finalPath: string; aria: string } }>;
   /** Set when a review found that an earlier script checked the wrong thing or at the wrong time (SPEC §6.2). */
   reviewNote?: string;
+  /** Set for a scenario test (SPEC §6.5): what it varies and the code that shows it. */
+  scenario?: { description: string; citation: CodeExcerpts['blocks'][number] };
 }
 
 const renderBlock = (b: CodeExcerpts['blocks'][number]) => {
@@ -113,6 +115,13 @@ export function buildScriptTask(input: ScriptTaskInput): string {
       1,
       0,
       `## A reviewer looked at an earlier script for this test case\nThe expectations are right; the earlier script checked the wrong thing or at the wrong time. The reviewer's finding:\n${input.reviewNote}\nWrite the test so that each expectation checks what its description says, at the moment it is true.`,
+    );
+  }
+  if (input.scenario) {
+    parts.splice(
+      1,
+      0,
+      `## This is a scenario test\nIt sets up a situation the other tests never set up, performs one action, and keeps the answer: a later comparison of two versions of the application checks what the answer says. So:\n- Do the setup steps first, through the API where possible (as the user who may do them, with uniq values), then perform the action as the test case says.\n- Check only what EXPECTED says (that an answer arrived, or that the page shows content after the action). Do not check status codes, texts or values beyond that: a check that fails would drop the test.\n- Keep the action exactly as described (the same user, values and options), even if the application may refuse it.\nWhat it varies: ${input.scenario.description}\nThe code that shows it:\n${renderBlock(input.scenario.citation)}`,
     );
   }
   if (input.callers && input.callers.length > 0) {

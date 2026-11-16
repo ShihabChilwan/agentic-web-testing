@@ -14,6 +14,13 @@ const execFileAsync = promisify(execFile);
 
 export const DEFAULT_FREEZE_TAG = 'freeze-v1';
 export const FREEZE_FILE = 'freeze/freeze.json';
+const TAG_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** The record of a freeze: freeze/freeze.json for the first freeze (freeze-v1), freeze/<tag>.json for any later one. */
+export function freezeFile(tag: string = DEFAULT_FREEZE_TAG): string {
+  if (!TAG_NAME.test(tag)) throw new Error(`Not a usable tag name: ${JSON.stringify(tag)}`);
+  return tag === DEFAULT_FREEZE_TAG ? FREEZE_FILE : `freeze/${tag}.json`;
+}
 /** What the freeze covers, relative to the project root (`targets/<name>` of the evaluated target is added when it exists at the tag). */
 export const FROZEN_PATHS = ['src', 'tools', 'cloud', 'tests', 'config', 'package.json', 'package-lock.json', 'freeze'];
 
@@ -70,6 +77,7 @@ export async function buildFreezeRecord(config: LLMConfig, options: FreezeOption
       contextTokens: config.contextTokens,
       timeoutMs: config.timeoutMs,
       extraBody: config.extraBody,
+      ...(config.providerRouting ? { providerRouting: config.providerRouting } : {}),
       maxTokensPerCall: DEFAULT_MAX_TOKENS_PER_CALL,
     },
     limits: { maxTestCases: MAX_TEST_CASES, firstPassTestCases: FIRST_PASS_TEST_CASES, maxTestCasesPerRequirement: MAX_TEST_CASES_PER_REQUIREMENT },
@@ -78,14 +86,14 @@ export async function buildFreezeRecord(config: LLMConfig, options: FreezeOption
   });
 }
 
-/** `npm run freeze:record`: writes freeze/freeze.json. Refused once the tag exists (a freeze is never rewritten). */
+/** `npm run freeze:record`: writes freeze/freeze.json (freeze/<tag>.json for another tag). Refused once the tag exists (a freeze is never rewritten). */
 export async function recordFreeze(config: LLMConfig, options: FreezeOptions = {}): Promise<{ file: string; record: FreezeRecord }> {
   const root = options.projectRoot ?? PROJECT_ROOT;
   const tag = options.tag ?? DEFAULT_FREEZE_TAG;
   const exists = await git(root, ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`]).then(() => true, () => false);
   if (exists) throw new Error(`Tag ${tag} already exists; a freeze is never rewritten (use a new tag name for a new freeze)`);
   const record = await buildFreezeRecord(config, { ...options, tag });
-  const file = path.join(root, FREEZE_FILE);
+  const file = path.join(root, freezeFile(tag));
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   return { file, record };
@@ -116,11 +124,13 @@ export function settingsDifferences(record: FreezeRecord, config: LLMConfig): st
     contextTokens: config.contextTokens,
     timeoutMs: config.timeoutMs,
     extraBody: config.extraBody,
+    providerRouting: config.providerRouting ?? null,
   };
-  const then = record.llm as Record<string, unknown>;
+  // A record written before provider routing existed (or without it) means no routing setting.
+  const then: Record<string, unknown> = { ...(record.llm as Record<string, unknown>), providerRouting: record.llm.providerRouting ?? null };
   return Object.entries(now)
     .filter(([key, value]) => JSON.stringify(sortKeys(value)) !== JSON.stringify(sortKeys(then[key])))
-    .map(([key]) => `model setting ${key} differs from freeze.json`);
+    .map(([key]) => `model setting ${key} differs from ${record.tag === DEFAULT_FREEZE_TAG ? 'freeze.json' : `${record.tag}.json`}`);
 }
 
 function sortKeys(value: unknown): unknown {
@@ -136,16 +146,18 @@ function sortKeys(value: unknown): unknown {
  */
 export async function checkFrozen(options: CheckFrozenOptions = {}): Promise<FreezeStatus> {
   const root = options.projectRoot ?? PROJECT_ROOT;
-  const file = path.join(root, FREEZE_FILE);
+  const relFile = freezeFile(options.tag);
+  const file = path.join(root, relFile);
   if (!existsSync(file)) return { state: 'not-recorded' };
   const text = await readFile(file, 'utf8');
   const record = FreezeRecord.parse(JSON.parse(text));
   const reasons: string[] = [];
   const tagCommit = (await git(root, ['rev-parse', '--verify', '--quiet', `refs/tags/${record.tag}^{commit}`]).catch(() => '')).trim();
-  if (!tagCommit) return { state: 'not-frozen', reasons: [`tag ${record.tag} does not exist yet (commit freeze/freeze.json, then create the tag)`] };
+  if (record.tag !== (options.tag ?? DEFAULT_FREEZE_TAG)) return { state: 'not-frozen', reasons: [`${relFile} records tag ${record.tag}, not ${options.tag ?? DEFAULT_FREEZE_TAG}`] };
+  if (!tagCommit) return { state: 'not-frozen', reasons: [`tag ${record.tag} does not exist yet (commit ${relFile}, then create the tag)`] };
 
   const sinceBase = (await git(root, ['diff', '--name-only', record.baseCommit, tagCommit]).catch(() => 'unknown base commit\n')).split('\n').filter(Boolean);
-  if (sinceBase.some((f) => f !== FREEZE_FILE)) reasons.push(`tag ${record.tag} differs from the recorded base ${record.baseCommit.slice(0, 7)} in: ${sinceBase.filter((f) => f !== FREEZE_FILE).join(', ')}`);
+  if (sinceBase.some((f) => f !== relFile)) reasons.push(`tag ${record.tag} differs from the recorded base ${record.baseCommit.slice(0, 7)} in: ${sinceBase.filter((f) => f !== relFile).join(', ')}`);
 
   const paths = [...FROZEN_PATHS];
   if (options.target) {
@@ -182,7 +194,9 @@ export async function currentFrozen(options: CheckFrozenOptions = {}): Promise<F
 export async function requireFrozen(options: CheckFrozenOptions & { allowUnfrozen?: boolean; log?: (message: string) => void }): Promise<FrozenInfo | undefined> {
   const status = await checkFrozen(options);
   if (status.state === 'frozen') return status.frozen;
-  if (status.state === 'not-recorded') return undefined;
+  // Nothing to guard before the first freeze; a later freeze asked for by name must exist.
+  if (status.state === 'not-recorded' && (options.tag ?? DEFAULT_FREEZE_TAG) === DEFAULT_FREEZE_TAG) return undefined;
+  if (status.state === 'not-recorded') throw new Error(`No freeze ${options.tag} is recorded (${freezeFile(options.tag)} is missing)`);
   const message = `Not the frozen framework:\n  ${status.reasons.join('\n  ')}`;
   if (options.allowUnfrozen) {
     options.log?.(`${message}\n  (continuing because of --allow-unfrozen; results from this run are development results)`);

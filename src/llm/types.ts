@@ -62,6 +62,8 @@ export interface ChatResponse {
   model: string;
   /** Which upstream provider served the request, when a router reports it (OpenRouter `provider`). */
   upstreamProvider?: string;
+  /** The response id (OpenRouter: the generation id, which its generation API resolves to the endpoint that served it). */
+  generationId?: string;
   systemFingerprint?: string;
   latencyMs: number;
 }

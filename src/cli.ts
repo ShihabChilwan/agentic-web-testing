@@ -7,8 +7,9 @@ import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/i
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
 import { measureNoise, writeComparison } from './modules/differential/index.js';
+import { describeScenarios, generateScenarios, MAX_SCENARIOS } from './modules/scenario-generator/index.js';
 import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
-import { checkFrozen, DEFAULT_FREEZE_TAG, recordFreeze, requireFrozen } from './shared/freeze.js';
+import { checkFrozen, DEFAULT_FREEZE_TAG, freezeFile, recordFreeze, requireFrozen } from './shared/freeze.js';
 import { describeScriptsSummary, describeSuspectedDefects, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
 import type { ScriptOutcome } from './modules/script-generator/index.js';
 import { errorSummary, readRunManifest, setStage } from './shared/run-manifest.js';
@@ -23,7 +24,7 @@ const program = new Command();
 
 program.name('agentic-web-testing').description('Agentic web application testing and fault diagnosis');
 
-const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report; noise and compare (response comparison)');
+const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report; noise and compare (response comparison); scenarios');
 
 agent
   .command('prd')
@@ -187,7 +188,8 @@ agent
   .option('--exec-id <id>', 'execution id (default: the next x-NN)')
   .option('--record-responses', 'save every response the tests receive to responses.jsonl (for agent noise and agent compare)')
   .option('--record-pages', 'save the accessibility snapshot of each page after navigation and at the end of each browser test to pages.jsonl')
-  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean; recordPages?: boolean }) => {
+  .option('--scripts-dir <dir>', 'run this scripts folder of the run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean; recordPages?: boolean; scriptsDir?: string }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -205,6 +207,7 @@ agent
         ...(opts.execId ? { execId: opts.execId } : {}),
         ...(opts.recordResponses ? { recordResponses: true } : {}),
         ...(opts.recordPages ? { recordPages: true } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });
@@ -223,7 +226,8 @@ agent
   .option('--execs <a,b,...>', 'two or more executions that already recorded responses, instead of running new ones')
   .option('--runs <n>', 'new executions to run when --execs is not given (default 3)', (v) => Number.parseInt(v, 10))
   .option('--page-execs <a,b,...>', 'two or more executions that recorded page snapshots, for the page noise')
-  .action(async (opts: { run: string; execs?: string; runs?: number; pageExecs?: string }) => {
+  .option('--scripts-dir <dir>', 'the scripts folder new executions run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .action(async (opts: { run: string; execs?: string; runs?: number; pageExecs?: string; scriptsDir?: string }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping Playwright and the app...');
@@ -239,6 +243,7 @@ agent
         ...(execs ? { executions: execs } : {}),
         ...(opts.runs !== undefined ? { runs: opts.runs } : {}),
         ...(opts.pageExecs ? { pageExecutions: opts.pageExecs.split(',').map((x) => x.trim()).filter(Boolean) } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });
@@ -248,6 +253,41 @@ agent
       console.log(`Over every pair of runs: ${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences in ${s.noiseFields} noise fields; ${s.unstableOrderLists} lists with unstable order`);
     } catch (err) {
       console.error(`noise failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+agent
+  .command('scenarios')
+  .description('Add scenario tests to a generated suite, kept apart in scenarios/ and scripts-with-scenarios/ (SC ids); the suite itself is unchanged')
+  .option('--from <runId>', 'copy the generation files of this run folder to <runId>-scn and work there (executions of other versions are never copied)')
+  .option('--run <runId>', 'work in this run folder (its scripts stage done)')
+  .option('--max <n>', `at most this many scenario tests (default and maximum ${MAX_SCENARIOS})`, (v) => Number.parseInt(v, 10))
+  .option('--cost-cap <usd>', 'stop before any model call once the spend reaches 80% of this many US dollars (default 1)', parseFloat)
+  .option('--fresh', 'remove this run\'s earlier scenarios and generate them again')
+  .action(async (opts: { from?: string; run?: string; max?: number; costCap?: number; fresh?: boolean }) => {
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping Playwright and the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      if (!opts.from === !opts.run) throw new Error('Give exactly one of --from <run> and --run <run>');
+      const result = await generateScenarios({
+        ...(opts.from ? { from: opts.from } : {}),
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.max !== undefined ? { cap: opts.max } : {}),
+        ...(opts.costCap !== undefined ? { costCapUsd: opts.costCap } : {}),
+        ...(opts.fresh ? { fresh: true } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      console.log(`run: ${result.runId}; summary: ${result.summaryFile}`);
+      for (const line of describeScenarios(result.summary)) console.log(line);
+    } catch (err) {
+      console.error(`scenarios failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
     }
   });
@@ -369,7 +409,8 @@ evaluation
   .option('--env-only', 'only check the environment faults (writes nothing to targets/)')
   .option('--force', 'replace an existing variants.json')
   .option('--allow-unfrozen', 'development only: run although the framework is not the frozen one')
-  .action(async (opts: { target: string; seed?: number; listOnly?: boolean; envOnly?: boolean; force?: boolean; allowUnfrozen?: boolean }) => {
+  .option('--freeze <tag>', 'the freeze to require (default freeze-v1; a later one such as scenarios-v1 is recorded in freeze/<tag>.json)', DEFAULT_FREEZE_TAG)
+  .action(async (opts: { target: string; seed?: number; listOnly?: boolean; envOnly?: boolean; force?: boolean; allowUnfrozen?: boolean; freeze: string }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping the app...');
@@ -378,7 +419,7 @@ evaluation
     process.once('SIGINT', onSignal);
     process.once('SIGTERM', onSignal);
     try {
-      await requireFrozen({ target: opts.target, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
+      await requireFrozen({ target: opts.target, tag: opts.freeze, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const result = await createVariants({
         target: opts.target,
         ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
@@ -401,14 +442,23 @@ evaluation
   .requiredOption('--target <name>', 'target under targets/<name>/')
   .requiredOption('--run <runId>', 'run whose scripts the image executes')
   .option('--variants <file>', 'variant list relative to targets/<name>/ (default variants.json; e.g. dev-bugs/<draw>/variants.json)')
+  .option('--scripts-dir <dir>', 'every task runs this scripts folder of the run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .option('--record-responses', 'every task records responses (responses.jsonl, for the comparator)')
+  .option('--record-pages', 'every task records page snapshots (pages.jsonl, for the comparator)')
+  .option('--golden-runs <n>', 'executions of the correct version per repeat (default 1; further ones are golden-2, …)', (v) => Number.parseInt(v, 10))
   .option('--allow-unfrozen', 'development only: build although the framework is not the frozen one')
-  .action(async (opts: { target: string; run: string; variants?: string; allowUnfrozen?: boolean }) => {
+  .option('--freeze <tag>', 'the freeze to require (default freeze-v1; a later one such as scenarios-v1 is recorded in freeze/<tag>.json)', DEFAULT_FREEZE_TAG)
+  .action(async (opts: { target: string; run: string; variants?: string; allowUnfrozen?: boolean; freeze: string; scriptsDir?: string; recordResponses?: boolean; recordPages?: boolean; goldenRuns?: number }) => {
     try {
-      await requireFrozen({ target: opts.target, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
+      await requireFrozen({ target: opts.target, tag: opts.freeze, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const { outDir, build } = await createCloudContext({
         target: opts.target,
         runId: opts.run,
         ...(opts.variants ? { variantsFile: opts.variants } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
+        ...(opts.recordResponses ? { recordResponses: true } : {}),
+        ...(opts.recordPages ? { recordPages: true } : {}),
+        ...(opts.goldenRuns !== undefined ? { goldenRuns: opts.goldenRuns } : {}),
         log: (m) => console.log(m),
       });
       console.log(`build folder: ${outDir}`);
@@ -438,9 +488,10 @@ evaluation
   .description('Turn one repeat\'s downloaded task results into a new local run (executions with opaque ids)')
   .requiredOption('--from <dir>', 'the repeat\'s folder, e.g. runs/cloud/<repeat-id>')
   .option('--allow-unfrozen', 'development only: import although the framework is not the frozen one')
-  .action(async (opts: { from: string; allowUnfrozen?: boolean }) => {
+  .option('--freeze <tag>', 'the freeze to require (default freeze-v1; a later one such as scenarios-v1 is recorded in freeze/<tag>.json)', DEFAULT_FREEZE_TAG)
+  .action(async (opts: { from: string; allowUnfrozen?: boolean; freeze: string }) => {
     try {
-      const frozen = await requireFrozen({ allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
+      const frozen = await requireFrozen({ tag: opts.freeze, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const { runId, mapping } = await importRepeat({ from: path.resolve(opts.from), ...(frozen ? { frozenCommit: frozen.commit } : {}), log: (m) => console.log(m) });
       console.log(`run: ${runId} (${mapping.versions.length} executions; mapping in runs/${runId}/eval/mapping.json)`);
     } catch (err) {
@@ -458,8 +509,8 @@ freeze
   .action(async (opts: { tag: string }) => {
     try {
       const { file, record } = await recordFreeze(await loadLLMConfig(), { tag: opts.tag });
-      console.log(`wrote ${file} (base commit ${record.baseCommit.slice(0, 7)}, model ${record.llm.models.other})`);
-      console.log(`next: git add freeze/freeze.json, commit it, then git tag -a ${opts.tag} -m "..." and push the tag`);
+      console.log(`wrote ${file} (base commit ${record.baseCommit.slice(0, 7)}, model ${record.llm.models.other}${record.llm.providerRouting ? `, providers ${record.llm.providerRouting.order.join(' then ')}` : ''})`);
+      console.log(`next: git add ${freezeFile(opts.tag)}, commit it, then git tag -a ${opts.tag} -m "..." and push the tag`);
     } catch (err) {
       console.error(`freeze record failed: ${errorSummary(err)}`);
       process.exitCode = 1;
@@ -470,11 +521,12 @@ freeze
   .command('check')
   .description('Say whether HEAD is the frozen framework (tag, clean tree, frozen paths, model settings)')
   .option('--target <name>', 'also require targets/<name> to be unchanged since the tag')
-  .action(async (opts: { target?: string }) => {
+  .option('--tag <name>', 'the freeze to check against (its record is freeze/<tag>.json; freeze-v1 uses freeze/freeze.json)', DEFAULT_FREEZE_TAG)
+  .action(async (opts: { target?: string; tag: string }) => {
     try {
-      const status = await checkFrozen({ llmConfig: await loadLLMConfig(), ...(opts.target ? { target: opts.target } : {}) });
+      const status = await checkFrozen({ llmConfig: await loadLLMConfig(), tag: opts.tag, ...(opts.target ? { target: opts.target } : {}) });
       if (status.state === 'frozen') console.log(`frozen: ${status.frozen.tag} at ${status.frozen.commit.slice(0, 7)}`);
-      else if (status.state === 'not-recorded') console.log('no freeze recorded yet (freeze/freeze.json is missing)');
+      else if (status.state === 'not-recorded') console.log(`no freeze recorded for ${opts.tag} (${freezeFile(opts.tag)} is missing)`);
       else {
         console.log(`not frozen:\n  ${status.reasons.join('\n  ')}`);
         process.exitCode = 1;

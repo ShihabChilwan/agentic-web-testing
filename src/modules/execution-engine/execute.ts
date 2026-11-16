@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
-import { ExecutionRequest, ExecutionResults, ScriptManifest, SCHEMA_VERSION, TestCases } from '../../shared/schemas.js';
+import { ExecutionRequest, ExecutionResults, ScriptManifest, SCHEMA_VERSION, SuiteCases, TestCases } from '../../shared/schemas.js';
 import type { ConfigOverride, RunManifest, SkippedScript, TargetConfig, TestArtifacts, TestResult } from '../../shared/schemas.js';
 import { loadTargetConfig } from '../../shared/target-config.js';
 import { startControlServer } from './control-server.js';
@@ -67,10 +67,11 @@ export function selectScripts(manifest: ScriptManifest): { run: string[]; skippe
 }
 
 /** Per test case, the expectation ids with a locked value (they decide the classifier's label). */
-async function lockedValueIds(file: string): Promise<Map<string, Set<string>>> {
-  const raw = await readFile(file, 'utf8').catch(() => null);
+async function lockedValueIds(file: string, suiteCasesFile?: string): Promise<Map<string, Set<string>>> {
+  const suite = suiteCasesFile ? await readFile(suiteCasesFile, 'utf8').catch(() => null) : null;
+  const raw = suite ?? (await readFile(file, 'utf8').catch(() => null));
   if (raw === null) return new Map(); // the one-prompt ablation has no test cases
-  const { testCases } = TestCases.parse(JSON.parse(raw));
+  const { testCases } = suite !== null ? SuiteCases.parse(JSON.parse(raw)) : TestCases.parse(JSON.parse(raw));
   return new Map(testCases.map((tc) => [tc.id, new Set(tc.expected.filter((e) => e.value !== undefined).map((e) => e.id))]));
 }
 
@@ -202,7 +203,8 @@ async function runSuite(options: ExecuteVersionOptions, request: ExecutionReques
   const { run, skipped } = scripts;
   const log = options.log ?? (() => {});
   log(`${run.length} scripts to run, ${skipped.length} skipped (their dry run did not pass)`);
-  const valueIds = await lockedValueIds(paths.testCases);
+  // A scripts folder other than scripts/ may carry its own cases (a suite with scenarios, §6.5).
+  const valueIds = await lockedValueIds(paths.testCases, request.scriptsDir ? path.join(paths.dir, request.scriptsDir, 'cases.json') : undefined);
 
   const startedAt = new Date();
   const logsDir = paths.serverLogsDir(request.execId);
@@ -317,6 +319,8 @@ export interface ExecuteRunOptions {
   configOverride?: ConfigOverride;
   /** Default: the next x-NN. */
   execId?: string;
+  /** A scripts folder inside the run other than scripts/ (e.g. scripts-with-scenarios, §6.5); recorded in run.json. */
+  scriptsDir?: string;
   runsDir?: string;
   targetsDir?: string;
   projectRoot?: string;
@@ -358,10 +362,11 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
   const execId = options.execId ?? (await nextExecId(paths.dir, manifest));
   if (manifest.executions.some((e) => e.execId === execId)) throw new Error(`Execution ${execId} is already in run.json; use another --exec-id`);
   const override = options.configOverride ? { configOverride: options.configOverride } : {};
-  const request: ExecutionRequest = { execId, ref, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override };
+  const scriptsDir = options.scriptsDir ? scriptsDirIn(paths.dir, options.scriptsDir) : undefined;
+  const request: ExecutionRequest = { execId, ref, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override, ...(scriptsDir ? { scriptsDir } : {}) };
 
   const { commit, tree } = await sourceTreeFor(config, repoDir, request, projectRoot);
-  const entry = { execId, ref, commit, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override, analyzeStatus: 'pending' as const };
+  const entry = { execId, ref, commit, ...(patch ? { patch } : {}), ...(options.skipSeed ? { skipSeed: true } : {}), ...override, ...(scriptsDir ? { scriptsDir } : {}), analyzeStatus: 'pending' as const };
   try {
     await setExecution(paths.dir, { ...entry, executeStatus: 'running' });
   } catch (err) {
@@ -394,6 +399,13 @@ export async function executeRun(options: ExecuteRunOptions = {}): Promise<Execu
   } finally {
     await tree.remove(); // executeVersion removes it too; removing twice is harmless
   }
+}
+
+/** A scripts folder given relative to the run folder: inside it, holding a manifest.json; returned relative, with forward slashes. */
+export function scriptsDirIn(runDir: string, scriptsDir: string): string {
+  const rel = path.relative(runDir, path.resolve(runDir, scriptsDir)).split(path.sep).join('/');
+  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`The scripts folder must be inside the run folder: ${scriptsDir}`);
+  return rel;
 }
 
 /** Lines for the CLI: counts, timing and warnings (not isolated; not all passed at the generation ref). */

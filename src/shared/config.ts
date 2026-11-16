@@ -20,6 +20,11 @@ export interface LLMConfig {
   extraHeaders: Record<string, string>;
   /** Merged into every request body (e.g. provider routing); never overrides a field the client sets. */
   extraBody: Record<string, unknown>;
+  /**
+   * OpenRouter provider routing from LLM_PROVIDER_ORDER: the endpoints tried in order and no others. Null when the
+   * setting is absent (requests then carry no routing of their own; LLM_EXTRA_BODY may still hold one).
+   */
+  providerRouting: ProviderRouting | null;
   model: string;
   models: Record<ModulePurpose, string>;
   temperature: number;
@@ -40,6 +45,17 @@ export interface LLMConfig {
  */
 export const REASONING_PARAMS = ['reasoning_effort', 'reasoning_object'] as const;
 export type ReasoningParam = (typeof REASONING_PARAMS)[number];
+
+/**
+ * The OpenRouter `provider` request field built from LLM_PROVIDER_ORDER: `order` tries the endpoints one after another,
+ * `only` and `allow_fallbacks: false` keep every other provider out. An entry is a provider (`wafer`, every endpoint of
+ * it) or one endpoint (`wafer/us`).
+ */
+export interface ProviderRouting {
+  order: string[];
+  only: string[];
+  allow_fallbacks: false;
+}
 
 /** Request fields the client sets itself; LLM_EXTRA_BODY may not change them. */
 export const RESERVED_BODY_FIELDS = [
@@ -104,6 +120,17 @@ const extraBody = z.preprocess(
     }),
 );
 
+const PROVIDER_SLUG = /^[a-z0-9][a-z0-9.-]*(\/[a-z0-9][a-z0-9.-]*)*$/;
+
+const providerOrder = z.preprocess(
+  (v) => (v === undefined || String(v).trim() === '' ? undefined : String(v).split(',').map((s) => s.trim()).filter(Boolean)),
+  z
+    .array(z.string().regex(PROVIDER_SLUG, 'must be a comma-separated list of provider slugs such as "wafer/us,wafer"'))
+    .min(1)
+    .refine((slugs) => new Set(slugs).size === slugs.length, 'must not name a provider twice')
+    .optional(),
+);
+
 const EnvSchema = z.object({
   LLM_PROVIDER: withDefault(LLMProvider, 'openai-compatible'),
   LLM_BASE_URL: optionalString.pipe(z.url().optional()),
@@ -111,6 +138,7 @@ const EnvSchema = z.object({
   LLM_API_KEY: optionalString,
   LLM_EXTRA_HEADERS: extraHeaders,
   LLM_EXTRA_BODY: extraBody,
+  LLM_PROVIDER_ORDER: providerOrder,
   LLM_REASONING_PARAM: withDefault(z.enum(REASONING_PARAMS), 'reasoning_effort'),
   LLM_TEMPERATURE: number(1.0).pipe(z.number().min(0).max(2)),
   LLM_TOP_P: number(1.0).pipe(z.number().gt(0).max(1)),
@@ -142,6 +170,9 @@ export function parseLLMConfig(env: Record<string, string | undefined>): LLMConf
     throw new ConfigError(`Invalid LLM configuration:\n  ${problems.join('\n  ')}`);
   }
   const e = result.data;
+  if (e.LLM_PROVIDER_ORDER && 'provider' in e.LLM_EXTRA_BODY) {
+    throw new ConfigError('Invalid LLM configuration:\n  LLM_PROVIDER_ORDER: LLM_EXTRA_BODY also sets "provider"; keep the routing in one place');
+  }
   if (e.LLM_PROVIDER === 'openai-compatible' && !e.LLM_BASE_URL) {
     throw new ConfigError('Invalid LLM configuration:\n  LLM_BASE_URL: required for the openai-compatible provider');
   }
@@ -151,6 +182,7 @@ export function parseLLMConfig(env: Record<string, string | undefined>): LLMConf
     apiKey: e.LLM_API_KEY,
     extraHeaders: e.LLM_EXTRA_HEADERS,
     extraBody: e.LLM_EXTRA_BODY,
+    providerRouting: e.LLM_PROVIDER_ORDER ? { order: e.LLM_PROVIDER_ORDER, only: [...e.LLM_PROVIDER_ORDER], allow_fallbacks: false } : null,
     model: e.LLM_MODEL,
     models: {
       prd: e.LLM_MODEL_PRD ?? e.LLM_MODEL,

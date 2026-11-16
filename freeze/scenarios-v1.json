@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "tag": "scenarios-v1",
+  "recordedAt": "2026-11-16T13:07:08.116Z",
+  "baseCommit": "e52344464eba59ee69901d985bd28d95319a948b",
+  "llm": {
+    "provider": "openai-compatible",
+    "baseUrlHost": "openrouter.ai",
+    "models": {
+      "prd": "z-ai/glm-5.3-flash",
+      "cases": "z-ai/glm-5.3-flash",
+      "scripts": "z-ai/glm-5.3-flash",
+      "analyzer": "z-ai/glm-5.3-flash",
+      "other": "z-ai/glm-5.3-flash"
+    },
+    "temperature": 1,
+    "topP": 1,
+    "reasoningEffort": {
+      "prd": "medium",
+      "cases": "low",
+      "scripts": "medium",
+      "analyzer": "medium",
+      "other": "medium"
+    },
+    "reasoningParam": "reasoning_effort",
+    "concurrency": 4,
+    "contextTokens": 131072,
+    "timeoutMs": 1200000,
+    "extraBody": {},
+    "providerRouting": {
+      "order": [
+        "wafer/us",
+        "wafer"
+      ],
+      "only": [
+        "wafer/us",
+        "wafer"
+      ],
+      "allow_fallbacks": false
+    },
+    "maxTokensPerCall": 32768
+  },
+  "limits": {
+    "maxTestCases": 250,
+    "firstPassTestCases": 150,
+    "maxTestCasesPerRequirement": 4
+  },
+  "files": {
+    "packageLockSha256": "d9f4205d16d11fb26957d843fdc47b9f6880bdcef45e027f8f2e53a6334403d5",
+    "specSha256": "07d1a76ec11b24f17d1feb980b54b6c0079076db00fbf8ea75f6004977ee9870",
+    "claudeSha256": "725423099f63701bf9f9b4c3c65752a86bb375f891623503034fb298c24358f3"
+  },
+  "playwrightVersion": "1.64.0"
+}

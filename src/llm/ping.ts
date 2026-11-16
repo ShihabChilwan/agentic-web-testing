@@ -12,6 +12,7 @@ const extraKeys = Object.keys(config.extraBody);
 console.log(`Provider ${config.provider}, model ${config.model}. Sending one request...`);
 // Field names only: values stay out of the output.
 console.log(`Extra body fields: ${extraKeys.length ? extraKeys.join(', ') : 'none'}; reasoning format: ${config.reasoningParam}`);
+console.log(`Provider routing: ${config.providerRouting ? `${config.providerRouting.order.join(' then ')}, no other provider` : 'none set (LLM_PROVIDER_ORDER)'}`);
 console.log('(The first request after the endpoint has been idle can take several minutes while the model loads.)');
 
 try {
@@ -28,6 +29,7 @@ try {
     .trim();
   console.log(`model:      ${response.model}`);
   console.log(`provider:   ${response.upstreamProvider ?? 'not reported'}`);
+  console.log(`generation: ${response.generationId ?? 'not reported'}`);
   console.log(`latency:    ${response.latencyMs} ms`);
   const { usage } = response;
   console.log(`tokens:     ${usage.inputTokens} in, ${usage.outputTokens} out`);

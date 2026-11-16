@@ -5,7 +5,7 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions';
-import type { ReasoningParam } from '../shared/config.js';
+import type { ProviderRouting, ReasoningParam } from '../shared/config.js';
 import { errorKindForStatus, parseRetryAfter, LLMRequestError } from './errors.js';
 import type {
   ChatProvider,
@@ -23,6 +23,8 @@ export interface OpenAICompatibleOptions {
   extraHeaders: Record<string, string>;
   /** Merged into every request body; config validation keeps it off the fields set here. */
   extraBody?: Record<string, unknown>;
+  /** Sent as the request's `provider` field (OpenRouter routing); config validation keeps it out of extraBody. */
+  providerRouting?: ProviderRouting | null;
   reasoningParam?: ReasoningParam;
   timeoutMs: number;
   /** For tests: a stub in place of the global fetch. */
@@ -45,7 +47,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
   private readonly reasoningParam: ReasoningParam;
 
   constructor(options: OpenAICompatibleOptions) {
-    this.extraBody = options.extraBody ?? {};
+    this.extraBody = { ...(options.extraBody ?? {}), ...(options.providerRouting ? { provider: options.providerRouting } : {}) };
     this.reasoningParam = options.reasoningParam ?? 'reasoning_effort';
     this.client = new OpenAI({
       baseURL: options.baseUrl,
@@ -178,6 +180,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
         ...(typeof usage?.cost === 'number' && usage.cost >= 0 ? { costUsd: usage.cost } : {}),
       },
       model: completion.model,
+      ...(typeof completion.id === 'string' && completion.id ? { generationId: completion.id } : {}),
       ...(typeof extra.provider === 'string' && extra.provider ? { upstreamProvider: extra.provider } : {}),
       ...(completion.system_fingerprint ? { systemFingerprint: completion.system_fingerprint } : {}),
       latencyMs,

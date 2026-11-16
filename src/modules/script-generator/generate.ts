@@ -42,7 +42,7 @@ import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
 import { failingExpectation, humanReview, MAX_REVIEWS, needsReview, readHumanVerdicts, removedExpectations, reviewSuspected, type ReviewDeps } from './review.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
-import { buildScriptTask, buildSystemPrompt } from './prompt.js';
+import { buildScriptTask, buildSystemPrompt, type ScriptTaskInput } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
 import { suspectedDefects } from './suspected.js';
 import { TypeChecker } from './typecheck.js';
@@ -52,7 +52,7 @@ export const SCRIPT_EVIDENCE_CHAR_CAP = 25_000;
 /** One submit per attempt (the runtime's submit attempts are the fix loop's attempts): 3 for api, 5 for ui test cases. */
 export const FIX_ATTEMPTS = { api: 3, ui: 5 } as const;
 const sessionBudget = (attempts: number) => ({ maxToolCalls: 1, maxTurns: attempts + 5 });
-/** The page snapshots the cases stage took at this commit (runs/<id>/pages/snapshots.json), keyed like Deps.snapshots. */
+/** The page snapshots the cases stage took at this commit (runs/<id>/pages/snapshots.json), keyed like ScriptWriterDeps.snapshots. */
 async function reusedSnapshots(runDir: string, commit: string): Promise<Map<string, Promise<PageSnapshot | null>>> {
   const parsed = await readFile(path.join(runDir, 'pages', 'snapshots.json'), 'utf8').then(
     (t) => PageSnapshots.safeParse(JSON.parse(t)),
@@ -132,7 +132,7 @@ export const SCRIPT_OUTCOMES = ['passed', 'assertion_failed', 'invalid'] as cons
 export type ScriptOutcome = (typeof SCRIPT_OUTCOMES)[number];
 const outcomeOf = (e: ScriptManifestEntry): ScriptOutcome => (e.status === 'invalid' ? 'invalid' : (e.validationOutcome ?? 'invalid'));
 
-interface Deps {
+export interface ScriptWriterDeps {
   llm: LLMClient;
   llmConfig: LLMConfig;
   config: TargetConfig;
@@ -179,7 +179,7 @@ function dryRunFeedback(category: string, expectationId: string | null, result: 
   return lines;
 }
 
-async function generateOne(tc: TestCase, deps: Deps, reviewNote?: string): Promise<ScriptManifestEntry> {
+async function generateOne(tc: TestCase, deps: ScriptWriterDeps, reviewNote?: string, scenario?: ScriptTaskInput['scenario']): Promise<ScriptManifestEntry> {
   const file = path.join(deps.scriptsDir, `${tc.id}.spec.ts`);
   const relFile = path.relative(deps.runDir, file).split(path.sep).join('/');
   const attempts: ScriptAttempt[] = [];
@@ -269,7 +269,7 @@ async function generateOne(tc: TestCase, deps: Deps, reviewNote?: string): Promi
       {
         purpose: 'scripts',
         system: buildSystemPrompt(),
-        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots, ...(reviewNote ? { reviewNote } : {}) }),
+        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots, ...(reviewNote ? { reviewNote } : {}), ...(scenario ? { scenario } : {}) }),
         tools: [],
         submit: { name: 'submit_script', description: 'Submit the body of the test function.', schema: SubmitScript, validate },
         budget: sessionBudget(FIX_ATTEMPTS[tc.layer]),
@@ -418,6 +418,89 @@ async function resumable(
   return { kept };
 }
 
+export interface ScriptWriterOptions {
+  llm: LLMClient;
+  llmConfig: LLMConfig;
+  config: TargetConfig;
+  facts: TargetFacts | null;
+  prd: Prd;
+  repoDir: string;
+  generationCommit: string;
+  /** Holds dry-runs/ (attempt folders and batches) and the playwright.config.ts single dry runs use. */
+  workDir: string;
+  /** Where the scripts are written; must hold _helpers.ts. */
+  scriptsDir: string;
+  transcriptsDir: string;
+  /** The running app at the generation ref (restored after every dry run). */
+  app: RunningApp;
+  runDryRun?: GenerateScriptsOptions['runDryRun'];
+  snapshotPage: NonNullable<GenerateScriptsOptions['snapshotPage']>;
+  /** Page snapshots already taken, by "<path>|<user>". */
+  snapshots?: Map<string, Promise<PageSnapshot | null>>;
+  signal?: AbortSignal;
+}
+
+export interface ScriptWriter {
+  /** Writes and validates one script (the fix loop, SPEC §6.2); `note` is a reviewer's finding for the task; `scenario` marks a scenario test (§6.5). */
+  write(tc: TestCase, note?: string, scenario?: ScriptTaskInput['scenario']): Promise<ScriptManifestEntry>;
+  /** What the writer works with; dry-run time, Playwright runs and restores so far are counted here. */
+  readonly deps: ScriptWriterDeps;
+}
+
+/**
+ * The script writer the scripts stage uses, for any set of test cases and any scripts folder: the fix loop with the
+ * type check, the lock check and batched dry runs against the running app, a fixture check and a data restore after
+ * every dry run (SPEC §6.2). The scenario generator (§6.5) writes its scripts with it too.
+ */
+export function createScriptWriter(o: ScriptWriterOptions): ScriptWriter {
+  // After every dry run: find out whether it broke a fixture user, then always put the data back, so the next one
+  // starts from the clean seeded state whatever this one changed (stock, names, ...).
+  const mutex = new Mutex();
+  const broken = new Map<string, string[]>();
+  const restores = { count: 0, ms: 0 };
+  const dryRunMs = { total: 0 };
+  const afterEach = async (item: DryRunItem) => {
+    broken.set(item.outputDir, (await checkFixtureLogins(o.config)).broken);
+    const restored = await o.app.restore();
+    restores.count++;
+    restores.ms += restored.durationMs;
+  };
+  const runBatch = o.runDryRun ? oneByOne(o.workDir, o.runDryRun) : playwrightBatch({ runDir: o.workDir, scriptsDir: o.scriptsDir, config: o.config });
+  const deps: ScriptWriterDeps = {
+    llm: o.llm,
+    llmConfig: o.llmConfig,
+    config: o.config,
+    facts: o.facts,
+    prd: o.prd,
+    read: linesAtCommit({ root: o.repoDir, forbiddenPaths: o.config.forbiddenPaths }, o.generationCommit),
+    repoDir: o.repoDir,
+    generationCommit: o.generationCommit,
+    runDir: o.workDir,
+    scriptsDir: o.scriptsDir,
+    transcriptsDir: o.transcriptsDir,
+    typeChecker: new TypeChecker(),
+    mutex,
+    dryRuns: new DryRunQueue(mutex, async (items) => {
+      if (o.signal?.aborted) throw new Error('Interrupted');
+      const wall = Date.now();
+      try {
+        return await runBatch(items, afterEach, o.signal);
+      } finally {
+        // Wall time, including Playwright's start-up.
+        dryRunMs.total += Date.now() - wall;
+      }
+    }),
+    broken,
+    dryRunMs,
+    app: o.app,
+    restores,
+    snapshotPage: o.snapshotPage,
+    snapshots: o.snapshots ?? new Map(),
+    ...(o.signal ? { signal: o.signal } : {}),
+  };
+  return { write: (tc, note, scenario) => generateOne(tc, deps, note, scenario), deps };
+}
+
 /**
  * Stage 1, Module 3 (SPEC §6): starts the app once at the generation ref (a clean start), then one fix
  * loop per test case: the model writes the body, code adds the locked EXPECTED block, then typecheck,
@@ -488,52 +571,24 @@ export async function generateScripts(options: GenerateScriptsOptions = {}): Pro
       ? await options.startApp(config, manifest.generationRef, logsDir)
       : await startTarget(config, { ref: manifest.generationRef, generationRef: manifest.generationRef, repoDir, targetDir, logsDir, log });
 
-    // After every dry run: find out whether it broke a fixture user, then always put the data back, so the next one
-    // starts from the clean seeded state whatever this one changed (stock, names, ...).
-    const mutex = new Mutex();
-    const broken = new Map<string, string[]>();
-    const restores = { count: 0, ms: 0 };
-    const dryRunMs = { total: 0 };
-    const running = app;
-    const afterEach = async (item: DryRunItem) => {
-      broken.set(item.outputDir, (await checkFixtureLogins(config)).broken);
-      const restored = await running.restore();
-      restores.count++;
-      restores.ms += restored.durationMs;
-    };
-    const runBatch = options.runDryRun ? oneByOne(paths.dir, options.runDryRun) : playwrightBatch({ runDir: paths.dir, scriptsDir: paths.scriptsDir, config });
-    const deps: Deps = {
+    const writer = createScriptWriter({
       llm,
       llmConfig,
       config,
       facts,
       prd,
-      read: linesAtCommit({ root: repoDir, forbiddenPaths: config.forbiddenPaths }, manifest.generationCommit),
       repoDir,
       generationCommit: manifest.generationCommit,
-      runDir: paths.dir,
+      workDir: paths.dir,
       scriptsDir: paths.scriptsDir,
       transcriptsDir: paths.transcriptsDir,
-      typeChecker: new TypeChecker(),
-      mutex,
-      dryRuns: new DryRunQueue(mutex, async (items) => {
-        if (options.signal?.aborted) throw new Error('Interrupted');
-        const wall = Date.now();
-        try {
-          return await runBatch(items, afterEach, options.signal);
-        } finally {
-          // Wall time, including Playwright's start-up.
-          dryRunMs.total += Date.now() - wall;
-        }
-      }),
-      broken,
-      dryRunMs,
       app,
-      restores,
+      ...(options.runDryRun ? { runDryRun: options.runDryRun } : {}),
       snapshotPage: options.snapshotPage ?? pageSnapshot,
       snapshots: await reusedSnapshots(paths.dir, manifest.generationCommit),
       ...(options.signal ? { signal: options.signal } : {}),
-    };
+    });
+    const deps = writer.deps;
     const todo = cases.filter((tc) => !kept.has(tc.id));
     log(`${cases.length} test cases${kept.size > 0 ? `; keeping ${kept.size} validated scripts from the earlier run, generating ${todo.length}` : ''}`);
     await writeManifest();
