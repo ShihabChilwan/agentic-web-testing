@@ -88,7 +88,7 @@ describe('variation points', () => {
         { ...base, kind: 'unused-option', values: ['oldest'] },
         { ...base, kind: 'unused-option', values: ['asc'] },
         { ...base, kind: 'list', values: [], records: 2 },
-        { ...base, kind: 'boundary', values: [], user: 'users.nobody' },
+        { ...base, kind: 'boundary', values: [], endpoint: undefined, action: 'Send GET /api/nowhere' },
         { ...base, kind: 'boundary', values: [], endpoint: 'GET /api/nowhere' },
         { ...base, kind: 'boundary', values: [], citation: { file: 'server/missing.js', lines: [1, 2] } },
         { ...base, kind: 'state-after-action', values: [] },
@@ -101,17 +101,29 @@ describe('variation points', () => {
       expect.stringMatching(/^points\[0\]: the value "oldest" does not appear in the cited lines/),
       expect.stringMatching(/^points\[1\]: the suite already sends "asc" to GET \/api\/items/),
       expect.stringMatching(/^points\[2\]: a list point creates at least 3 records/),
-      expect.stringMatching(/^points\[3\]: user must be a fixture user path/),
+      expect.stringMatching(/^points\[3\]: an api point names one endpoint/),
       expect.stringMatching(/^points\[4\]: an api point names one endpoint/),
       expect.stringMatching(/^points\[5\]: citation file server\/missing.js does not exist/),
       expect.stringMatching(/^points\[6\]: a state-after-action point does the earlier action in setup/),
       expect.stringMatching(/^points\[7\]: a ui point names the page it opens/),
     ]);
+    // Filled or accepted by code: an endpoint named only in the action, a user the test creates, a boolean option value,
+    // and the same scenario twice (dropped).
+    const filled = await checkProposed(
+      [
+        { ...base, kind: 'boundary', values: [], endpoint: undefined, action: 'Send GET /api/items?sort=x as alice' },
+        { ...base, kind: 'boundary', values: [], user: 'users.newbuyer', action: 'Send GET /api/items as the new user' },
+        { ...base, kind: 'unused-option', values: [false, 'newest'] },
+        { ...base, kind: 'unused-option', values: [false, 'newest'] },
+      ],
+      'F-01',
+      ctx,
+    );
+    expect(filled.problems).toEqual([]);
+    expect(filled.drafts.map((d) => [d.endpoint, d.role])).toEqual([['GET /api/items', 'member'], ['GET /api/items', CREATED_USER], ['GET /api/items', 'member']]);
     expect(appearsIn('{"price":1}', "const sort = { price: 1 };")).toBe(true);
     expect(appearsIn('{"price":-1}', "const sort = { name: -1 };")).toBe(false);
     expect(appearsIn('---', 'anything')).toBe(false);
-    const twice = await checkProposed([{ ...base, kind: 'boundary', values: [] }, { ...base, kind: 'boundary', values: [] }], 'F-01', ctx);
-    expect(twice.problems).toEqual([expect.stringMatching(/points\[1\]: the same scenario/)]);
   });
 });
 
@@ -190,5 +202,33 @@ describe('check runs on the correct version', () => {
     ]);
     expect(sameRequest('GET /l/a1', 'GET /l/b2')).toBe(true);
     expect(sameRequest('GET /l/a1/x', 'GET /m/b2/x')).toBe(false);
+  });
+});
+
+describe('a discovery session that never passes as a whole', () => {
+  it('keeps the points that passed the checks in its best submit', async () => {
+    const { discoverFeature } = await import('../../src/modules/scenario-generator/discover.js');
+    const { FakeLLMClient } = await import('../../src/llm/fake.js');
+    const { parseLLMConfig } = await import('../../src/shared/config.js');
+    const code = ['router.get("/", (req, res) => {', "  if (req.query.sort === 'newest') return byDate();", '});'];
+    const good = { kind: 'unused-option', layer: 'api', endpoint: 'GET /api/items', description: 'Sort by the newest item first.', values: ['newest'], setup: [], action: 'Send GET /api/items?sort=newest', user: 'users.alice', citation: { file: 'server/items.js', lines: [1, 3] } };
+    const bad = { ...good, values: ['oldest'], action: 'Send GET /api/items?sort=oldest' };
+    const submit = FakeLLMClient.toolCall('submit_variation_points', { points: [good, bad] });
+    const usage = suiteUsage({ prd: PRD, config: { fixtures: FIXTURES }, scripts: new Map(), recordings: [] });
+    const out = await discoverFeature(PRD.features[0]!, {
+      llm: new FakeLLMClient([submit, submit, submit]),
+      llmConfig: parseLLMConfig({ LLM_BASE_URL: 'http://m/v1' }),
+      prd: PRD,
+      config: { fixtures: FIXTURES, forbiddenPaths: [], backend: { env: {}, disabledServices: {} } } as never,
+      usage,
+      coverage: null,
+      read: async (f) => (f === 'server/items.js' ? code : null),
+      repoDir: process.cwd(),
+      transcriptsDir: '',
+      rolePointsByFeature: new Map(),
+    });
+    expect(out.points.map((p) => p.values)).toEqual([['newest']]);
+    expect(out.rejected).toBe(3);
+    expect(out.error).toMatch(/kept 1 points/);
   });
 });

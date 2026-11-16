@@ -45,6 +45,8 @@ export async function discoverFeature(feature: Prd['features'][number], deps: Di
   const requirements = deps.prd.requirements.filter((r) => r.featureId === feature.id);
   if (requirements.length === 0) return { featureId: feature.id, points: [], rejected: 0 };
   let accepted: DraftPoint[] = [];
+  // The submit with the most points that passed the checks: kept when no submit passes as a whole.
+  let best: DraftPoint[] = [];
   const task = await buildDiscoveryTask({
     feature,
     requirements,
@@ -69,7 +71,8 @@ export async function discoverFeature(feature: Prd['features'][number], deps: Di
           validate: async ({ points }) => {
             const { problems, drafts } = await checkProposed(points, feature.id, { prd: deps.prd, featureRequirements: requirements, fixtures: deps.config.fixtures, usage: deps.usage, read: deps.read });
             if (problems.length === 0) accepted = drafts;
-            return problems;
+            if (drafts.length > best.length) best = drafts;
+            return problems.length > 0 ? [...problems, `The other ${drafts.length} points passed the checks; submit them again with the ones above fixed or left out.`] : [];
           },
         },
         budget: { maxToolCalls: DISCOVERY_TOOL_CALLS },
@@ -79,7 +82,9 @@ export async function discoverFeature(feature: Prd['features'][number], deps: Di
     return { featureId: feature.id, points: accepted, rejected: result.submitStats.invalidInput + result.submitStats.checkFailed };
   } catch (err) {
     if (err instanceof AgentSubmitError || err instanceof AgentBudgetError) {
-      return { featureId: feature.id, points: [], rejected: err instanceof AgentSubmitError ? err.errors.length : 0, error: `${err.name}: ${err.message}` };
+      // No submit passed as a whole: the points that passed the checks in the best one are kept.
+      const rejected = err.details.submitStats.invalidInput + err.details.submitStats.checkFailed;
+      return { featureId: feature.id, points: best, rejected, error: `${err.name}: ${err.message}${best.length ? ` (kept ${best.length} points that passed the checks)` : ''}` };
     }
     // A cost cap reached or a request that kept failing ends this feature's session; the others go on.
     return { featureId: feature.id, points: [], rejected: 0, error: err instanceof Error ? `${err.name}: ${err.message}` : String(err) };

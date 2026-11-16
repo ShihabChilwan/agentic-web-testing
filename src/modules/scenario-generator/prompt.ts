@@ -26,7 +26,8 @@ Role checks (each user role, and the wrong role for a route) are added by code; 
 ## Rules
 - Every point cites application code you read that shows the variation: citation { file, lines } with at most ${MAX_CITATION_LINES} lines.
 - layer "api" names one endpoint of the list as "METHOD /path"; layer "ui" names the page it opens by a path that fits a page route.
-- user is the fixture user who performs the action ("users.<name>") or "visitor" (not logged in).
+- user is the fixture user who performs the action ("users.<name>"), "visitor" (not logged in), or a short name such as "users.newbuyer" for a new user the setup registers.
+- An api point always names its endpoint in endpoint, as listed ("METHOD /path").
 - setup creates what the action needs through the API, as a fixture user who may do it, with new unique values. Never change a fixture user's profile, password, role or data; create a new user and change that one.
 - Skip what the existing tests already do (listed), what needs email, payment or other outside services, and what only a person can check.
 - At most ${MAX_POINTS_PER_FEATURE} points: the ones most likely to show a different answer when the code behind them changes. An empty list is right when nothing fits.`;

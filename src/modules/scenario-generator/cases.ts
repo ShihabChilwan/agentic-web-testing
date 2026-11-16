@@ -1,5 +1,5 @@
 import type { ScenarioCase, TestCategory, VariationKind, VariationPoint } from '../../shared/schemas.js';
-import { VISITOR } from './usage.js';
+import { CREATED_USER, VISITOR } from './usage.js';
 
 const CATEGORY: Record<VariationKind, TestCategory> = {
   role: 'auth',
@@ -43,8 +43,13 @@ export function scenarioCase(point: VariationPoint, id: string): ScenarioCase {
     layer: point.layer,
     category: CATEGORY[point.kind],
     priority: 'medium',
-    preconditions: point.user === VISITOR ? ['Not logged in for the varied action'] : [`Logged in as ${point.user} for the varied action`],
-    fixturesUsed: point.user === VISITOR ? [] : [point.user],
+    preconditions:
+      point.user === VISITOR
+        ? ['Not logged in for the varied action']
+        : point.role === CREATED_USER
+          ? [`The varied action is done by a new user the test registers first with uniq values (called ${point.user} here), logged in with loginViaApi`]
+          : [`Logged in as ${point.user} for the varied action`],
+    fixturesUsed: point.user === VISITOR || point.role === CREATED_USER ? [] : [point.user],
     steps: [...point.setup, ...records, `${point.action}${values}`],
     expected: lightExpectation(point.layer),
     scenario: { variationPointId: point.id, kind: point.kind },

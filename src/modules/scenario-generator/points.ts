@@ -3,7 +3,7 @@ import type { Prd, PrdRequirement, ProposedVariationPoint, VariationKind, Variat
 import { describesEndpoint, namesPage, relatesToEndpoint } from '../test-case-generator/generate.js';
 import { matchEndpoint } from '../test-case-generator/checks.js';
 import type { ReadLines } from '../test-case-generator/context.js';
-import { endpointKey, fixtureRole, VISITOR, type SuiteUsage } from './usage.js';
+import { CREATED_USER, endpointKey, fixtureRole, VISITOR, type SuiteUsage } from './usage.js';
 
 /** Proposed points per discovery session. */
 export const MAX_POINTS_PER_FEATURE = 8;
@@ -98,9 +98,9 @@ export function rolePoints(prd: Prd, usage: SuiteUsage, fixtures: unknown, apiPr
   return out;
 }
 
-/** The key two points share when they are the same scenario. */
-export const pointKey = (p: Pick<VariationPoint, 'kind' | 'endpoint' | 'page' | 'values' | 'user'>): string =>
-  JSON.stringify([p.kind, p.endpoint ?? null, p.page ?? null, [...p.values].map(String).sort(), p.user]);
+/** The key two points share when they are the same scenario (the same kind, target, values, user and action). */
+export const pointKey = (p: Pick<VariationPoint, 'kind' | 'endpoint' | 'page' | 'values' | 'user' | 'action'>): string =>
+  JSON.stringify([p.kind, p.endpoint ?? null, p.page ?? null, [...p.values].map(String).sort(), p.user, p.action.replace(/\s+/g, ' ').trim().toLowerCase()]);
 
 const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
 const tokens = (s: string) => s.match(/[A-Za-z0-9_]+/g) ?? [];
@@ -123,6 +123,12 @@ export interface CheckContext {
   fixtures: unknown;
   usage: SuiteUsage;
   read: ReadLines;
+}
+
+/** The one request an action sends ("Send GET /api/x?y=1 as …" → "GET /api/x?y=1"), when it names exactly one. */
+export function actionRequest(action: string): string | undefined {
+  const found = [...action.matchAll(/\b(GET|POST|PUT|PATCH|DELETE)\s+(\/[^\s"'`,;)]*)/g)].map((m) => `${m[1]} ${m[2]!.replace(/[.:]+$/, '')}`);
+  return new Set(found).size === 1 ? found[0] : undefined;
 }
 
 /** The PRD endpoint a point names ("METHOD /path", the PRD's path or a concrete one). */
@@ -148,17 +154,20 @@ export async function checkProposed(points: readonly ProposedVariationPoint[], f
     if (!lines) problems.push(`${at}: citation file ${p.citation.file} does not exist (cite application code you read)`);
     else if (p.citation.lines[1] > lines.length) problems.push(`${at}: citation lines ${p.citation.lines.join('-')} are past the end of ${p.citation.file} (${lines.length} lines)`);
     if (p.citation.lines[1] - p.citation.lines[0] + 1 > MAX_CITATION_LINES) problems.push(`${at}: cite at most ${MAX_CITATION_LINES} lines`);
-    const endpoint = pointEndpoint(p.endpoint, ctx.prd);
-    if (p.layer === 'api' && !endpoint) problems.push(`${at}: an api point names one endpoint of the list as "METHOD /path"; "${p.endpoint ?? ''}" is not one`);
+    // An api point that leaves out its endpoint but sends one request in its action names it there.
+    const named = p.endpoint ?? (p.layer === 'api' ? actionRequest(p.action) : undefined);
+    const endpoint = pointEndpoint(named, ctx.prd);
+    if (p.layer === 'api' && !endpoint) problems.push(`${at}: an api point names one endpoint of the list as "METHOD /path" in endpoint; "${p.endpoint ?? ''}" is not one`);
     if (p.layer === 'ui' && (!p.page || !routes.some((r) => templateMatches(r, p.page!)))) problems.push(`${at}: a ui point names the page it opens with a path that fits a page route; "${p.page ?? ''}" does not`);
-    const role = p.user === VISITOR ? VISITOR : fixtureRole(ctx.fixtures, p.user);
-    if (!role) problems.push(`${at}: user must be a fixture user path such as "users.<name>" or "visitor"; "${p.user}" is neither`);
+    // A user that is neither a fixture user nor the visitor is one the test creates in its setup.
+    const role = p.user === VISITOR ? VISITOR : (fixtureRole(ctx.fixtures, p.user) ?? CREATED_USER);
     if (p.kind === 'list' && ((p.records ?? 0) < MIN_LIST_RECORDS || p.setup.length === 0)) problems.push(`${at}: a list point creates at least ${MIN_LIST_RECORDS} records first: set records and describe them in setup`);
     if (p.kind === 'state-after-action' && p.setup.length === 0) problems.push(`${at}: a state-after-action point does the earlier action in setup`);
     if (p.kind === 'unused-option') {
       if (p.values.length === 0) problems.push(`${at}: an unused-option point lists the values to use`);
       const cited = lines ? collapse(lines.slice(p.citation.lines[0] - 1, p.citation.lines[1]).join(' ')) : '';
-      for (const v of p.values) {
+      // A boolean option has both values whenever the code reads it, so only text and numbers must appear.
+      for (const v of p.values.filter((x) => typeof x !== 'boolean')) {
         if (lines && !appearsIn(v, cited)) problems.push(`${at}: the value ${JSON.stringify(v)} does not appear in the cited lines ${p.citation.file}:${p.citation.lines.join('-')}`);
       }
       const used = endpoint ? ctx.usage.endpoints.get(endpointKey(endpoint))?.query : undefined;
@@ -172,14 +181,12 @@ export async function checkProposed(points: readonly ProposedVariationPoint[], f
       ...(endpoint ? { endpoint: endpointKey(endpoint) } : {}),
       featureId,
       origin: 'model',
-      role: role!,
+      role,
       requirementId: requirementFor(p, endpoint, ctx.featureRequirements, ctx.prd).id,
     };
+    // The same scenario twice is dropped by code, not sent back.
     const key = pointKey(draft);
-    if (keys.has(key)) {
-      problems.push(`${at}: the same scenario as an earlier point; drop one`);
-      continue;
-    }
+    if (keys.has(key)) continue;
     keys.add(key);
     drafts.push(draft);
   }
