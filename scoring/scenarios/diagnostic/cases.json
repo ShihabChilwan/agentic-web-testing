@@ -1,0 +1,958 @@
+[
+ {
+  "suite": "S1",
+  "bug": "bug-001",
+  "file": "server/routes/api/review.js",
+  "lines": [
+   72,
+   72
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 123
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 55
+  },
+  "citing": [
+   {
+    "id": "VP-155",
+    "kind": "state-after-action",
+    "status": "reserve",
+    "lines": [
+     71,
+     78
+    ],
+    "endpoint": "GET /api/review/:slug",
+    "description": "A product whose brand is inactive must return 404 'No product found' even though the product slug exists — the hasNoBrand branch that filters product lookup bef"
+   }
+  ]
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-005",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   87,
+   96
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-006",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   55,
+   55
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-009",
+  "file": "server/routes/api/order.js",
+  "lines": [
+   287,
+   287
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 227
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 157
+  },
+  "citing": [
+   {
+    "id": "VP-070",
+    "kind": "role",
+    "status": "selected",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a user with role admin; send it as users.admin (role admin) and keep the answer."
+   },
+   {
+    "id": "VP-071",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-011",
+  "file": "server/routes/api/brand.js",
+  "lines": [
+   191,
+   191
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 106
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 76
+  },
+  "citing": [
+   {
+    "id": "VP-113",
+    "kind": "state-after-action",
+    "status": "cut",
+    "lines": [
+     190,
+     198
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "Deactivating a brand with products disables the products (lines 191-194) and the brand disappears from the public active list (isActive filter); tests so far on"
+   },
+   {
+    "id": "VP-124",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     145,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id",
+    "description": "The suite never sends PUT /api/brand/:id as a user with role member; send it as users.alice (role member) and keep the answer."
+   },
+   {
+    "id": "VP-125",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     145,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id",
+    "description": "The suite never sends PUT /api/brand/:id as a visitor; send it as a visitor who is not logged in and keep the answer."
+   },
+   {
+    "id": "VP-126",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     180,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "The suite never sends PUT /api/brand/:id/active as a user with role member; send it as users.alice (role member) and keep the answer."
+   },
+   {
+    "id": "VP-127",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     180,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "The suite never sends PUT /api/brand/:id/active as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-016",
+  "file": "server/routes/api/product.js",
+  "lines": [
+   132,
+   132
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 237
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 165
+  },
+  "citing": [
+   {
+    "id": "VP-034",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     128,
+     138
+    ],
+    "endpoint": "GET /api/product/list",
+    "description": "A page far beyond totalPages makes $skip exceed the matched count, returning an empty products array while count and currentPage stay grand — paging boundary ne"
+   },
+   {
+    "id": "VP-038",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     128,
+     139
+    ],
+    "endpoint": "GET /api/product/list",
+    "description": "page=0 passes count>limit, so size becomes -1 and $skip:-1 makes the aggregation throw, landing in the 400 error branch — a paging boundary the tests (page=1,2)"
+   }
+  ]
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-023",
+  "file": "server/models/merchant.js",
+  "lines": [
+   11,
+   11
+  ],
+  "tc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "citing": []
+ },
+ {
+  "suite": "S1",
+  "bug": "bug-025",
+  "file": "server/routes/api/newsletter.js",
+  "lines": [
+   10,
+   10
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 6
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "citing": [
+   {
+    "id": "VP-170",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     10,
+     18
+    ],
+    "endpoint": "POST /api/newsletter/subscribe",
+    "description": "Newsletter subscribe with a whitespace-only email, which is truthy so it passes the !email check and is forwarded to the Mailchimp validation"
+   }
+  ]
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-001",
+  "file": "server/routes/api/review.js",
+  "lines": [
+   72,
+   72
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 115
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 76
+  },
+  "citing": [
+   {
+    "id": "VP-039",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     68,
+     78
+    ],
+    "endpoint": "GET /api/review/:slug",
+    "description": "Existsing tests only GET slugs of real products returning 200. Requesting a slug that matches no product hits the untested 404 branch. This is cited in lines 69"
+   }
+  ]
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-004",
+  "file": "client/app/components/Store/ProductReviews/index.js",
+  "lines": [
+   24,
+   24
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-005",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   87,
+   96
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-006",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   55,
+   55
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-007",
+  "file": "client/app/containers/Order/actions.js",
+  "lines": [
+   43,
+   43
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-009",
+  "file": "server/routes/api/order.js",
+  "lines": [
+   287,
+   287
+  ],
+  "tc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 171
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 139
+  },
+  "citing": [
+   {
+    "id": "VP-083",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a user with role admin; send it as users.admin (role admin) and keep the answer."
+   },
+   {
+    "id": "VP-084",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-012",
+  "file": "server/routes/api/review.js",
+  "lines": [
+   133,
+   133
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 115
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 76
+  },
+  "citing": [
+   {
+    "id": "VP-045",
+    "kind": "role",
+    "status": "selected",
+    "lines": [
+     122,
+     144
+    ],
+    "endpoint": "PUT /api/review/approve/:reviewId",
+    "description": "The suite never sends PUT /api/review/approve/:reviewId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-016",
+  "file": "server/routes/api/product.js",
+  "lines": [
+   132,
+   132
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 228
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 152
+  },
+  "citing": [
+   {
+    "id": "VP-022",
+    "kind": "list",
+    "status": "selected",
+    "lines": [
+     131,
+     148
+    ],
+    "endpoint": "GET /api/product/list",
+    "description": "Pagination past page one: with more products than one page, page=2 must return the second slice, currentPage=2 and totalPages>1; tests only ever used page=1."
+   }
+  ]
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-023",
+  "file": "server/models/merchant.js",
+  "lines": [
+   11,
+   11
+  ],
+  "tc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "citing": []
+ },
+ {
+  "suite": "S2",
+  "bug": "bug-025",
+  "file": "server/routes/api/newsletter.js",
+  "lines": [
+   10,
+   10
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 6
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "citing": []
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-001",
+  "file": "server/routes/api/review.js",
+  "lines": [
+   72,
+   72
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 119
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 66
+  },
+  "citing": [
+   {
+    "id": "VP-093",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     71,
+     77
+    ],
+    "endpoint": "GET /api/review/:slug",
+    "description": "A product whose brand is inactive returns 404 'No product found.' even though reviews of it exist, exercising the hasNoBrand branch."
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-003",
+  "file": "client/app/components/Manager/ReviewList/index.js",
+  "lines": [
+   29,
+   29
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-005",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   87,
+   96
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-006",
+  "file": "client/app/components/Manager/Support/MessageList.js",
+  "lines": [
+   55,
+   55
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-007",
+  "file": "client/app/containers/Order/actions.js",
+  "lines": [
+   43,
+   43
+  ],
+  "tc": {
+   "measured": false,
+   "ran": false
+  },
+  "sc": {
+   "measured": false,
+   "ran": false
+  },
+  "citing": []
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-009",
+  "file": "server/routes/api/order.js",
+  "lines": [
+   287,
+   287
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 235
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 104
+  },
+  "citing": [
+   {
+    "id": "VP-087",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a user with role admin; send it as users.admin (role admin) and keep the answer."
+   },
+   {
+    "id": "VP-088",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     279,
+     336
+    ],
+    "endpoint": "PUT /api/order/status/item/:itemId",
+    "description": "The suite never sends PUT /api/order/status/item/:itemId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-010",
+  "file": "server/routes/api/order.js",
+  "lines": [
+   207,
+   207
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 235
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 104
+  },
+  "citing": [
+   {
+    "id": "VP-083",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     201,
+     255
+    ],
+    "endpoint": "GET /api/order/:orderId",
+    "description": "The suite never sends GET /api/order/:orderId as a user with role admin; send it as users.admin (role admin) and keep the answer."
+   },
+   {
+    "id": "VP-084",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     201,
+     255
+    ],
+    "endpoint": "GET /api/order/:orderId",
+    "description": "The suite never sends GET /api/order/:orderId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-011",
+  "file": "server/routes/api/brand.js",
+  "lines": [
+   191,
+   191
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 133
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 48
+  },
+  "citing": [
+   {
+    "id": "VP-058",
+    "kind": "state-after-action",
+    "status": "selected",
+    "lines": [
+     180,
+     209
+    ],
+    "endpoint": "GET /api/brand/list",
+    "description": "State after action: a brand that is deactivated via the admin active endpoint must vanish from the public brand list on the next read."
+   },
+   {
+    "id": "VP-147",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     191,
+     208
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "Toggling active with a malformed brand id throws in the Product.find/disable path and lands in the catch block."
+   },
+   {
+    "id": "VP-148",
+    "kind": "state-after-action",
+    "status": "cut",
+    "lines": [
+     190,
+     198
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "Deactivating a brand that has linked products must disable those products (isActive set to false via store.disableProducts)."
+   },
+   {
+    "id": "VP-154",
+    "kind": "role",
+    "status": "reserve",
+    "lines": [
+     180,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "The suite never sends PUT /api/brand/:id/active as a user with role member; send it as users.alice (role member) and keep the answer."
+   },
+   {
+    "id": "VP-155",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     180,
+     210
+    ],
+    "endpoint": "PUT /api/brand/:id/active",
+    "description": "The suite never sends PUT /api/brand/:id/active as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-012",
+  "file": "server/routes/api/review.js",
+  "lines": [
+   133,
+   133
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 119
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 66
+  },
+  "citing": [
+   {
+    "id": "VP-097",
+    "kind": "state-after-action",
+    "status": "cut",
+    "lines": [
+     122,
+     143
+    ],
+    "endpoint": "PUT /api/review/approve/:reviewId",
+    "description": "Approving a second time after having rejected the review sets status back to Approved and isActive true, so it reappears on the product page."
+   },
+   {
+    "id": "VP-099",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     122,
+     144
+    ],
+    "endpoint": "PUT /api/review/approve/:reviewId",
+    "description": "The suite never sends PUT /api/review/approve/:reviewId as a user with role admin; send it as users.admin (role admin) and keep the answer."
+   },
+   {
+    "id": "VP-100",
+    "kind": "role",
+    "status": "cut",
+    "lines": [
+     122,
+     144
+    ],
+    "endpoint": "PUT /api/review/approve/:reviewId",
+    "description": "The suite never sends PUT /api/review/approve/:reviewId as a visitor; send it as a visitor who is not logged in and keep the answer."
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-016",
+  "file": "server/routes/api/product.js",
+  "lines": [
+   132,
+   132
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 251
+  },
+  "sc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 182
+  },
+  "citing": [
+   {
+    "id": "VP-047",
+    "kind": "boundary",
+    "status": "cut",
+    "lines": [
+     128,
+     139
+    ],
+    "endpoint": "GET /api/product/list",
+    "description": "Request a page far beyond the last one with a small limit so count > limit; the code then skips size*limit items and must return an empty products array with cu"
+   },
+   {
+    "id": "VP-048",
+    "kind": "list",
+    "status": "selected",
+    "lines": [
+     128,
+     139
+    ],
+    "endpoint": "GET /api/product/list",
+    "description": "List the products sorted by price descending (sortOrder {price:-1}); existing tests only used sortOrder {price:1} and {_id:-1}, never -1 on price, and the $sort"
+   }
+  ]
+ },
+ {
+  "suite": "S3",
+  "bug": "bug-023",
+  "file": "server/models/merchant.js",
+  "lines": [
+   11,
+   11
+  ],
+  "tc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 0
+  },
+  "citing": []
+ },
+ {
+  "suite": "Kutt",
+  "bug": "bug-005",
+  "file": "server/queries/host.queries.js",
+  "lines": [
+   37,
+   37
+  ],
+  "tc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 8
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 8
+  },
+  "citing": []
+ },
+ {
+  "suite": "Kutt",
+  "bug": "bug-010",
+  "file": "server/handlers/auth.handler.js",
+  "lines": [
+   41,
+   41
+  ],
+  "tc": {
+   "measured": true,
+   "ran": true,
+   "fileLinesRun": 154
+  },
+  "sc": {
+   "measured": true,
+   "ran": false,
+   "fileLinesRun": 96
+  },
+  "citing": []
+ }
+]
