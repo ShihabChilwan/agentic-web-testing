@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0",
+  "target": "mern-ecommerce",
+  "sourceRunId": "mern-ecommerce-20261030-211147-diff-scn",
+  "generationRef": "golden",
+  "goldenCommit": "7f73dfbd68a27b6945fe7fbf654067004816d09e",
+  "frameworkCommit": "4d267e0b995c12e258fa8c5e8ab25b7763f505d1",
+  "suiteHash": "b742f66a69319efb339d7fa222685f3fe0371eca1c00f8426f46b33fadd141dc",
+  "imageTag": "4d267e0-b742f66a",
+  "createdAt": "2026-11-16T15:12:44.951Z",
+  "replace": {
+    "mongo:": "127.0.0.1:"
+  },
+  "execution": {
+    "scriptsDir": "scripts-with-scenarios",
+    "recordResponses": true,
+    "recordPages": true
+  },
+  "versions": [
+    {
+      "version": "golden",
+      "skipSeed": false
+    },
+    {
+      "version": "golden-2",
+      "skipSeed": false
+    },
+    {
+      "version": "golden-3",
+      "skipSeed": false
+    },
+    {
+      "version": "golden-4",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-001",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-001.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-002",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-002.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-003",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-003.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-004",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-004.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-005",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-005.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-006",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-006.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-007",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-007.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-008",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-008.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-009",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-009.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-010",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-010.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-011",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-011.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-012",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-012.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-013",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-013.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-014",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-014.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-015",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-015.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-016",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-016.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-017",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-017.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-018",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-018.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-019",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-019.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-020",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-020.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-021",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-021.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-022",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-022.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-023",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-023.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-024",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-024.patch",
+      "skipSeed": false
+    },
+    {
+      "version": "bug-025",
+      "patch": "targets/mern-ecommerce/sealed-2/variants/bug-025.patch",
+      "skipSeed": false
+    }
+  ]
+}
