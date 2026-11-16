@@ -112,7 +112,7 @@ describe('freeze check', () => {
     await put('src/a.ts', 'export const a = 4;\n');
     commit('freeze plus code');
     git('tag', '-a', 'freeze-v9', '-m', 'x');
-    const status = await checkFrozen({ projectRoot: root });
+    const status = await checkFrozen({ projectRoot: root, tag: 'freeze-v9' });
     expect(status.state === 'not-frozen' && status.reasons.join()).toContain('differs from the recorded base');
   });
 
@@ -144,10 +144,34 @@ describe('provider routing in the freeze record', () => {
     expect(record.llm.providerRouting).toEqual({ order: ['wafer/us', 'wafer'], only: ['wafer/us', 'wafer'], allow_fallbacks: false });
     expect(settingsDifferences(record, routed)).toEqual([]);
     const plain = parseLLMConfig({ LLM_BASE_URL: 'https://model.test/v1' });
-    expect(settingsDifferences(record, plain)).toContain('model setting providerRouting differs from freeze.json');
+    expect(settingsDifferences(record, plain)).toEqual(['model setting providerRouting differs from x-1.json']);
     const old = await buildFreezeRecord(plain, { projectRoot: root, tag: 'x-2' });
     expect(old.llm).not.toHaveProperty('providerRouting');
     expect(settingsDifferences(old, plain)).toEqual([]);
-    expect(settingsDifferences(old, routed)).toContain('model setting providerRouting differs from freeze.json');
+    expect(settingsDifferences(old, routed)).toEqual(['model setting providerRouting differs from x-2.json']);
+  });
+});
+
+describe('a later freeze under its own tag', () => {
+  it('writes freeze/<tag>.json, leaves freeze.json alone and is checked by its tag', async () => {
+    await freeze();
+    const first = await readFile(path.join(root, 'freeze/freeze.json'), 'utf8');
+    await put('src/a.ts', 'export const a = 3;\n');
+    commit('work after the first freeze');
+    expect((await checkFrozen({ projectRoot: root })).state).toBe('not-frozen');
+    const { file } = await recordFreeze(config, { projectRoot: root, tag: 'scenarios-v1' });
+    expect(path.relative(root, file)).toBe('freeze/scenarios-v1.json');
+    commit('second freeze');
+    git('tag', '-a', 'scenarios-v1', '-m', 'second');
+    expect(await readFile(path.join(root, 'freeze/freeze.json'), 'utf8')).toBe(first);
+    const second = await checkFrozen({ projectRoot: root, tag: 'scenarios-v1', llmConfig: config });
+    expect(second).toMatchObject({ state: 'frozen', frozen: { tag: 'scenarios-v1' } });
+    expect((await checkFrozen({ projectRoot: root })).state).toBe('not-frozen');
+    expect(await requireFrozen({ projectRoot: root, tag: 'scenarios-v1' })).toMatchObject({ tag: 'scenarios-v1' });
+  });
+
+  it('refuses a named freeze that was never recorded', async () => {
+    await expect(requireFrozen({ projectRoot: root, tag: 'scenarios-v9' })).rejects.toThrow(/No freeze scenarios-v9/);
+    await expect(requireFrozen({ projectRoot: root })).resolves.toBeUndefined();
   });
 });
