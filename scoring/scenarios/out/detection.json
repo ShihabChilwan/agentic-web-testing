@@ -1,0 +1,4448 @@
+{
+  "detections": [
+    {
+      "suite": "S1",
+      "bug": "bug-001",
+      "execId": "x-28",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-002",
+      "execId": "x-10",
+      "failing": {
+        "TC": [
+          "TC-137"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-137"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-003",
+      "execId": "x-24",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-124"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-004",
+      "execId": "x-29",
+      "failing": {
+        "TC": [
+          "TC-085"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-085"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-005",
+      "execId": "x-15",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-006",
+      "execId": "x-06",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-007",
+      "execId": "x-27",
+      "failing": {
+        "TC": [
+          "TC-130"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-008",
+      "execId": "x-22",
+      "failing": {
+        "TC": [
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-062",
+          "TC-115"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-062",
+          "TC-115"
+        ],
+        "SC": [
+          "SC-018",
+          "SC-036",
+          "SC-037"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-009",
+      "execId": "x-09",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-010",
+      "execId": "x-05",
+      "failing": {
+        "TC": [
+          "TC-047"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-047"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-011",
+      "execId": "x-25",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-012",
+      "execId": "x-23",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-084"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-013",
+      "execId": "x-12",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-084"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-014",
+      "execId": "x-11",
+      "failing": {
+        "TC": [
+          "TC-038",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-061",
+          "TC-062",
+          "TC-068"
+        ],
+        "SC": [
+          "SC-025",
+          "SC-033"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-038",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-061",
+          "TC-062",
+          "TC-068"
+        ],
+        "SC": [
+          "SC-007",
+          "SC-008",
+          "SC-019",
+          "SC-020",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-033",
+          "SC-034"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-015",
+      "execId": "x-03",
+      "failing": {
+        "TC": [
+          "TC-064"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-064",
+          "TC-084"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-016",
+      "execId": "x-16",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-017",
+      "execId": "x-04",
+      "failing": {
+        "TC": [
+          "TC-015",
+          "TC-038",
+          "TC-047",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-087",
+          "TC-088",
+          "TC-103",
+          "TC-110",
+          "TC-115",
+          "TC-116",
+          "TC-118",
+          "TC-119",
+          "TC-125",
+          "TC-130",
+          "TC-147",
+          "TC-148",
+          "TC-149",
+          "TC-150"
+        ],
+        "SC": [
+          "SC-007",
+          "SC-016",
+          "SC-025",
+          "SC-026",
+          "SC-033"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-015",
+          "TC-038",
+          "TC-047",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-076",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-103",
+          "TC-110",
+          "TC-111",
+          "TC-115",
+          "TC-116",
+          "TC-118",
+          "TC-119",
+          "TC-125",
+          "TC-147",
+          "TC-148",
+          "TC-149",
+          "TC-150"
+        ],
+        "SC": [
+          "SC-007",
+          "SC-008",
+          "SC-012",
+          "SC-016",
+          "SC-018",
+          "SC-019",
+          "SC-020",
+          "SC-022",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-033",
+          "SC-034",
+          "SC-036",
+          "SC-037",
+          "SC-039"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-018",
+      "execId": "x-17",
+      "failing": {
+        "TC": [
+          "TC-076"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-076"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-019",
+      "execId": "x-08",
+      "failing": {
+        "TC": [
+          "TC-025",
+          "TC-109"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-025",
+          "TC-109"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-020",
+      "execId": "x-14",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-006",
+          "TC-009",
+          "TC-010",
+          "TC-011",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-019",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-038",
+          "TC-043",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-076",
+          "TC-077",
+          "TC-078",
+          "TC-079",
+          "TC-080",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-089",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-107",
+          "TC-108",
+          "TC-109",
+          "TC-110",
+          "TC-111",
+          "TC-113",
+          "TC-114",
+          "TC-115",
+          "TC-116",
+          "TC-118",
+          "TC-119",
+          "TC-120",
+          "TC-122",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-132",
+          "TC-135",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-149",
+          "TC-150",
+          "TC-153",
+          "TC-155",
+          "TC-156"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-002",
+          "SC-003",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-020",
+          "SC-021",
+          "SC-022",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-030",
+          "SC-031",
+          "SC-033",
+          "SC-034",
+          "SC-036",
+          "SC-037",
+          "SC-039"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-006",
+          "TC-009",
+          "TC-010",
+          "TC-011",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-018",
+          "TC-019",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-028",
+          "TC-032",
+          "TC-033",
+          "TC-034",
+          "TC-037",
+          "TC-038",
+          "TC-039",
+          "TC-040",
+          "TC-043",
+          "TC-044",
+          "TC-046",
+          "TC-047",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-076",
+          "TC-077",
+          "TC-079",
+          "TC-080",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-089",
+          "TC-093",
+          "TC-097",
+          "TC-099",
+          "TC-101",
+          "TC-102",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-109",
+          "TC-115",
+          "TC-119",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-129",
+          "TC-130",
+          "TC-133",
+          "TC-134",
+          "TC-136",
+          "TC-137",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-149",
+          "TC-150",
+          "TC-153",
+          "TC-155",
+          "TC-156"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-020",
+          "SC-021",
+          "SC-022",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-030",
+          "SC-031",
+          "SC-033",
+          "SC-034",
+          "SC-036",
+          "SC-037",
+          "SC-039",
+          "SC-041"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-021",
+      "execId": "x-01",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-003",
+          "TC-004",
+          "TC-005",
+          "TC-006",
+          "TC-008",
+          "TC-009",
+          "TC-010",
+          "TC-011",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-043",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-049",
+          "TC-052",
+          "TC-060",
+          "TC-065",
+          "TC-075",
+          "TC-077",
+          "TC-079",
+          "TC-080",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-089",
+          "TC-103",
+          "TC-105",
+          "TC-107",
+          "TC-108",
+          "TC-109",
+          "TC-114",
+          "TC-120",
+          "TC-122",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-130",
+          "TC-132",
+          "TC-134",
+          "TC-135",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-150",
+          "TC-153",
+          "TC-155",
+          "TC-156"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-007",
+          "SC-009",
+          "SC-010",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-030",
+          "SC-031"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-003",
+          "TC-004",
+          "TC-005",
+          "TC-006",
+          "TC-008",
+          "TC-009",
+          "TC-010",
+          "TC-011",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-043",
+          "TC-044",
+          "TC-046",
+          "TC-047",
+          "TC-049",
+          "TC-052",
+          "TC-060",
+          "TC-065",
+          "TC-075",
+          "TC-077",
+          "TC-079",
+          "TC-080",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-089",
+          "TC-097",
+          "TC-103",
+          "TC-105",
+          "TC-109",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-134",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-150",
+          "TC-153",
+          "TC-155",
+          "TC-156"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-005",
+          "SC-007",
+          "SC-009",
+          "SC-010",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-022",
+          "SC-023",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-030",
+          "SC-031"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-022",
+      "execId": "x-13",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-047"
+        ],
+        "SC": [
+          "SC-026"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-023",
+      "execId": "x-02",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-024",
+      "execId": "x-21",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-109"
+        ],
+        "SC": [
+          "SC-014",
+          "SC-015"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-025",
+      "execId": "x-26",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-001",
+      "execId": "x-18",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-002",
+      "execId": "x-10",
+      "failing": {
+        "TC": [
+          "TC-108"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-108"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-003",
+      "execId": "x-05",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": [
+          "SC-027"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": false,
+      "withScenarios": true,
+      "scenarioOnly": true,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-004",
+      "execId": "x-17",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-005",
+      "execId": "x-27",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-006",
+      "execId": "x-09",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-007",
+      "execId": "x-01",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-008",
+      "execId": "x-19",
+      "failing": {
+        "TC": [
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-101",
+          "TC-102",
+          "TC-150",
+          "TC-151"
+        ],
+        "SC": [
+          "SC-023"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-101",
+          "TC-102",
+          "TC-150",
+          "TC-151"
+        ],
+        "SC": [
+          "SC-023"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-009",
+      "execId": "x-08",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-010",
+      "execId": "x-26",
+      "failing": {
+        "TC": [
+          "TC-047"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-047"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-011",
+      "execId": "x-22",
+      "failing": {
+        "TC": [],
+        "SC": [
+          "SC-018"
+        ]
+      },
+      "differing": {
+        "TC": [],
+        "SC": [
+          "SC-018"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": false,
+      "withScenarios": true,
+      "scenarioOnly": true,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-012",
+      "execId": "x-13",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-013",
+      "execId": "x-14",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": [
+          "SC-003"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": false,
+      "withScenarios": true,
+      "scenarioOnly": true,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-014",
+      "execId": "x-03",
+      "failing": {
+        "TC": [
+          "TC-022",
+          "TC-040",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-064",
+          "TC-065",
+          "TC-068",
+          "TC-069"
+        ],
+        "SC": [
+          "SC-003",
+          "SC-024",
+          "SC-028",
+          "SC-031",
+          "SC-037"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-022",
+          "TC-040",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-064",
+          "TC-065",
+          "TC-068",
+          "TC-069"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-015",
+          "SC-024",
+          "SC-028",
+          "SC-031",
+          "SC-037"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-015",
+      "execId": "x-24",
+      "failing": {
+        "TC": [
+          "TC-067"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-067"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-016",
+      "execId": "x-23",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-017",
+      "execId": "x-20",
+      "failing": {
+        "TC": [
+          "TC-022",
+          "TC-035",
+          "TC-040",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-071",
+          "TC-073",
+          "TC-074",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-093",
+          "TC-095",
+          "TC-096",
+          "TC-101",
+          "TC-102",
+          "TC-104",
+          "TC-116",
+          "TC-125",
+          "TC-129",
+          "TC-142",
+          "TC-143",
+          "TC-145",
+          "TC-150",
+          "TC-151",
+          "TC-152",
+          "TC-153",
+          "TC-154",
+          "TC-155",
+          "TC-157"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-008",
+          "SC-009",
+          "SC-018",
+          "SC-023",
+          "SC-024",
+          "SC-027",
+          "SC-028",
+          "SC-031",
+          "SC-037",
+          "SC-040"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-022",
+          "TC-035",
+          "TC-040",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-076",
+          "TC-077",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-093",
+          "TC-095",
+          "TC-096",
+          "TC-101",
+          "TC-102",
+          "TC-104",
+          "TC-115",
+          "TC-116",
+          "TC-123",
+          "TC-125",
+          "TC-129",
+          "TC-142",
+          "TC-143",
+          "TC-145",
+          "TC-150",
+          "TC-151",
+          "TC-152",
+          "TC-153",
+          "TC-154",
+          "TC-155",
+          "TC-157"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-008",
+          "SC-009",
+          "SC-013",
+          "SC-015",
+          "SC-017",
+          "SC-018",
+          "SC-023",
+          "SC-024",
+          "SC-027",
+          "SC-028",
+          "SC-031",
+          "SC-037",
+          "SC-038",
+          "SC-040",
+          "SC-041"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-018",
+      "execId": "x-29",
+      "failing": {
+        "TC": [
+          "TC-076"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-076"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-019",
+      "execId": "x-21",
+      "failing": {
+        "TC": [
+          "TC-097"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-097"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-020",
+      "execId": "x-12",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-008",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-018",
+          "TC-022",
+          "TC-024",
+          "TC-031",
+          "TC-032",
+          "TC-035",
+          "TC-037",
+          "TC-040",
+          "TC-043",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-076",
+          "TC-077",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-095",
+          "TC-096",
+          "TC-097",
+          "TC-101",
+          "TC-102",
+          "TC-104",
+          "TC-107",
+          "TC-109",
+          "TC-111",
+          "TC-112",
+          "TC-115",
+          "TC-116",
+          "TC-117",
+          "TC-118",
+          "TC-119",
+          "TC-120",
+          "TC-121",
+          "TC-122",
+          "TC-123",
+          "TC-125",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-129",
+          "TC-130",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-137",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-150",
+          "TC-151",
+          "TC-152",
+          "TC-153",
+          "TC-154",
+          "TC-155",
+          "TC-157"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-020",
+          "SC-022",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-029",
+          "SC-030",
+          "SC-031",
+          "SC-032",
+          "SC-033",
+          "SC-034",
+          "SC-035",
+          "SC-037",
+          "SC-038",
+          "SC-040",
+          "SC-041"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-007",
+          "TC-008",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-019",
+          "TC-020",
+          "TC-022",
+          "TC-023",
+          "TC-025",
+          "TC-026",
+          "TC-027",
+          "TC-031",
+          "TC-032",
+          "TC-033",
+          "TC-034",
+          "TC-035",
+          "TC-037",
+          "TC-040",
+          "TC-041",
+          "TC-042",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-050",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-076",
+          "TC-077",
+          "TC-078",
+          "TC-079",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-088",
+          "TC-089",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-095",
+          "TC-096",
+          "TC-097",
+          "TC-099",
+          "TC-100",
+          "TC-101",
+          "TC-102",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-106",
+          "TC-107",
+          "TC-108",
+          "TC-109",
+          "TC-110",
+          "TC-111",
+          "TC-113",
+          "TC-118",
+          "TC-119",
+          "TC-121",
+          "TC-122",
+          "TC-125",
+          "TC-128",
+          "TC-129",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-136",
+          "TC-137",
+          "TC-138",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-150",
+          "TC-151",
+          "TC-152",
+          "TC-153",
+          "TC-154",
+          "TC-155",
+          "TC-157"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-020",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-028",
+          "SC-029",
+          "SC-030",
+          "SC-031",
+          "SC-032",
+          "SC-033",
+          "SC-034",
+          "SC-035",
+          "SC-037",
+          "SC-038",
+          "SC-040",
+          "SC-041"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-021",
+      "execId": "x-16",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-004",
+          "TC-005",
+          "TC-006",
+          "TC-008",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-018",
+          "TC-024",
+          "TC-031",
+          "TC-032",
+          "TC-035",
+          "TC-037",
+          "TC-040",
+          "TC-043",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-073",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-095",
+          "TC-096",
+          "TC-097",
+          "TC-100",
+          "TC-107",
+          "TC-109",
+          "TC-111",
+          "TC-112",
+          "TC-117",
+          "TC-118",
+          "TC-119",
+          "TC-121",
+          "TC-122",
+          "TC-123",
+          "TC-126",
+          "TC-128",
+          "TC-129",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-137",
+          "TC-139",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-151",
+          "TC-153"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-006",
+          "SC-007",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-016",
+          "SC-019",
+          "SC-020",
+          "SC-022",
+          "SC-024",
+          "SC-025",
+          "SC-027",
+          "SC-028",
+          "SC-029",
+          "SC-030",
+          "SC-031",
+          "SC-032",
+          "SC-034",
+          "SC-035"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-004",
+          "TC-005",
+          "TC-006",
+          "TC-008",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-031",
+          "TC-032",
+          "TC-035",
+          "TC-037",
+          "TC-040",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-047",
+          "TC-048",
+          "TC-050",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-073",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-095",
+          "TC-096",
+          "TC-097",
+          "TC-099",
+          "TC-100",
+          "TC-107",
+          "TC-109",
+          "TC-111",
+          "TC-118",
+          "TC-119",
+          "TC-121",
+          "TC-122",
+          "TC-123",
+          "TC-128",
+          "TC-129",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-137",
+          "TC-140",
+          "TC-141",
+          "TC-142",
+          "TC-143",
+          "TC-144",
+          "TC-145",
+          "TC-147",
+          "TC-148",
+          "TC-151",
+          "TC-153"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-003",
+          "SC-004",
+          "SC-006",
+          "SC-007",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-016",
+          "SC-019",
+          "SC-020",
+          "SC-022",
+          "SC-024",
+          "SC-025",
+          "SC-027",
+          "SC-028",
+          "SC-029",
+          "SC-030",
+          "SC-031",
+          "SC-032",
+          "SC-034",
+          "SC-035"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-022",
+      "execId": "x-06",
+      "failing": {
+        "TC": [
+          "TC-040"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-040"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-023",
+      "execId": "x-02",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-024",
+      "execId": "x-28",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-052",
+          "TC-053",
+          "TC-054"
+        ],
+        "SC": [
+          "SC-034",
+          "SC-035"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-025",
+      "execId": "x-25",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-001",
+      "execId": "x-19",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-002",
+      "execId": "x-03",
+      "failing": {
+        "TC": [
+          "TC-095"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-095"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-003",
+      "execId": "x-09",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-004",
+      "execId": "x-27",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-106"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-005",
+      "execId": "x-22",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-006",
+      "execId": "x-14",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-007",
+      "execId": "x-08",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-008",
+      "execId": "x-28",
+      "failing": {
+        "TC": [
+          "TC-058",
+          "TC-063",
+          "TC-064"
+        ],
+        "SC": [
+          "SC-034"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-058",
+          "TC-063",
+          "TC-064"
+        ],
+        "SC": [
+          "SC-034",
+          "SC-042",
+          "SC-044"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-009",
+      "execId": "x-24",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-010",
+      "execId": "x-26",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-011",
+      "execId": "x-02",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-012",
+      "execId": "x-20",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-013",
+      "execId": "x-13",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-086"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-014",
+      "execId": "x-12",
+      "failing": {
+        "TC": [
+          "TC-029",
+          "TC-039",
+          "TC-041",
+          "TC-043",
+          "TC-053",
+          "TC-056",
+          "TC-057",
+          "TC-064",
+          "TC-132"
+        ],
+        "SC": [
+          "SC-035"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-029",
+          "TC-039",
+          "TC-041",
+          "TC-043",
+          "TC-053",
+          "TC-056",
+          "TC-057",
+          "TC-064",
+          "TC-132"
+        ],
+        "SC": [
+          "SC-028",
+          "SC-031",
+          "SC-035",
+          "SC-043"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-015",
+      "execId": "x-05",
+      "failing": {
+        "TC": [
+          "TC-067"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-067"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-016",
+      "execId": "x-29",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-017",
+      "execId": "x-06",
+      "failing": {
+        "TC": [
+          "TC-029",
+          "TC-033",
+          "TC-039",
+          "TC-041",
+          "TC-043",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-067",
+          "TC-069",
+          "TC-072",
+          "TC-074",
+          "TC-075",
+          "TC-077",
+          "TC-078",
+          "TC-080",
+          "TC-081",
+          "TC-099",
+          "TC-111",
+          "TC-116",
+          "TC-128",
+          "TC-130",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-137",
+          "TC-139"
+        ],
+        "SC": [
+          "SC-013",
+          "SC-026",
+          "SC-034",
+          "SC-035"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-029",
+          "TC-033",
+          "TC-039",
+          "TC-041",
+          "TC-043",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-067",
+          "TC-069",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-077",
+          "TC-078",
+          "TC-080",
+          "TC-081",
+          "TC-099",
+          "TC-111",
+          "TC-112",
+          "TC-116",
+          "TC-128",
+          "TC-130",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-137",
+          "TC-139"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-007",
+          "SC-013",
+          "SC-018",
+          "SC-022",
+          "SC-026",
+          "SC-028",
+          "SC-031",
+          "SC-034",
+          "SC-035",
+          "SC-040",
+          "SC-042",
+          "SC-043",
+          "SC-044"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-018",
+      "execId": "x-01",
+      "failing": {
+        "TC": [
+          "TC-080"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-080"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-019",
+      "execId": "x-23",
+      "failing": {
+        "TC": [
+          "TC-024",
+          "TC-106"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-024",
+          "TC-106"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-020",
+      "execId": "x-10",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-007",
+          "TC-008",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-017",
+          "TC-018",
+          "TC-019",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-024",
+          "TC-026",
+          "TC-029",
+          "TC-033",
+          "TC-039",
+          "TC-041",
+          "TC-043",
+          "TC-044",
+          "TC-046",
+          "TC-048",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-069",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-076",
+          "TC-077",
+          "TC-078",
+          "TC-080",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-097",
+          "TC-098",
+          "TC-099",
+          "TC-104",
+          "TC-105",
+          "TC-106",
+          "TC-108",
+          "TC-111",
+          "TC-112",
+          "TC-113",
+          "TC-114",
+          "TC-116",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-130",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-136",
+          "TC-137",
+          "TC-139"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-002",
+          "SC-004",
+          "SC-005",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-021",
+          "SC-022",
+          "SC-025",
+          "SC-026",
+          "SC-028",
+          "SC-031",
+          "SC-032",
+          "SC-033",
+          "SC-034",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039",
+          "SC-040",
+          "SC-042",
+          "SC-043",
+          "SC-044"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-007",
+          "TC-008",
+          "TC-011",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-024",
+          "TC-026",
+          "TC-027",
+          "TC-029",
+          "TC-030",
+          "TC-033",
+          "TC-036",
+          "TC-037",
+          "TC-039",
+          "TC-040",
+          "TC-041",
+          "TC-043",
+          "TC-044",
+          "TC-045",
+          "TC-046",
+          "TC-048",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-063",
+          "TC-064",
+          "TC-065",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-069",
+          "TC-072",
+          "TC-073",
+          "TC-074",
+          "TC-075",
+          "TC-076",
+          "TC-077",
+          "TC-078",
+          "TC-080",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-091",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-095",
+          "TC-098",
+          "TC-099",
+          "TC-100",
+          "TC-101",
+          "TC-106",
+          "TC-116",
+          "TC-117",
+          "TC-118",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-130",
+          "TC-131",
+          "TC-132",
+          "TC-133",
+          "TC-134",
+          "TC-135",
+          "TC-136",
+          "TC-137",
+          "TC-139"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-002",
+          "SC-004",
+          "SC-005",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-018",
+          "SC-019",
+          "SC-021",
+          "SC-022",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-028",
+          "SC-031",
+          "SC-032",
+          "SC-033",
+          "SC-034",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039",
+          "SC-040",
+          "SC-042",
+          "SC-043",
+          "SC-044"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-021",
+      "execId": "x-11",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-005",
+          "TC-007",
+          "TC-008",
+          "TC-012",
+          "TC-014",
+          "TC-018",
+          "TC-019",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-024",
+          "TC-026",
+          "TC-033",
+          "TC-041",
+          "TC-043",
+          "TC-044",
+          "TC-046",
+          "TC-048",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-054",
+          "TC-055",
+          "TC-060",
+          "TC-066",
+          "TC-076",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-086",
+          "TC-097",
+          "TC-098",
+          "TC-104",
+          "TC-105",
+          "TC-106",
+          "TC-111",
+          "TC-113",
+          "TC-116",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-126",
+          "TC-127",
+          "TC-136"
+        ],
+        "SC": [
+          "SC-004",
+          "SC-005",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-012",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-019",
+          "SC-021",
+          "SC-028",
+          "SC-031",
+          "SC-032",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-003",
+          "TC-004",
+          "TC-005",
+          "TC-007",
+          "TC-008",
+          "TC-012",
+          "TC-014",
+          "TC-020",
+          "TC-021",
+          "TC-022",
+          "TC-023",
+          "TC-024",
+          "TC-026",
+          "TC-033",
+          "TC-041",
+          "TC-043",
+          "TC-044",
+          "TC-046",
+          "TC-048",
+          "TC-049",
+          "TC-050",
+          "TC-051",
+          "TC-054",
+          "TC-055",
+          "TC-060",
+          "TC-066",
+          "TC-076",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-086",
+          "TC-098",
+          "TC-106",
+          "TC-111",
+          "TC-116",
+          "TC-120",
+          "TC-123",
+          "TC-124",
+          "TC-126",
+          "TC-127",
+          "TC-136"
+        ],
+        "SC": [
+          "SC-004",
+          "SC-005",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-012",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-017",
+          "SC-019",
+          "SC-021",
+          "SC-028",
+          "SC-031",
+          "SC-032",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-022",
+      "execId": "x-15",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-041"
+        ],
+        "SC": [
+          "SC-031"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-023",
+      "execId": "x-21",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-024",
+      "execId": "x-16",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-021",
+          "TC-023",
+          "TC-024",
+          "TC-026"
+        ],
+        "SC": [
+          "SC-014",
+          "SC-015"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-025",
+      "execId": "x-07",
+      "failing": {
+        "TC": [
+          "TC-088"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-088"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-001",
+      "execId": "x-08",
+      "failing": {
+        "TC": [
+          "TC-101"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-094",
+          "TC-101"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-002",
+      "execId": "x-14",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-053",
+          "TC-056",
+          "TC-075",
+          "TC-088"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-003",
+      "execId": "x-16",
+      "failing": {
+        "TC": [
+          "TC-006",
+          "TC-014",
+          "TC-020",
+          "TC-111"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-006",
+          "TC-014",
+          "TC-020",
+          "TC-094"
+        ],
+        "SC": [
+          "SC-030"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-004",
+      "execId": "x-09",
+      "failing": {
+        "TC": [
+          "TC-026"
+        ],
+        "SC": [
+          "SC-031"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-021",
+          "TC-024",
+          "TC-026",
+          "TC-031",
+          "TC-034",
+          "TC-035",
+          "TC-040",
+          "TC-054",
+          "TC-061",
+          "TC-064",
+          "TC-071",
+          "TC-077",
+          "TC-082",
+          "TC-096",
+          "TC-102",
+          "TC-116",
+          "TC-117",
+          "TC-136",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141"
+        ],
+        "SC": [
+          "SC-005",
+          "SC-007",
+          "SC-008",
+          "SC-012",
+          "SC-015",
+          "SC-018",
+          "SC-021",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-034",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-005",
+      "execId": "x-10",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-006",
+      "execId": "x-01",
+      "failing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-006",
+          "TC-007",
+          "TC-009",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-017",
+          "TC-023",
+          "TC-024",
+          "TC-027",
+          "TC-032",
+          "TC-034",
+          "TC-035",
+          "TC-036",
+          "TC-040",
+          "TC-043",
+          "TC-047",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-075",
+          "TC-080",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-085",
+          "TC-087",
+          "TC-088",
+          "TC-090",
+          "TC-091",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-096",
+          "TC-101",
+          "TC-102",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-107",
+          "TC-109",
+          "TC-110",
+          "TC-117",
+          "TC-121",
+          "TC-122",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-129",
+          "TC-130",
+          "TC-131",
+          "TC-136",
+          "TC-137",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141"
+        ],
+        "SC": [
+          "SC-001",
+          "SC-005",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-018",
+          "SC-020",
+          "SC-021",
+          "SC-022",
+          "SC-023",
+          "SC-024",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-030",
+          "SC-031",
+          "SC-034",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039",
+          "SC-040",
+          "SC-041"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-001",
+          "TC-002",
+          "TC-006",
+          "TC-007",
+          "TC-009",
+          "TC-012",
+          "TC-013",
+          "TC-014",
+          "TC-015",
+          "TC-016",
+          "TC-017",
+          "TC-023",
+          "TC-024",
+          "TC-027",
+          "TC-032",
+          "TC-034",
+          "TC-035",
+          "TC-036",
+          "TC-040",
+          "TC-043",
+          "TC-047",
+          "TC-050",
+          "TC-051",
+          "TC-052",
+          "TC-053",
+          "TC-054",
+          "TC-055",
+          "TC-056",
+          "TC-057",
+          "TC-058",
+          "TC-059",
+          "TC-060",
+          "TC-061",
+          "TC-062",
+          "TC-063",
+          "TC-064",
+          "TC-066",
+          "TC-067",
+          "TC-068",
+          "TC-070",
+          "TC-071",
+          "TC-072",
+          "TC-075",
+          "TC-080",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-085",
+          "TC-087",
+          "TC-088",
+          "TC-090",
+          "TC-091",
+          "TC-092",
+          "TC-093",
+          "TC-096",
+          "TC-101",
+          "TC-102",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-107",
+          "TC-109",
+          "TC-110",
+          "TC-117",
+          "TC-122",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-129",
+          "TC-130",
+          "TC-131",
+          "TC-136",
+          "TC-137",
+          "TC-138",
+          "TC-139",
+          "TC-140",
+          "TC-141"
+        ],
+        "SC": [
+          "SC-002",
+          "SC-005",
+          "SC-006",
+          "SC-007",
+          "SC-008",
+          "SC-009",
+          "SC-010",
+          "SC-011",
+          "SC-012",
+          "SC-013",
+          "SC-014",
+          "SC-015",
+          "SC-016",
+          "SC-018",
+          "SC-020",
+          "SC-021",
+          "SC-022",
+          "SC-023",
+          "SC-025",
+          "SC-026",
+          "SC-027",
+          "SC-030",
+          "SC-031",
+          "SC-034",
+          "SC-035",
+          "SC-036",
+          "SC-038",
+          "SC-039",
+          "SC-040",
+          "SC-041"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-007",
+      "execId": "x-04",
+      "failing": {
+        "TC": [
+          "TC-007",
+          "TC-008",
+          "TC-076",
+          "TC-077",
+          "TC-078",
+          "TC-079",
+          "TC-080",
+          "TC-081",
+          "TC-082",
+          "TC-083",
+          "TC-084",
+          "TC-085",
+          "TC-086",
+          "TC-087",
+          "TC-088",
+          "TC-090",
+          "TC-091",
+          "TC-092",
+          "TC-093",
+          "TC-094",
+          "TC-096",
+          "TC-097",
+          "TC-103",
+          "TC-104",
+          "TC-105",
+          "TC-107",
+          "TC-109",
+          "TC-110",
+          "TC-111",
+          "TC-122",
+          "TC-123",
+          "TC-124",
+          "TC-125",
+          "TC-126",
+          "TC-127",
+          "TC-128",
+          "TC-129",
+          "TC-130",
+          "TC-131"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-007",
+          "TC-126"
+        ],
+        "SC": [
+          "SC-037"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-008",
+      "execId": "x-07",
+      "failing": {
+        "TC": [
+          "TC-009",
+          "TC-012",
+          "TC-013",
+          "TC-015",
+          "TC-016",
+          "TC-064",
+          "TC-066",
+          "TC-109",
+          "TC-110"
+        ],
+        "SC": [
+          "SC-022",
+          "SC-031",
+          "SC-040"
+        ]
+      },
+      "differing": {
+        "TC": [
+          "TC-009",
+          "TC-012",
+          "TC-013",
+          "TC-015",
+          "TC-016",
+          "TC-062",
+          "TC-064",
+          "TC-066",
+          "TC-088",
+          "TC-109",
+          "TC-110",
+          "TC-125"
+        ],
+        "SC": [
+          "SC-020",
+          "SC-022",
+          "SC-040"
+        ]
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": true,
+        "scComparator": true
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-009",
+      "execId": "x-06",
+      "failing": {
+        "TC": [
+          "TC-093",
+          "TC-122",
+          "TC-125",
+          "TC-130",
+          "TC-131"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-010",
+      "execId": "x-11",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": false,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": false,
+      "withScenarios": false,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-011",
+      "execId": "x-13",
+      "failing": {
+        "TC": [],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-094"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": false,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-012",
+      "execId": "x-05",
+      "failing": {
+        "TC": [
+          "TC-035",
+          "TC-071",
+          "TC-102"
+        ],
+        "SC": []
+      },
+      "differing": {
+        "TC": [
+          "TC-035",
+          "TC-071",
+          "TC-088",
+          "TC-102",
+          "TC-140",
+          "TC-141"
+        ],
+        "SC": []
+      },
+      "setupChanged": false,
+      "caughtBy": {
+        "tcTests": true,
+        "tcComparator": true,
+        "scTests": false,
+        "scComparator": false
+      },
+      "bySuite": true,
+      "withScenarios": true,
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    }
+  ],
+  "falseAlarms": [
+    {
+      "suite": "S1",
+      "differing": {
+        "TC": 0,
+        "SC": 0
+      },
+      "setupChanged": false,
+      "failing": {
+        "TC": 0,
+        "SC": 0
+      }
+    },
+    {
+      "suite": "S2",
+      "differing": {
+        "TC": 0,
+        "SC": 0
+      },
+      "setupChanged": false,
+      "failing": {
+        "TC": 0,
+        "SC": 0
+      }
+    },
+    {
+      "suite": "S3",
+      "differing": {
+        "TC": 0,
+        "SC": 0
+      },
+      "setupChanged": false,
+      "failing": {
+        "TC": 0,
+        "SC": 0
+      }
+    },
+    {
+      "suite": "Kutt",
+      "differing": {
+        "TC": 2,
+        "SC": 0
+      },
+      "setupChanged": false,
+      "failing": {
+        "TC": 0,
+        "SC": 0
+      }
+    }
+  ],
+  "problems": []
+}
