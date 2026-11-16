@@ -1,0 +1,802 @@
+[
+  {
+    "suite": "S2",
+    "bug": "bug-013",
+    "execId": "x-14",
+    "scenarioOnly": true,
+    "comparatorOnly": true,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "SC-003"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.8,
+        "summary": "The product search API omits _id, so the test's cart item gets no product reference; GET /api/order/:id then populates a null product and tax calculation crashes, dropping totalWithTax from the order response.",
+        "rootCause": "GET /api/product/list/search/:name projects with { _id: 0 } (server/routes/api/product.js:61), so the product returned by the search has no _id. SC-003 builds its cart item with product: product._id, which is undefined, so the cart item's product reference is missing. When GET /api/order/:id later populates 'products.product' it stays null, and store.caculateTaxAmount throws a TypeError at `item.product.taxable` (server/utils/store.js:31) while computing taxes; the catch (lines 70-72) silently swallows it and returns the order as-is, losing totalWithTax and leaving priceWithTax at the cart-stored default 0 (set for a non-taxable item in caculateItemsSalesTax, server/utils/store.js:97-104). Reference runs keep totalWithTax 10 and priceWithTax 10.",
+        "location": {
+          "file": "server/routes/api/product.js",
+          "lines": [
+            55,
+            62
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/product.js:59-62: GET /api/product/list/search/:name projects with `{ name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }`, so the response's products carry no _id; the SC-003 script uses product._id from this search to build the cart item."
+          },
+          {
+            "source": "code",
+            "detail": "server/utils/store.js:31: `if (item.product.taxable ...)` dereferences item.product without optional chaining while line 25 does (`item?.product?.price`), so a null product throws; the catch at lines 70-72 swallows the error and returns the order without totalWithTax."
+          },
+          {
+            "source": "code",
+            "detail": "server/utils/store.js:88: caculateItemsSalesTax leaves priceWithTax at 0 for non-taxable items, matching this run's returned item.priceWithTax of 0 (the un-recalculated stored value)."
+          },
+          {
+            "source": "test",
+            "detail": "SC-003 asserts only that the PUT status request returned a status (E1); the degenerate order data from search without _id passes all script assertions, so the test reported 'passed' despite the changed response."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-022"
+        ],
+        "suggestedFix": {
+          "description": "Include the product id in the search projection: change the projection in the /api/product/list/search route to `{ name: 1, slug: 1, imageUrl: 1, price: 1, _id: 1 }` (i.e. remove `_id: 0`). Optionally harden caculateTaxAmount with `item?.product?.taxable` so a null populate cannot silently drop order totals.",
+          "patch": "--- a/server/routes/api/product.js+++ a/server/routes/api/product.js@@-59,6+59,6@@   const productDoc = await Product.find(-      { name: { $regex: new RegExp(name), $options: 'is' }, isActive: true },-      { name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }+      { name: { $regex: new RegExp(name), $options: 'is' }, isActive: true },+      { name: 1, slug: 1, imageUrl: 1, price: 1 }"
+        },
+        "toolCalls": 20,
+        "durationMs": 77939,
+        "basis": "difference"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "SC-003"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.8,
+        "summary": "The product search API omits _id, so the test's cart item gets no product reference; GET /api/order/:id then populates a null product and tax calculation crashes, dropping totalWithTax from the order response.",
+        "rootCause": "GET /api/product/list/search/:name projects with { _id: 0 } (server/routes/api/product.js:61), so the product returned by the search has no _id. SC-003 builds its cart item with product: product._id, which is undefined, so the cart item's product reference is missing. When GET /api/order/:id later populates 'products.product' it stays null, and store.caculateTaxAmount throws a TypeError at `item.product.taxable` (server/utils/store.js:31) while computing taxes; the catch (lines 70-72) silently swallows it and returns the order as-is, losing totalWithTax and leaving priceWithTax at the cart-stored default 0 (set for a non-taxable item in caculateItemsSalesTax, server/utils/store.js:97-104). Reference runs keep totalWithTax 10 and priceWithTax 10.",
+        "location": {
+          "file": "server/routes/api/product.js",
+          "lines": [
+            55,
+            62
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/product.js:59-62: GET /api/product/list/search/:name projects with `{ name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }`, so the response's products carry no _id; the SC-003 script uses product._id from this search to build the cart item."
+          },
+          {
+            "source": "code",
+            "detail": "server/utils/store.js:31: `if (item.product.taxable ...)` dereferences item.product without optional chaining while line 25 does (`item?.product?.price`), so a null product throws; the catch at lines 70-72 swallows the error and returns the order without totalWithTax."
+          },
+          {
+            "source": "code",
+            "detail": "server/utils/store.js:88: caculateItemsSalesTax leaves priceWithTax at 0 for non-taxable items, matching this run's returned item.priceWithTax of 0 (the un-recalculated stored value)."
+          },
+          {
+            "source": "test",
+            "detail": "SC-003 asserts only that the PUT status request returned a status (E1); the degenerate order data from search without _id passes all script assertions, so the test reported 'passed' despite the changed response."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-022"
+        ],
+        "suggestedFix": {
+          "description": "Include the product id in the search projection: change the projection in the /api/product/list/search route to `{ name: 1, slug: 1, imageUrl: 1, price: 1, _id: 1 }` (i.e. remove `_id: 0`). Optionally harden caculateTaxAmount with `item?.product?.taxable` so a null populate cannot silently drop order totals.",
+          "patch": "--- a/server/routes/api/product.js+++ a/server/routes/api/product.js@@-59,6+59,6@@   const productDoc = await Product.find(-      { name: { $regex: new RegExp(name), $options: 'is' }, isActive: true },-      { name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }+      { name: { $regex: new RegExp(name), $options: 'is' }, isActive: true },+      { name: 1, slug: 1, imageUrl: 1, price: 1 }"
+        },
+        "toolCalls": 20,
+        "durationMs": 77939,
+        "basis": "difference"
+      },
+      "costUsd": 0.008651892,
+      "durationMs": 78346,
+      "sessions": 1
+    }
+  },
+  {
+    "suite": "S1",
+    "bug": "bug-003",
+    "execId": "x-24",
+    "scenarioOnly": false,
+    "comparatorOnly": true,
+    "analysed": false,
+    "score": {
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    }
+  },
+  {
+    "suite": "S1",
+    "bug": "bug-018",
+    "execId": "x-17",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-076"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.95,
+        "summary": "The firstName/lastName validation in the merchant signup route is disabled by a constant-false `if (false)`, so the generic catch-block 400 message is returned instead of 'You must enter your full name.'",
+        "rootCause": "The merchant signup handler validates that firstName and lastName are present only inside `if (false)` at lines 214-216, a constant-false condition that disables the check. When email/password are present but firstName/lastName are missing, execution skips this block, reaches the lookup/update of the user without names, and the missing firstName/lastName values then cause an error caught by the catch block at lines 252-255, which returns the generic message 'Your request could not be processed. Please try again.' instead of 'You must enter your full name.'",
+        "location": {
+          "file": "server/routes/api/merchant.js",
+          "lines": [
+            214,
+            216
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/merchant.js:214-216 contains `if (false) { return res.status(400).json({ error: 'You must enter your full name.' }); }`, a disabled check with no condition on firstName/lastName; catch block at lines 252-255 returns 'Your request could not be processed. Please try again.'"
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-034 expects a 400 with message 'You must enter your full name.' when firstName/lastName are missing"
+          },
+          {
+            "source": "network",
+            "detail": "TC-076 recorded response for POST /api/merchant/signup/any-token (call 2): status 400 with body {error: 'Your request could not be processed. Please try again.'} instead of the required-name message."
+          },
+          {
+            "source": "test",
+            "detail": "TC-076 E4 expected 'You must enter your full name.'; got the generic message; subsequent login and GET /api/merchant steps were never reached (absent) because the test failed at E4."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-034"
+        ],
+        "suggestedFix": {
+          "description": "Restore the missing-name validation: replace the constant-false condition with a real check that firstName and lastName are present, returning 400 'You must enter your full name.' when either is missing.",
+          "patch": "--- a/server/routes/api/merchant.js+++ b/server/routes/api/merchant.js@@ -212,7 +212,7 @@-    if (false) {+    if (!firstName || !lastName) {"
+        },
+        "toolCalls": 6,
+        "durationMs": 14819,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-076"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.95,
+        "summary": "The firstName/lastName validation in the merchant signup route is disabled by a constant-false `if (false)`, so the generic catch-block 400 message is returned instead of 'You must enter your full name.'",
+        "rootCause": "The merchant signup handler validates that firstName and lastName are present only inside `if (false)` at lines 214-216, a constant-false condition that disables the check. When email/password are present but firstName/lastName are missing, execution skips this block, reaches the lookup/update of the user without names, and the missing firstName/lastName values then cause an error caught by the catch block at lines 252-255, which returns the generic message 'Your request could not be processed. Please try again.' instead of 'You must enter your full name.'",
+        "location": {
+          "file": "server/routes/api/merchant.js",
+          "lines": [
+            214,
+            216
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/merchant.js:214-216 contains `if (false) { return res.status(400).json({ error: 'You must enter your full name.' }); }`, a disabled check with no condition on firstName/lastName; catch block at lines 252-255 returns 'Your request could not be processed. Please try again.'"
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-034 expects a 400 with message 'You must enter your full name.' when firstName/lastName are missing"
+          },
+          {
+            "source": "network",
+            "detail": "TC-076 recorded response for POST /api/merchant/signup/any-token (call 2): status 400 with body {error: 'Your request could not be processed. Please try again.'} instead of the required-name message."
+          },
+          {
+            "source": "test",
+            "detail": "TC-076 E4 expected 'You must enter your full name.'; got the generic message; subsequent login and GET /api/merchant steps were never reached (absent) because the test failed at E4."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-034"
+        ],
+        "suggestedFix": {
+          "description": "Restore the missing-name validation: replace the constant-false condition with a real check that firstName and lastName are present, returning 400 'You must enter your full name.' when either is missing.",
+          "patch": "--- a/server/routes/api/merchant.js+++ b/server/routes/api/merchant.js@@ -212,7 +212,7 @@-    if (false) {+    if (!firstName || !lastName) {"
+        },
+        "toolCalls": 6,
+        "durationMs": 14819,
+        "basis": "failure"
+      },
+      "costUsd": 0.0012853159999999999,
+      "durationMs": 15132,
+      "sessions": 1
+    }
+  },
+  {
+    "suite": "S3",
+    "bug": "bug-015",
+    "execId": "x-05",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-067"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "Brand add route only rejects the request when both name and description are missing, so a brand with only a name (or only a description) is created with status 200.",
+        "rootCause": "The handler validates with `if (!description && !name)`, so a request providing only one of the two required fields is treated as valid and a Brand is saved with the other field undefined. The requirement (REQ-038) says a request missing name OR description must be rejected with 400 'You must enter description & name.'",
+        "location": {
+          "file": "server/routes/api/brand.js",
+          "lines": [
+            19,
+            23
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/brand/add with only a name returned 200 {success:true, brand:{name,slug,...}} instead of 400 error; second call (only description) also passed validation (response absent after E1 failure)."
+          },
+          {
+            "source": "code",
+            "detail": "Line 19 gates with &&: `if (!description && !name)` — the 400 'You must enter description & name.' is only returned when both fields are missing."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-038 acceptance criteria: 'missing name or description returns 400 You must enter description & name' — an OR condition."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-038"
+        ],
+        "suggestedFix": {
+          "description": "Change the condition to reject when either field is missing, and default undefined fields so slug/required-name validation still works correctly.",
+          "patch": "--- a/server/routes/api/brand.js+++ b/server/routes/api/brand.js@@-19,3 +19,5 @@-    if (!description && !name) {+    if (!description || !name) {"
+        },
+        "toolCalls": 4,
+        "durationMs": 6628,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-067"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "Brand add route only rejects the request when both name and description are missing, so a brand with only a name (or only a description) is created with status 200.",
+        "rootCause": "The handler validates with `if (!description && !name)`, so a request providing only one of the two required fields is treated as valid and a Brand is saved with the other field undefined. The requirement (REQ-038) says a request missing name OR description must be rejected with 400 'You must enter description & name.'",
+        "location": {
+          "file": "server/routes/api/brand.js",
+          "lines": [
+            19,
+            23
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/brand/add with only a name returned 200 {success:true, brand:{name,slug,...}} instead of 400 error; second call (only description) also passed validation (response absent after E1 failure)."
+          },
+          {
+            "source": "code",
+            "detail": "Line 19 gates with &&: `if (!description && !name)` — the 400 'You must enter description & name.' is only returned when both fields are missing."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-038 acceptance criteria: 'missing name or description returns 400 You must enter description & name' — an OR condition."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-038"
+        ],
+        "suggestedFix": {
+          "description": "Change the condition to reject when either field is missing, and default undefined fields so slug/required-name validation still works correctly.",
+          "patch": "--- a/server/routes/api/brand.js+++ b/server/routes/api/brand.js@@-19,3 +19,5 @@-    if (!description && !name) {+    if (!description || !name) {"
+        },
+        "toolCalls": 4,
+        "durationMs": 6628,
+        "basis": "failure"
+      },
+      "costUsd": 0.000958176,
+      "durationMs": 6953,
+      "sessions": 1
+    }
+  },
+  {
+    "suite": "Kutt",
+    "bug": "bug-009",
+    "execId": "x-06",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-003",
+        "testCaseIds": [
+          "TC-125"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.95,
+        "summary": "As a non-admin, GET /create-user returns a JSON 401 body instead of the HTML error page, so the #error-page element the test expects is never rendered.",
+        "rootCause": "The /create-user page route guards the request with auth.admin (server/routes/renders.routes.js:161-167), which throws CustomError('Unauthorized', 401) (server/handlers/auth.handler.js:92-95). The global error middleware (server/server.js:88 -> helpers.error) is supposed to render the HTML error view for page requests when req.viewTemplate is not set, but that branch is dead code: `if (false) { res.render('error', ...) }` at server/handlers/helpers.handler.js:26-31. The route also has no viewTemplate (locals.noLayout only), so neither branch renders HTML and execution falls through to `res.status(401).json({ error: 'Unauthorized' })` (line 34). The DOM artifact for TC-125 confirms this: the page body is just `{'error':'Unauthorized'}` with no #error-page div, so E5's locator lookup times out. The 401 rejection itself is correct behavior; the defect is that the rejection renders as JSON instead of the error page.",
+        "location": {
+          "file": "server/handlers/helpers.handler.js",
+          "lines": [
+            20,
+            35
+          ]
+        },
+        "evidence": [
+          {
+            "source": "dom",
+            "detail": "Page at failure shows only `<pre>{'error':'Unauthorized'}</pre>`; there is no #error-page element anywhere in the DOM."
+          },
+          {
+            "source": "network",
+            "detail": "Final request GET /create-user returned 401 with a JSON body ({'error':'Unauthorized'}), not an HTML page; all earlier requests (login, admin create-user) were 200."
+          },
+          {
+            "source": "code",
+            "detail": "helpers.handler.js:26 has `if (false)` guarding res.render('error', ...) so HTML requests get res.status(statusCode).json({error: message}) at line 34 instead."
+          },
+          {
+            "source": "code",
+            "detail": "auth.handler.js:92-95 admin() throws CustomError('Unauthorized', 401) for non-admin alice; renders.routes.js:161-167 wires it to /create-user."
+          },
+          {
+            "source": "test",
+            "detail": "E5 expects #error-page containing /error/i and fails with 'element(s) not found' because the element was never rendered."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-082 says GET /create-user requires the admin role; the reference behavior is an HTML error page for non-admins, not a raw JSON response."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-082"
+        ],
+        "suggestedFix": {
+          "description": "Restore the error-page rendering path in the global error middleware: for HTML requests that have no viewTemplate (or where rendering the view fails), render the 'error' view instead of returning JSON. Replace the dead `if (false)` condition with a real check (e.g. `if (req.isHTML) { res.status(statusCode).render('error', { message }); return; }`) so non-admin visits to /create-user get the #error-page HTML.",
+          "patch": "--- a/server/handlers/helpers.handler.js\n+++ b/server/handlers/helpers.handler.js\n@@ -23,10 +23,8 @@\n     return;\n   }\n \n-  if (false) {\n-    res.render(\"error\", {\n-      message: \"An error occurred. Please try again later.\"\n-    });\n+  if (req.isHTML) {\n+    return res.status(statusCode).render(\"error\", { message });\n     return;\n   }\n \n"
+        },
+        "toolCalls": 16,
+        "durationMs": 59656,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-003",
+        "testCaseIds": [
+          "TC-125"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.95,
+        "summary": "As a non-admin, GET /create-user returns a JSON 401 body instead of the HTML error page, so the #error-page element the test expects is never rendered.",
+        "rootCause": "The /create-user page route guards the request with auth.admin (server/routes/renders.routes.js:161-167), which throws CustomError('Unauthorized', 401) (server/handlers/auth.handler.js:92-95). The global error middleware (server/server.js:88 -> helpers.error) is supposed to render the HTML error view for page requests when req.viewTemplate is not set, but that branch is dead code: `if (false) { res.render('error', ...) }` at server/handlers/helpers.handler.js:26-31. The route also has no viewTemplate (locals.noLayout only), so neither branch renders HTML and execution falls through to `res.status(401).json({ error: 'Unauthorized' })` (line 34). The DOM artifact for TC-125 confirms this: the page body is just `{'error':'Unauthorized'}` with no #error-page div, so E5's locator lookup times out. The 401 rejection itself is correct behavior; the defect is that the rejection renders as JSON instead of the error page.",
+        "location": {
+          "file": "server/handlers/helpers.handler.js",
+          "lines": [
+            20,
+            35
+          ]
+        },
+        "evidence": [
+          {
+            "source": "dom",
+            "detail": "Page at failure shows only `<pre>{'error':'Unauthorized'}</pre>`; there is no #error-page element anywhere in the DOM."
+          },
+          {
+            "source": "network",
+            "detail": "Final request GET /create-user returned 401 with a JSON body ({'error':'Unauthorized'}), not an HTML page; all earlier requests (login, admin create-user) were 200."
+          },
+          {
+            "source": "code",
+            "detail": "helpers.handler.js:26 has `if (false)` guarding res.render('error', ...) so HTML requests get res.status(statusCode).json({error: message}) at line 34 instead."
+          },
+          {
+            "source": "code",
+            "detail": "auth.handler.js:92-95 admin() throws CustomError('Unauthorized', 401) for non-admin alice; renders.routes.js:161-167 wires it to /create-user."
+          },
+          {
+            "source": "test",
+            "detail": "E5 expects #error-page containing /error/i and fails with 'element(s) not found' because the element was never rendered."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-082 says GET /create-user requires the admin role; the reference behavior is an HTML error page for non-admins, not a raw JSON response."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-082"
+        ],
+        "suggestedFix": {
+          "description": "Restore the error-page rendering path in the global error middleware: for HTML requests that have no viewTemplate (or where rendering the view fails), render the 'error' view instead of returning JSON. Replace the dead `if (false)` condition with a real check (e.g. `if (req.isHTML) { res.status(statusCode).render('error', { message }); return; }`) so non-admin visits to /create-user get the #error-page HTML.",
+          "patch": "--- a/server/handlers/helpers.handler.js\n+++ b/server/handlers/helpers.handler.js\n@@ -23,10 +23,8 @@\n     return;\n   }\n \n-  if (false) {\n-    res.render(\"error\", {\n-      message: \"An error occurred. Please try again later.\"\n-    });\n+  if (req.isHTML) {\n+    return res.status(statusCode).render(\"error\", { message });\n     return;\n   }\n \n"
+        },
+        "toolCalls": 16,
+        "durationMs": 59656,
+        "basis": "failure"
+      },
+      "costUsd": 0.019408702000000003,
+      "durationMs": 59896,
+      "sessions": 5
+    }
+  },
+  {
+    "suite": "S2",
+    "bug": "bug-019",
+    "execId": "x-21",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-097"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "GET /api/address/:id always returns 404 because the route checks `if (true)` instead of whether the address exists, then also tries to send a second 200 response which crashes the backend (ERR_HTTP_HEADERS_SENT, the run's incident before TC-099).",
+        "rootCause": "In the GET /api/address/:id handler the existence check is hard-coded to `if (true)`, so it always responds 404 'Cannot find Address with the id: ...' even though the address was found and could be read back. After sending the 404, execution falls through to the second `res.status(200).json(...)`, which throws ERR_HTTP_HEADERS_SERVED/Sent inside the try; the catch then attempts a third res.json, an unhandled throw that kills the backend process (backend-crashed incident logged before TC-099). Hence the actual address exists (E2/E3 update succeeded) but E4's GET gets 404.",
+        "location": {
+          "file": "server/routes/api/address.js",
+          "lines": [
+            52,
+            56
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/address.js:52 has `if (true) {` followed by an unconditional 404 response and then an unreachable 200 response at lines 58-60."
+          },
+          {
+            "source": "network",
+            "detail": "GET /api/address/<id> returned 404 with body {message: 'Cannot find Address with the id: 6afb2eee0837c100aa96937b.'} at step E4, although the same id had just been created and updated with 200."
+          },
+          {
+            "source": "server_log",
+            "detail": "Test's server log shows `Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client` thrown from the double-response path in server/routes/api/address.js; environment reports a backend-crashed incident (exit code 1)."
+          },
+          {
+            "source": "test",
+            "detail": "Failures/differences: E4 expected 200 got 404; reference run returned address {_id, address:'1 Original St', city:'NewCity', ...}, this run returned nothing."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-045"
+        ],
+        "suggestedFix": {
+          "description": "Change the guard in GET /api/address/:id to `if (!addressDoc)` and return after sending the 404 so a single response is sent per request.",
+          "patch": "--- a/server/routes/api/address.js\n+++ b/server/routes/api/address.js\n@@\n-    if (true) {\n+    if (!addressDoc) {\n       res.status(404).json({\n         message: `Cannot find Address with the id: ${addressId}.`\n       });\n+      return;\n     }\n"
+        },
+        "toolCalls": 8,
+        "durationMs": 56478,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-097"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "GET /api/address/:id always returns 404 because the route checks `if (true)` instead of whether the address exists, then also tries to send a second 200 response which crashes the backend (ERR_HTTP_HEADERS_SENT, the run's incident before TC-099).",
+        "rootCause": "In the GET /api/address/:id handler the existence check is hard-coded to `if (true)`, so it always responds 404 'Cannot find Address with the id: ...' even though the address was found and could be read back. After sending the 404, execution falls through to the second `res.status(200).json(...)`, which throws ERR_HTTP_HEADERS_SERVED/Sent inside the try; the catch then attempts a third res.json, an unhandled throw that kills the backend process (backend-crashed incident logged before TC-099). Hence the actual address exists (E2/E3 update succeeded) but E4's GET gets 404.",
+        "location": {
+          "file": "server/routes/api/address.js",
+          "lines": [
+            52,
+            56
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/address.js:52 has `if (true) {` followed by an unconditional 404 response and then an unreachable 200 response at lines 58-60."
+          },
+          {
+            "source": "network",
+            "detail": "GET /api/address/<id> returned 404 with body {message: 'Cannot find Address with the id: 6afb2eee0837c100aa96937b.'} at step E4, although the same id had just been created and updated with 200."
+          },
+          {
+            "source": "server_log",
+            "detail": "Test's server log shows `Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client` thrown from the double-response path in server/routes/api/address.js; environment reports a backend-crashed incident (exit code 1)."
+          },
+          {
+            "source": "test",
+            "detail": "Failures/differences: E4 expected 200 got 404; reference run returned address {_id, address:'1 Original St', city:'NewCity', ...}, this run returned nothing."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-045"
+        ],
+        "suggestedFix": {
+          "description": "Change the guard in GET /api/address/:id to `if (!addressDoc)` and return after sending the 404 so a single response is sent per request.",
+          "patch": "--- a/server/routes/api/address.js\n+++ b/server/routes/api/address.js\n@@\n-    if (true) {\n+    if (!addressDoc) {\n       res.status(404).json({\n         message: `Cannot find Address with the id: ${addressId}.`\n       });\n+      return;\n     }\n"
+        },
+        "toolCalls": 8,
+        "durationMs": 56478,
+        "basis": "failure"
+      },
+      "costUsd": 0.0018663,
+      "durationMs": 56846,
+      "sessions": 1
+    }
+  },
+  {
+    "suite": "S3",
+    "bug": "bug-004",
+    "execId": "x-27",
+    "scenarioOnly": false,
+    "comparatorOnly": true,
+    "analysed": false,
+    "score": {
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    }
+  },
+  {
+    "suite": "S3",
+    "bug": "bug-019",
+    "execId": "x-23",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-024"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "GET /api/address/:id always returns 404 because the not-found branch was replaced with a constant-true condition.",
+        "rootCause": "In server/routes/api/address.js the GET :id handler originally checked `if (!addressDoc)` before responding 404, but the condition is now the literal `if (true)`, so every GET /api/address/:id responds 404 'Cannot find Address with the id: <id>.' even though the address exists. TC-024 adds an address successfully (E1 200), then its first GET hits this unconditional 404 and fails at E2 (expected 200). The subsequent PUT and second GET (call 2) never run, which is why the reference run's 200 responses for them are absent. This contradicts REQ-013: GET /api/address/:id must return the address with 200 when it exists.",
+        "location": {
+          "file": "server/routes/api/address.js",
+          "lines": [
+            52,
+            56
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/address.js:50 looks up the address, but line 52 reads `if (true) { res.status(404)... }` — the not-found guard is hardcoded true, so 200 at lines 58-60 is unreachable only by falling through after a 404 was already sent."
+          },
+          {
+            "source": "network",
+            "detail": "TC-024 lastResponse: GET /api/address/<id> returned 404 with body {message:'Cannot find Address with the id: <id>.'} although the POST /add that created it returned 200; TC-024_put and TC-024_get2 (call 2) are absent because the test aborted at E2."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-013 acceptance criteria: GET /api/address/:id returns the address (200) or 404 only when not found; here it returns 404 for an existing address."
+          },
+          {
+            "source": "server_log",
+            "detail": "The serverLog artifact for the run shows the address route crashing later with ERR_HTTP_HEADERS_SENT (the 404 branch sends headers and then falls through to res.status(200).json), which is the same defective block; the backend was healthy during TC-024 itself (healthCheck ok), so the 404 is the app's coded response, not an environment failure."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-013"
+        ],
+        "suggestedFix": {
+          "description": "Restore the real existence check in the GET /:id handler: only return 404 when the document is not found, and return after sending it.",
+          "patch": "--- a/server/routes/api/address.js\n+++ b/server/routes/api/address.js\n@@\n-    if (true) {\n+    if (!addressDoc) {\n       res.status(404).json({\n         message: `Cannot find Address with the id: ${addressId}.`\n       });\n+      return;\n     }"
+        },
+        "toolCalls": 8,
+        "durationMs": 38170,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-024"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "GET /api/address/:id always returns 404 because the not-found branch was replaced with a constant-true condition.",
+        "rootCause": "In server/routes/api/address.js the GET :id handler originally checked `if (!addressDoc)` before responding 404, but the condition is now the literal `if (true)`, so every GET /api/address/:id responds 404 'Cannot find Address with the id: <id>.' even though the address exists. TC-024 adds an address successfully (E1 200), then its first GET hits this unconditional 404 and fails at E2 (expected 200). The subsequent PUT and second GET (call 2) never run, which is why the reference run's 200 responses for them are absent. This contradicts REQ-013: GET /api/address/:id must return the address with 200 when it exists.",
+        "location": {
+          "file": "server/routes/api/address.js",
+          "lines": [
+            52,
+            56
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/address.js:50 looks up the address, but line 52 reads `if (true) { res.status(404)... }` — the not-found guard is hardcoded true, so 200 at lines 58-60 is unreachable only by falling through after a 404 was already sent."
+          },
+          {
+            "source": "network",
+            "detail": "TC-024 lastResponse: GET /api/address/<id> returned 404 with body {message:'Cannot find Address with the id: <id>.'} although the POST /add that created it returned 200; TC-024_put and TC-024_get2 (call 2) are absent because the test aborted at E2."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-013 acceptance criteria: GET /api/address/:id returns the address (200) or 404 only when not found; here it returns 404 for an existing address."
+          },
+          {
+            "source": "server_log",
+            "detail": "The serverLog artifact for the run shows the address route crashing later with ERR_HTTP_HEADERS_SENT (the 404 branch sends headers and then falls through to res.status(200).json), which is the same defective block; the backend was healthy during TC-024 itself (healthCheck ok), so the 404 is the app's coded response, not an environment failure."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-013"
+        ],
+        "suggestedFix": {
+          "description": "Restore the real existence check in the GET /:id handler: only return 404 when the document is not found, and return after sending it.",
+          "patch": "--- a/server/routes/api/address.js\n+++ b/server/routes/api/address.js\n@@\n-    if (true) {\n+    if (!addressDoc) {\n       res.status(404).json({\n         message: `Cannot find Address with the id: ${addressId}.`\n       });\n+      return;\n     }"
+        },
+        "toolCalls": 8,
+        "durationMs": 38170,
+        "basis": "failure"
+      },
+      "costUsd": 0.003833528,
+      "durationMs": 58724,
+      "sessions": 2
+    }
+  },
+  {
+    "suite": "S1",
+    "bug": "bug-014",
+    "execId": "x-11",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": false,
+    "score": {
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": true,
+      "costUsd": 0,
+      "durationMs": 0,
+      "sessions": 0
+    }
+  },
+  {
+    "suite": "S2",
+    "bug": "bug-018",
+    "execId": "x-29",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-076"
+        ],
+        "classification": "app_defect",
+        "confidence": 1,
+        "summary": "The merchant signup route's missing-firstName/lastName check is disabled with `if (false)`, so the request proceeds and fails later, returning the generic error instead of 'You must enter your full name.'.",
+        "rootCause": "The name-presence check in the merchant signup route is dead code: `if (false)` never executes, so a request without firstName/lastName passes validation and proceeds to `User.findOneAndUpdate({ _id: userDoc._id })`, which throws and triggers the catch-all 400 response with a generic error message. This is a deliberate regression: the requirement's success path (lines 204-251) and the correct error message still exist but were disabled.",
+        "location": {
+          "file": "server/routes/api/merchant.js",
+          "lines": [
+            214,
+            216
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/merchant/signup/token-<uniq> with {email, password} but no firstName/lastName responded with the generic error 'Your request could not be processed. Please try again.' instead of the required 'You must enter your full name.'."
+          },
+          {
+            "source": "code",
+            "detail": "Line 214 wraps the full-name check in `if (false):` inside `if (false) { return res.status(400).json({ error: 'You must enter your full name.' }); }` so it can never fire; subsequent User.findOneAndUpdate throws and the catch-all at lines 252-256 emits the generic error."
+          },
+          {
+            "source": "requirement",
+            "detail": "ING-030 contemplates an 'enter your full name' validation error; the signup endpoint must reject missing firstName/lastName with that error before processing."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-035"
+        ],
+        "suggestedFix": {
+          "description": "Replace the disabled condition with a real check: `if (!firstName || !lastName) { return res.status(400).json({ error: 'You must enter your full name.' }); }`, restoring the validation before the password check.",
+          "patch": "--- a/server/routes/api/merchant.js+++ b/server/routes/api/merchant.js@@ -211,7 +211,7 @@-    if (false) {+    if (!firstName || !lastName) {"
+        },
+        "toolCalls": 4,
+        "durationMs": 8889,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-076"
+        ],
+        "classification": "app_defect",
+        "confidence": 1,
+        "summary": "The merchant signup route's missing-firstName/lastName check is disabled with `if (false)`, so the request proceeds and fails later, returning the generic error instead of 'You must enter your full name.'.",
+        "rootCause": "The name-presence check in the merchant signup route is dead code: `if (false)` never executes, so a request without firstName/lastName passes validation and proceeds to `User.findOneAndUpdate({ _id: userDoc._id })`, which throws and triggers the catch-all 400 response with a generic error message. This is a deliberate regression: the requirement's success path (lines 204-251) and the correct error message still exist but were disabled.",
+        "location": {
+          "file": "server/routes/api/merchant.js",
+          "lines": [
+            214,
+            216
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "POST /api/merchant/signup/token-<uniq> with {email, password} but no firstName/lastName responded with the generic error 'Your request could not be processed. Please try again.' instead of the required 'You must enter your full name.'."
+          },
+          {
+            "source": "code",
+            "detail": "Line 214 wraps the full-name check in `if (false):` inside `if (false) { return res.status(400).json({ error: 'You must enter your full name.' }); }` so it can never fire; subsequent User.findOneAndUpdate throws and the catch-all at lines 252-256 emits the generic error."
+          },
+          {
+            "source": "requirement",
+            "detail": "ING-030 contemplates an 'enter your full name' validation error; the signup endpoint must reject missing firstName/lastName with that error before processing."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-035"
+        ],
+        "suggestedFix": {
+          "description": "Replace the disabled condition with a real check: `if (!firstName || !lastName) { return res.status(400).json({ error: 'You must enter your full name.' }); }`, restoring the validation before the password check.",
+          "patch": "--- a/server/routes/api/merchant.js+++ b/server/routes/api/merchant.js@@ -211,7 +211,7 @@-    if (false) {+    if (!firstName || !lastName) {"
+        },
+        "toolCalls": 4,
+        "durationMs": 8889,
+        "basis": "failure"
+      },
+      "costUsd": 0.002265694,
+      "durationMs": 20786,
+      "sessions": 2
+    }
+  }
+]

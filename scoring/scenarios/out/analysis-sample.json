@@ -1,0 +1,76 @@
+{
+  "seed": 20261116,
+  "n": 10,
+  "sample": [
+    {
+      "suite": "S2",
+      "bug": "bug-013",
+      "execId": "x-14",
+      "scenarioOnly": true,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-003",
+      "execId": "x-24",
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-018",
+      "execId": "x-17",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-015",
+      "execId": "x-05",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "Kutt",
+      "bug": "bug-009",
+      "execId": "x-06",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-019",
+      "execId": "x-21",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-004",
+      "execId": "x-27",
+      "scenarioOnly": false,
+      "comparatorOnly": true
+    },
+    {
+      "suite": "S3",
+      "bug": "bug-019",
+      "execId": "x-23",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S1",
+      "bug": "bug-014",
+      "execId": "x-11",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    },
+    {
+      "suite": "S2",
+      "bug": "bug-018",
+      "execId": "x-29",
+      "scenarioOnly": false,
+      "comparatorOnly": false
+    }
+  ]
+}
