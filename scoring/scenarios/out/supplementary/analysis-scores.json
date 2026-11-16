@@ -1,0 +1,246 @@
+[
+  {
+    "suite": "S1",
+    "bug": "bug-003",
+    "execId": "x-24",
+    "scenarioOnly": false,
+    "comparatorOnly": true,
+    "analysed": true,
+    "score": {
+      "classOk": false,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-033"
+        ],
+        "classification": "test_defect",
+        "confidence": 0.8,
+        "summary": "The E3 check reads the product name with a single non-retrying textContent immediately after the 'Page 2' click, racing the asynchronous page-2 fetch and capturing the still-displayed page-1 product.",
+        "rootCause": "In the test script, after clicking 'Page 2' it awaits expect(pagination.locator('li.active', {hasText:'2'})).toHaveCount(1), which passes instantly because the client dispatches SET_ADVANCED_FILTERS with the new page synchronously on click (client/app/containers/Product/actions.js filterProducts lines 87-99 set advancedFilters before awaiting the API), while the new product list only arrives after the network round-trip. The following const after = await firstProduct.locator('h1').textContent(); plus plain (non-auto-retrying) expect(after).not.toBe(before) then reads the page-1 item 'Generic Steel Gloves' before React renders page 2. The application behaviour is correct: the network artifact shows GET /api/product/list?page=2 returning 200, and the DOM artifact captured at failure shows 'Showing: 11-20 products of 100 products' with page-2 products (first item 'Small Bronze Soap', ids ...f0ab06 descending under the _id:-1 sort).",
+        "location": null,
+        "evidence": [
+          {
+            "source": "test",
+            "detail": "E3 uses a bare expect(after).not.toBe(before) with no auto-retry, right after the active-page assertion; the h1 is read once, so it can capture the pre-renders page-1 content."
+          },
+          {
+            "source": "network",
+            "detail": "GET /api/product/list?...&page=2&limit=10&sortOrder={%22_id%22:-1} returned 200, so pagination was requested and served correctly."
+          },
+          {
+            "source": "dom",
+            "detail": "DOM at failure: 'Showing: 11-20 products of 100 products' and first .products-shop .item-box h1 is 'Small Bronze Soap' with descending item ids (checkbox_6afb2e1ab969f20071f0ab06, ...ab05, ...), i.e. page 2 was correctly rendered; 'Generic Steel Gloves' (page 1's first item) is no longer present."
+          },
+          {
+            "source": "code",
+            "detail": "client/app/containers/Product/actions.js lines 87-115: filterProducts dispatches SET_ADVANCED_FILTERS (new page) before awaiting axios, so the pagination 'active' marker updates before the product list; reducer.js line 189 applies it."
+          }
+        ],
+        "violatedRequirementIds": [],
+        "suggestedFix": {
+          "description": "Make E3 retry on the value: replace the plain expect(after).not.toBe(before) with an auto-retrying assertion, e.g. await expect(firstProduct.locator('h1'), 'E3').not.toHaveText(before), or wait for the page-2 request/response (waitForResponse) before reading the product name."
+        },
+        "toolCalls": 25,
+        "durationMs": 50586,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-003",
+        "testCaseIds": [
+          "TC-124"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.75,
+        "summary": "The reviewer avatar on /dashboard/review now renders the reviewer's full first name ('Alice') instead of the initial ('A') as in the reference run and as the store-side review list does.",
+        "rootCause": "client/app/components/Manager/ReviewList/index.js (getAvatar, line 29) renders {review.user.firstName} directly, whereas the equivalent store component (client/app/components/Store/ProductReviews/List.js line 25) and the reference run display only firstName.charAt(0). The admin review list deviates from the baseline avatar rendering, producing the observed 'A' -> 'Alice' difference on main>text#1.",
+        "location": {
+          "file": "client/app/components/Manager/ReviewList/index.js",
+          "lines": [
+            21,
+            33
+          ]
+        },
+        "evidence": [
+          {
+            "source": "network",
+            "detail": "TC-124 page snapshot difference: main>text#1 reference 'text: A' -> this run 'text: Alice'; the review data (title 'Dashboard check review') itself is unchanged, only the reviewer avatar text differs."
+          },
+          {
+            "source": "code",
+            "detail": "client/app/components/Manager/ReviewList/index.js:29 renders the full firstName in the avatar, while the parallel implementation client/app/components/Store/ProductReviews/List.js:25 renders firstName.charAt(0), matching the reference value 'A'."
+          },
+          {
+            "source": "test",
+            "detail": "The test passed; none of its expectations (Reviews heading, review title, Approve/Reject/Delete buttons) cover the avatar text, so the change was only caught by snapshot comparison."
+          }
+        ],
+        "violatedRequirementIds": [],
+        "suggestedFix": {
+          "description": "In client/app/components/Manager/ReviewList/index.js getAvatar, render {review.user.firstName.charAt(0)} instead of {review.user.firstName} to restore the initial-only avatar shown in the reference run and consistent with the store review list.",
+          "patch": "--- a/client/app/components/Manager/ReviewList/index.js\n+++ b/client/app/components/Manager/ReviewList/index.js\n@@\n-          {review.user.firstName}\n+          {review.user.firstName.charAt(0)}\n"
+        },
+        "toolCalls": 13,
+        "durationMs": 40542,
+        "basis": "difference"
+      },
+      "costUsd": 0.030752504000000003,
+      "durationMs": 109216,
+      "sessions": 3
+    }
+  },
+  {
+    "suite": "S3",
+    "bug": "bug-004",
+    "execId": "x-27",
+    "scenarioOnly": false,
+    "comparatorOnly": true,
+    "analysed": true,
+    "score": {
+      "classOk": false,
+      "fileOk": false,
+      "linesOk": false,
+      "missing": false,
+      "primary": {
+        "id": "DX-001",
+        "testCaseIds": [
+          "TC-106"
+        ],
+        "classification": "test_defect",
+        "confidence": 0.7,
+        "summary": "The recorded page snapshot lags the URL by one navigation (stale DOM captured right after a history navigation), so the diff shows the Add page where the List page was already rendered; the application behaviour itself is correct and the test passed.",
+        "rootCause": "The app routes are exactly per REQ-066 (client/app/containers/Address/index.js lines 23-28: /dashboard/address -> List, /dashboard/address/add -> Add, /dashboard/address/edit/:id -> Edit); with React Router's Switch, /dashboard/address can never render the Add component, so a /dashboard/address page whose DOM shows 'Add Address'/'Cancel' can only be a DOM captured before React re-rendered after the final history.goBack() (Edit's Cancel, Edit.js line 45). The mirrored reference diff confirms this is capture timing, not app behaviour: in the reference run the /dashboard/address/add snapshot showed the List DOM ('Addresses'/'Add'), which is equally impossible at that URL and contradicts TC-106's own expectation E4 (and E4 passed in both runs since the live assertions, not the snapshots, are checked). The two runs each captured one stale snapshot, differing only in which navigation it lagged behind. Likely trigger for the timing shift in this run: the backend process crashed and was restarted during the run (environment incident before TC-027), slowing the whole run and shifting snapshot capture relative to the SPA re-render after the goBack.",
+        "location": null,
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "client/app/containers/Address/index.js:23-28 - Switch first matches exact /dashboard/address with List and /dashboard/address/add with Add; List can never render at the add URL and Add can never render at /dashboard/address."
+          },
+          {
+            "source": "test",
+            "detail": "TC-106 passed: every scheduled assertion (E1 'Addresses', E4 'Add Address' on /add, E8 prefilled edit form, final waitForURL /dashboard/address$) succeeded in this run, so the live DOM matched the expectations; only the recorded page snapshots differ."
+          },
+          {
+            "source": "requirement",
+            "detail": "REQ-066 acceptance criterion: /dashboard/address shows List, /dashboard/address/add shows Add form - matches the current source; the reference snapshot showing 'Addresses' heading on /dashboard/address/add contradicts the requirement and shows the reference capture itself was stale."
+          },
+          {
+            "source": "environment",
+            "detail": "An incident occurred during the run: the backend process exited (code 1) before TC-027 and was restarted, which can shift the timing of snapshot capture relative to React re-renders in this slower run."
+          }
+        ],
+        "violatedRequirementIds": [],
+        "suggestedFix": {
+          "description": "No app change needed. On the test/recording side, snapshot the page only after the route content has settled (e.g. wait for the expected heading of the target route, such as getByRole('button', {name:'Add'}) or the List content, before capturing) instead of capturing immediately after the URL change, so the recorded DOM cannot lag the URL by one navigation."
+        },
+        "toolCalls": 24,
+        "durationMs": 170826,
+        "basis": "difference"
+      },
+      "costUsd": 0.013190950000000002,
+      "durationMs": 171148,
+      "sessions": 2
+    }
+  },
+  {
+    "suite": "S1",
+    "bug": "bug-014",
+    "execId": "x-11",
+    "scenarioOnly": false,
+    "comparatorOnly": false,
+    "analysed": true,
+    "score": {
+      "classOk": true,
+      "fileOk": true,
+      "linesOk": true,
+      "missing": false,
+      "primary": {
+        "id": "DX-002",
+        "testCaseIds": [
+          "TC-038"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "POST /api/product/add rejects product creation with a 400 because a validation conditional is inverted, so the out-of-stock product is never created and the test errors at setup.",
+        "rootCause": "In the /add product route the validation reads `if (!description || name)` (server/routes/api/product.js:200). The `|| name` clause is truthy whenever a name is supplied, so any request containing a name is rejected with 'You must enter description & name.' even though both description and name were provided. It should be `if (!description || !name)`. The reference run shows the same request succeeding (200 with product 'out-of-stock-bag'); in this run the same multipart request returns 400, so productBody.success is undefined and the test's setup assertion fails.",
+        "location": {
+          "file": "server/routes/api/product.js",
+          "lines": [
+            200,
+            204
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/product.js:200 `if (!description || name)` returns 400 'You must enter description & name.'; logically inverted, rejects exactly when a name is given."
+          },
+          {
+            "source": "network",
+            "detail": "TC-038's POST /api/product/add with valid sku, name, description... returned 400 with error 'You must enter description & name.'; reference run returned 200 with the created product."
+          },
+          {
+            "source": "test",
+            "detail": "Error at assertion 'setup': expected productBody.success true, received undefined, i.e. the product was never created and subsequent page assertions never ran."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-015"
+        ],
+        "suggestedFix": {
+          "description": "Correct the inverted validation condition at server/routes/api/product.js:200 to `if (!description || !name)` so products with both a name and a description are accepted.",
+          "patch": "--- a/server/routes/api/product.js+++ b/server/routes/api/product.js@@-200,3 +200,3 @@-      if (!description || name) {+      if (!description || !name) {"
+        },
+        "toolCalls": 5,
+        "durationMs": 31494,
+        "basis": "failure"
+      },
+      "located": {
+        "id": "DX-002",
+        "testCaseIds": [
+          "TC-038"
+        ],
+        "classification": "app_defect",
+        "confidence": 0.98,
+        "summary": "POST /api/product/add rejects product creation with a 400 because a validation conditional is inverted, so the out-of-stock product is never created and the test errors at setup.",
+        "rootCause": "In the /add product route the validation reads `if (!description || name)` (server/routes/api/product.js:200). The `|| name` clause is truthy whenever a name is supplied, so any request containing a name is rejected with 'You must enter description & name.' even though both description and name were provided. It should be `if (!description || !name)`. The reference run shows the same request succeeding (200 with product 'out-of-stock-bag'); in this run the same multipart request returns 400, so productBody.success is undefined and the test's setup assertion fails.",
+        "location": {
+          "file": "server/routes/api/product.js",
+          "lines": [
+            200,
+            204
+          ]
+        },
+        "evidence": [
+          {
+            "source": "code",
+            "detail": "server/routes/api/product.js:200 `if (!description || name)` returns 400 'You must enter description & name.'; logically inverted, rejects exactly when a name is given."
+          },
+          {
+            "source": "network",
+            "detail": "TC-038's POST /api/product/add with valid sku, name, description... returned 400 with error 'You must enter description & name.'; reference run returned 200 with the created product."
+          },
+          {
+            "source": "test",
+            "detail": "Error at assertion 'setup': expected productBody.success true, received undefined, i.e. the product was never created and subsequent page assertions never ran."
+          }
+        ],
+        "violatedRequirementIds": [
+          "REQ-015"
+        ],
+        "suggestedFix": {
+          "description": "Correct the inverted validation condition at server/routes/api/product.js:200 to `if (!description || !name)` so products with both a name and a description are accepted.",
+          "patch": "--- a/server/routes/api/product.js+++ b/server/routes/api/product.js@@-200,3 +200,3 @@-      if (!description || name) {+      if (!description || !name) {"
+        },
+        "toolCalls": 5,
+        "durationMs": 31494,
+        "basis": "failure"
+      },
+      "costUsd": 0.021966382000000007,
+      "durationMs": 63946,
+      "sessions": 15
+    }
+  }
+]
