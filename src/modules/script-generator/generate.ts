@@ -42,7 +42,7 @@ import { lockCheck } from './lock-check.js';
 import { suggestsInstability } from './classify.js';
 import { failingExpectation, humanReview, MAX_REVIEWS, needsReview, readHumanVerdicts, removedExpectations, reviewSuspected, type ReviewDeps } from './review.js';
 import { MAX_REPAIRS, scriptErrorHint } from './repair.js';
-import { buildScriptTask, buildSystemPrompt } from './prompt.js';
+import { buildScriptTask, buildSystemPrompt, type ScriptTaskInput } from './prompt.js';
 import { bodyLineOffset, renderExpected, renderScript } from './render.js';
 import { suspectedDefects } from './suspected.js';
 import { TypeChecker } from './typecheck.js';
@@ -179,7 +179,7 @@ function dryRunFeedback(category: string, expectationId: string | null, result: 
   return lines;
 }
 
-async function generateOne(tc: TestCase, deps: ScriptWriterDeps, reviewNote?: string): Promise<ScriptManifestEntry> {
+async function generateOne(tc: TestCase, deps: ScriptWriterDeps, reviewNote?: string, scenario?: ScriptTaskInput['scenario']): Promise<ScriptManifestEntry> {
   const file = path.join(deps.scriptsDir, `${tc.id}.spec.ts`);
   const relFile = path.relative(deps.runDir, file).split(path.sep).join('/');
   const attempts: ScriptAttempt[] = [];
@@ -269,7 +269,7 @@ async function generateOne(tc: TestCase, deps: ScriptWriterDeps, reviewNote?: st
       {
         purpose: 'scripts',
         system: buildSystemPrompt(),
-        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots, ...(reviewNote ? { reviewNote } : {}) }),
+        task: buildScriptTask({ testCase: tc, requirements, evidence, callers, config: deps.config, facts: deps.facts, endpoints: deps.prd.apiEndpoints, pageSnapshots, ...(reviewNote ? { reviewNote } : {}), ...(scenario ? { scenario } : {}) }),
         tools: [],
         submit: { name: 'submit_script', description: 'Submit the body of the test function.', schema: SubmitScript, validate },
         budget: sessionBudget(FIX_ATTEMPTS[tc.layer]),
@@ -441,8 +441,8 @@ export interface ScriptWriterOptions {
 }
 
 export interface ScriptWriter {
-  /** Writes and validates one script (the fix loop, SPEC §6.2); `note` is a reviewer's finding for the task. */
-  write(tc: TestCase, note?: string): Promise<ScriptManifestEntry>;
+  /** Writes and validates one script (the fix loop, SPEC §6.2); `note` is a reviewer's finding for the task; `scenario` marks a scenario test (§6.5). */
+  write(tc: TestCase, note?: string, scenario?: ScriptTaskInput['scenario']): Promise<ScriptManifestEntry>;
   /** What the writer works with; dry-run time, Playwright runs and restores so far are counted here. */
   readonly deps: ScriptWriterDeps;
 }
@@ -498,7 +498,7 @@ export function createScriptWriter(o: ScriptWriterOptions): ScriptWriter {
     snapshots: o.snapshots ?? new Map(),
     ...(o.signal ? { signal: o.signal } : {}),
   };
-  return { write: (tc, note) => generateOne(tc, deps, note), deps };
+  return { write: (tc, note, scenario) => generateOne(tc, deps, note, scenario), deps };
 }
 
 /**

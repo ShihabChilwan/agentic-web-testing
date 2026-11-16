@@ -1620,6 +1620,118 @@ export type Variant = z.infer<typeof Variant>;
 export type Variants = z.infer<typeof Variants>;
 
 // ---------------------------------------------------------------------------
+// Scenario generator (SPEC §6.5): runs/<runId>/scenarios/
+// ---------------------------------------------------------------------------
+
+/** What a scenario varies. `role` points are made by code; the model proposes the others. */
+export const VariationKind = z.enum(['role', 'list', 'unused-option', 'state-after-action', 'boundary']);
+export const ProposedVariationKind = z.enum(['list', 'unused-option', 'state-after-action', 'boundary']);
+export const VariationPointId = z.string().regex(/^VP-\d{3,}$/, 'expected a variation point id like VP-001');
+const ScenarioValue = z.union([z.string().max(300), z.number(), z.boolean()]);
+
+/** One variation point as the model submits it (submit_variation_points). */
+export const ProposedVariationPoint = z.object({
+  kind: ProposedVariationKind,
+  layer: TestLayer,
+  /** api: the PRD endpoint the varied request goes to, "METHOD /path" as listed. */
+  endpoint: z.string().min(1).max(300).optional(),
+  /** ui: the page opened, a path that fits a PRD page route. */
+  page: z.string().startsWith('/').max(300).optional(),
+  /** What is varied and why the suite misses it, in one or two sentences. */
+  description: z.string().min(10).max(400),
+  /** The option, query or input values to use (unused-option: each must appear in the cited code). */
+  values: z.array(ScenarioValue).max(6).default([]),
+  /** What to create or do first, through the API where possible. */
+  setup: z.array(z.string().min(1).max(300)).max(6).default([]),
+  /** The one action whose answer the comparison looks at. */
+  action: z.string().min(5).max(400),
+  /** Fixture user path ("users.<name>") or "visitor" (not logged in). */
+  user: z.string().min(1).max(60),
+  /** list: records to create first (at least 3). */
+  records: z.number().int().min(0).max(20).optional(),
+  /** The code that shows the variation (at the generation commit, at most 80 lines). */
+  citation: Evidence,
+});
+export const SubmitVariationPoints = z.object({
+  points: z.array(ProposedVariationPoint).max(8),
+});
+
+export const VariationPoint = ProposedVariationPoint.extend({
+  id: VariationPointId,
+  kind: VariationKind,
+  featureId: FeatureId,
+  /** code: a role point made from the PRD and the fixture users; model: proposed by a discovery session. */
+  origin: z.enum(['code', 'model']),
+  /** The role of `user` ("visitor" when not logged in). */
+  role: z.string().min(1),
+  /** The requirement the scenario is linked to (its code is the script writer's evidence). */
+  requirementId: RequirementId,
+  /** True when the cited lines hold code no test of the suite ran (from coverage/coverage.json); false without coverage. */
+  unrunLines: z.boolean(),
+});
+
+/** A scenario test case: the TestCase shape with an SC id and the point it comes from. */
+export const ScenarioCase = TestCase.extend({
+  id: ScenarioId,
+  scenario: z.object({ variationPointId: VariationPointId, kind: VariationKind }),
+});
+
+/** runs/<runId>/scenarios/variation-points.json */
+export const VariationPoints = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  points: z.array(VariationPoint),
+  /** In selection order: the scenarios to write. */
+  selected: z.array(VariationPointId),
+  /** In selection order: used when a selected scenario is dropped. */
+  reserve: z.array(VariationPointId),
+});
+
+/** runs/<runId>/scenarios/scenarios.json: every scenario case written (kept or dropped). */
+export const ScenarioCases = z.object({
+  schemaVersion: SchemaVersion,
+  generatedAt: Timestamp,
+  cases: z.array(ScenarioCase),
+});
+
+/** Why a scenario is not in the combined suite. */
+export const ScenarioDrop = z.object({
+  id: ScenarioId,
+  reason: z.enum(['assertion_failed', 'invalid', 'unstable-outcome', 'unstable-responses', 'not-run']),
+  detail: z.string(),
+});
+
+/** runs/<runId>/scenarios/summary.json */
+export const ScenarioSummary = z.object({
+  schemaVersion: SchemaVersion,
+  sourceRunId: z.string().min(1),
+  startedAt: Timestamp,
+  finishedAt: Timestamp,
+  status: z.enum(['done', 'failed']),
+  error: z.string().optional(),
+  cap: z.number().int().positive(),
+  costCapUsd: z.number().positive().nullable(),
+  costUsd: z.number().nonnegative(),
+  calls: z.number().int().nonnegative(),
+  discovery: z.object({ sessions: z.number().int().nonnegative(), failedSessions: z.number().int().nonnegative(), rejected: z.number().int().nonnegative() }),
+  points: z.object({ total: z.number().int().nonnegative(), byKind: z.record(z.string(), z.number().int().nonnegative()), byOrigin: z.record(z.string(), z.number().int().nonnegative()) }),
+  written: z.number().int().nonnegative(),
+  kept: z.array(ScenarioId),
+  dropped: z.array(ScenarioDrop),
+  /** The combined suite folder (relative to the run folder), when one was written. */
+  combined: z.object({ scriptsDir: RelPath, tc: z.number().int().nonnegative(), sc: z.number().int().nonnegative() }).nullable(),
+  timing: z.object({ discoveryMs: DurationMs, scriptsMs: DurationMs, stabilityMs: DurationMs }),
+  warnings: z.array(z.string()),
+});
+
+export type VariationKind = z.infer<typeof VariationKind>;
+export type ProposedVariationPoint = z.infer<typeof ProposedVariationPoint>;
+export type VariationPoint = z.infer<typeof VariationPoint>;
+export type ScenarioCase = z.infer<typeof ScenarioCase>;
+export type ScenarioDrop = z.infer<typeof ScenarioDrop>;
+export type ScenarioSummary = z.infer<typeof ScenarioSummary>;
+
+// ---------------------------------------------------------------------------
 // One-prompt ablation submission
 // ---------------------------------------------------------------------------
 

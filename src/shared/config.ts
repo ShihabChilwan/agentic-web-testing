@@ -48,7 +48,7 @@ export type ReasoningParam = (typeof REASONING_PARAMS)[number];
 
 /**
  * The OpenRouter `provider` request field built from LLM_PROVIDER_ORDER: `order` tries the endpoints one after another,
- * `only` and `allow_fallbacks: false` keep every other provider out. A slug is a provider (`wafer`, every endpoint of
+ * `only` and `allow_fallbacks: false` keep every other provider out. An entry is a provider (`wafer`, every endpoint of
  * it) or one endpoint (`wafer/us`).
  */
 export interface ProviderRouting {

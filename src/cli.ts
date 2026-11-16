@@ -7,6 +7,7 @@ import { analyzeExecution, describeAnalysis } from './modules/failure-analyzer/i
 import { describeRunAll, markInterrupted, runAll, type PipelineStage } from './modules/pipeline.js';
 import { writeReport } from './modules/report/index.js';
 import { measureNoise, writeComparison } from './modules/differential/index.js';
+import { describeScenarios, generateScenarios, MAX_SCENARIOS } from './modules/scenario-generator/index.js';
 import { createCloudContext, createVariants, importRepeat, runCloudTask } from './eval/index.js';
 import { checkFrozen, DEFAULT_FREEZE_TAG, freezeFile, recordFreeze, requireFrozen } from './shared/freeze.js';
 import { describeScriptsSummary, describeSuspectedDefects, generateScripts, SCRIPT_OUTCOMES } from './modules/script-generator/index.js';
@@ -23,7 +24,7 @@ const program = new Command();
 
 program.name('agentic-web-testing').description('Agentic web application testing and fault diagnosis');
 
-const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report; noise and compare (response comparison)');
+const agent = program.command('agent').description('Pipeline stages: prd, cases, scripts, gaps, execute, analyze, all, report; noise and compare (response comparison); scenarios');
 
 agent
   .command('prd')
@@ -252,6 +253,41 @@ agent
       console.log(`Over every pair of runs: ${s.matched} responses matched, ${s.unmatched} unmatched; ${s.differences} differences in ${s.noiseFields} noise fields; ${s.unstableOrderLists} lists with unstable order`);
     } catch (err) {
       console.error(`noise failed: ${errorSummary(err)}`);
+      process.exitCode = controller.signal.aborted ? 130 : 1;
+    }
+  });
+
+agent
+  .command('scenarios')
+  .description('Add scenario tests to a generated suite, kept apart in scenarios/ and scripts-with-scenarios/ (SC ids); the suite itself is unchanged')
+  .option('--from <runId>', 'copy the generation files of this run folder to <runId>-scn and work there (executions of other versions are never copied)')
+  .option('--run <runId>', 'work in this run folder (its scripts stage done)')
+  .option('--max <n>', `at most this many scenario tests (default and maximum ${MAX_SCENARIOS})`, (v) => Number.parseInt(v, 10))
+  .option('--cost-cap <usd>', 'stop before any model call once the spend reaches 80% of this many US dollars (default 1)', parseFloat)
+  .option('--fresh', 'remove this run\'s earlier scenarios and generate them again')
+  .action(async (opts: { from?: string; run?: string; max?: number; costCap?: number; fresh?: boolean }) => {
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping Playwright and the app...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    try {
+      if (!opts.from === !opts.run) throw new Error('Give exactly one of --from <run> and --run <run>');
+      const result = await generateScenarios({
+        ...(opts.from ? { from: opts.from } : {}),
+        ...(opts.run ? { runId: opts.run } : {}),
+        ...(opts.max !== undefined ? { cap: opts.max } : {}),
+        ...(opts.costCap !== undefined ? { costCapUsd: opts.costCap } : {}),
+        ...(opts.fresh ? { fresh: true } : {}),
+        signal: controller.signal,
+        log: (m) => console.log(m),
+      });
+      console.log(`run: ${result.runId}; summary: ${result.summaryFile}`);
+      for (const line of describeScenarios(result.summary)) console.log(line);
+    } catch (err) {
+      console.error(`scenarios failed: ${errorSummary(err)}`);
       process.exitCode = controller.signal.aborted ? 130 : 1;
     }
   });
