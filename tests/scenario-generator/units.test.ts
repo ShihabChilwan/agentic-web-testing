@@ -135,11 +135,30 @@ describe('choosing the scenarios', () => {
     ];
     const first = selectPoints(points, ['F-01', 'F-02'], 4, 2);
     expect(first).toEqual(selectPoints(points, ['F-01', 'F-02'], 4, 2));
-    // Round 0: F-01 starts with role, F-02 with list (none) → unused-option. Round 1: F-01 list (VP-005 first: unrun lines), F-02 state-after-action (none) → boundary.
-    expect(first.selected).toEqual(['VP-001', 'VP-008', 'VP-005', 'VP-006']);
-    // GET /a had two already: VP-003 is skipped for it.
-    expect(first.reserve).toEqual(['VP-002', 'VP-007']);
+    // Round 1, one per kind: role F-01 (VP-001), list F-01 (VP-005 first: unrun lines), unused-option F-02, boundary F-02.
+    expect(first.selected).toEqual(['VP-001', 'VP-005', 'VP-008', 'VP-006']);
+    // Round 2: role goes on with the next feature (F-02), list comes back round to F-01; GET /a keeps its cap of 2.
+    expect(first.reserve).toEqual(['VP-007', 'VP-004']);
     expect(selectPoints(points, ['F-01', 'F-02'], 40, 10).selected).toHaveLength(7);
+  });
+
+  it('does not let many role points crowd out the other kinds', () => {
+    const roles = Array.from({ length: 60 }, (_, i) => point(`VP-${String(i + 1).padStart(3, '0')}`, `F-0${(i % 5) + 1}`, 'role', `GET /r${i}`));
+    const others = [
+      ...Array.from({ length: 12 }, (_, i) => point(`VP-${100 + i}`, 'F-01', 'list', `GET /l${i}`)),
+      ...Array.from({ length: 3 }, (_, i) => point(`VP-${200 + i}`, 'F-02', 'boundary', `POST /b${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => point(`VP-${300 + i}`, 'F-03', 'unused-option', `GET /u${i}`, { values: [String(i)] })),
+    ];
+    const { selected } = selectPoints([...roles, ...others], ['F-01', 'F-02', 'F-03', 'F-04', 'F-05'], 40, 10);
+    const kinds = selected.map((id) => [...roles, ...others].find((p) => p.id === id)!.kind);
+    const n = (k: string) => kinds.filter((x) => x === k).length;
+    // Every other kind gives all it has; roles fill only what is left.
+    expect([n('role'), n('list'), n('unused-option'), n('boundary')]).toEqual([15, 12, 10, 3]);
+    // In order, the kinds take turns: the first 12 are 3 of each.
+    const first12 = kinds.slice(0, 12);
+    expect(['role', 'list', 'unused-option', 'boundary'].map((k) => first12.filter((x) => x === k).length)).toEqual([3, 3, 3, 3]);
+    // Roles come from every feature in turn.
+    expect(new Set(selected.filter((id) => roles.some((r) => r.id === id)).map((id) => roles.find((r) => r.id === id)!.featureId)).size).toBe(5);
   });
 
   it('builds a scenario case with a light check and the point in its steps', () => {

@@ -201,10 +201,11 @@ export const MAX_PER_TARGET = 2;
 
 /**
  * Chooses the scenarios (SPEC §6.5), deterministic: duplicates dropped; within each (feature, kind) bucket, points whose
- * cited code no test ran come first, then model points, then by id; then rounds in which every feature contributes one
- * point and the kind each feature contributes rotates (feature i takes kind (round + i) mod 5 first), so the cap is
- * shared across features and kinds; at most MAX_PER_TARGET per endpoint or page. The first `cap` are selected, the
- * next `reserve` kept for refills.
+ * cited code no test ran come first, then model points, then by id. Then rounds over the kinds (role, list,
+ * unused-option, state-after-action, boundary): in each round every kind that still has points gives one, taken from
+ * the next feature in turn (each kind keeps its own place in the feature order), so no kind takes more than its share
+ * of the cap while another kind has points left, and every feature gets a turn; at most MAX_PER_TARGET per endpoint or
+ * page. The first `cap` are selected, the next `reserve` kept for refills.
  */
 export function selectPoints(points: readonly VariationPoint[], featureOrder: readonly string[], cap: number, reserve: number): { selected: string[]; reserve: string[] } {
   const seen = new Set<string>();
@@ -226,28 +227,33 @@ export function selectPoints(points: readonly VariationPoint[], featureOrder: re
   }
   const order: VariationPoint[] = [];
   const perTarget = new Map<string, number>();
+  const nextFeature = new Map<VariationKind, number>(KIND_ORDER.map((k) => [k, 0]));
   const want = cap + reserve;
-  for (let round = 0; order.length < want; round++) {
-    let took = false;
-    for (const [fi, feature] of features.entries()) {
-      for (let k = 0; k < KIND_ORDER.length; k++) {
-        const kind = KIND_ORDER[(round + fi + k) % KIND_ORDER.length]!;
-        const list = buckets.get(`${feature}|${kind}`);
-        let next: VariationPoint | undefined;
-        while (list && list.length > 0 && !next) {
-          const candidate = list.shift()!;
-          const target = candidate.endpoint ?? candidate.page ?? '';
-          if ((perTarget.get(target) ?? 0) >= MAX_PER_TARGET) continue;
-          next = candidate;
-        }
-        if (!next) continue;
-        const target = next.endpoint ?? next.page ?? '';
+  /** The next point of a kind: from the next feature in turn that has one within the per-target cap. */
+  const take = (kind: VariationKind): VariationPoint | undefined => {
+    for (let step = 0; step < features.length; step++) {
+      const fi = (nextFeature.get(kind)! + step) % features.length;
+      const list = buckets.get(`${features[fi]}|${kind}`);
+      while (list && list.length > 0) {
+        const candidate = list.shift()!;
+        const target = candidate.endpoint ?? candidate.page ?? '';
+        if ((perTarget.get(target) ?? 0) >= MAX_PER_TARGET) continue;
         perTarget.set(target, (perTarget.get(target) ?? 0) + 1);
+        nextFeature.set(kind, fi + 1);
+        return candidate;
+      }
+    }
+    return undefined;
+  };
+  while (order.length < want) {
+    let took = false;
+    for (const kind of KIND_ORDER) {
+      if (order.length >= want) break;
+      const next = take(kind);
+      if (next) {
         order.push(next);
         took = true;
-        break;
       }
-      if (order.length >= want) break;
     }
     if (!took) break;
   }
