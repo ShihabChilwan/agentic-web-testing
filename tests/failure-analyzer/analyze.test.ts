@@ -216,3 +216,27 @@ describe('analyzeExecution', () => {
     await expect(run(new FakeLLMClient([]), { execId: 'x-99' })).rejects.toThrow('No execution x-99 in run.json');
   });
 });
+
+describe('analyzeExecution of a suite with scenario tests', () => {
+  it('reads the cases and scripts of the scripts folder the execution ran', async () => {
+    const dir = path.join(f.paths.dir, 'scripts-with-scenarios');
+    await mkdir(dir, { recursive: true });
+    const tc = JSON.parse(await readFile(f.paths.testCases, 'utf8')).testCases[0];
+    await writeFile(path.join(dir, 'cases.json'), JSON.stringify({ schemaVersion: '1.0', testCases: [{ ...tc, id: 'SC-001', title: 'A member opens the admin list' }] }));
+    await writeFile(path.join(dir, 'SC-001.spec.ts'), "// SC-001: A member opens the admin list\ntest('SC-001', async () => {});\n");
+    const results = { ...f.results, summary: { total: 1, passed: 0, failed: 1, errored: 0, skipped: 0, notIsolated: 0 }, results: [{ ...f.results.results[0]!, testCaseId: 'SC-001', artifacts: {} }] };
+    await writeFile(f.paths.results(f.execId), JSON.stringify(results));
+    const manifest = await readRunManifest(f.paths.runJson);
+    await writeFile(f.paths.runJson, JSON.stringify({ ...manifest, executions: manifest.executions.map((e) => ({ ...e, scriptsDir: 'scripts-with-scenarios' })) }));
+
+    const requests: ChatRequest[] = [];
+    const llm = new FakeLLMClient([
+      (req) => (requests.push(structuredClone(req)), FakeLLMClient.toolCall('get_failure', { testCaseId: 'SC-001' })),
+      (req) => (requests.push(structuredClone(req)), submit([{ ...appDefect, testCaseIds: ['SC-001'] }])),
+    ]);
+    const result = await run(llm);
+    expect(taskOf(requests[0]!)).toContain('SC-001: A member opens the admin list');
+    expect(JSON.stringify(requests[1]!.messages)).toContain("test('SC-001'");
+    expect(Diagnoses.parse(JSON.parse(await readFile(result.file, 'utf8'))).diagnoses.map((d) => d.testCaseIds)).toEqual([['SC-001']]);
+  });
+});

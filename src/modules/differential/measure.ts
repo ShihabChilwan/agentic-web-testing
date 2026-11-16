@@ -9,6 +9,8 @@ export interface MeasureNoiseOptions {
   executions?: string[];
   /** New executions to run when `executions` is absent (default 3). */
   runs?: number;
+  /** The scripts folder new executions run (default scripts/; e.g. scripts-with-scenarios, §6.5). */
+  scriptsDir?: string;
   /** Two or more executions that recorded page snapshots, for the page noise; new executions record pages and are used for it. */
   pageExecutions?: string[];
   runsDir?: string;
@@ -30,7 +32,7 @@ export async function measureNoise(options: MeasureNoiseOptions) {
     if (count < 2) throw new Error('noise needs two or more executions');
     for (let n = 1; n <= count; n++) {
       log(`Execution ${n} of ${count} (generation ref, recording responses and pages)`);
-      ran.push(await executeRun({ runId: options.runId, runsDir, recordResponses: true, recordPages: true, log, ...(options.signal ? { signal: options.signal } : {}) }));
+      ran.push(await executeRun({ runId: options.runId, runsDir, recordResponses: true, recordPages: true, log, ...(options.scriptsDir ? { scriptsDir: options.scriptsDir } : {}), ...(options.signal ? { signal: options.signal } : {}) }));
     }
     executions = ran.map((r) => r.execId);
   }

@@ -187,7 +187,8 @@ agent
   .option('--exec-id <id>', 'execution id (default: the next x-NN)')
   .option('--record-responses', 'save every response the tests receive to responses.jsonl (for agent noise and agent compare)')
   .option('--record-pages', 'save the accessibility snapshot of each page after navigation and at the end of each browser test to pages.jsonl')
-  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean; recordPages?: boolean }) => {
+  .option('--scripts-dir <dir>', 'run this scripts folder of the run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .action(async (opts: { run?: string; ref?: string; patch?: string; skipSeed?: boolean; execId?: string; recordResponses?: boolean; recordPages?: boolean; scriptsDir?: string }) => {
     // Ctrl+C or SIGTERM: stop Playwright and the app, mark the execution failed.
     const controller = new AbortController();
     const onSignal = () => {
@@ -205,6 +206,7 @@ agent
         ...(opts.execId ? { execId: opts.execId } : {}),
         ...(opts.recordResponses ? { recordResponses: true } : {}),
         ...(opts.recordPages ? { recordPages: true } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });
@@ -223,7 +225,8 @@ agent
   .option('--execs <a,b,...>', 'two or more executions that already recorded responses, instead of running new ones')
   .option('--runs <n>', 'new executions to run when --execs is not given (default 3)', (v) => Number.parseInt(v, 10))
   .option('--page-execs <a,b,...>', 'two or more executions that recorded page snapshots, for the page noise')
-  .action(async (opts: { run: string; execs?: string; runs?: number; pageExecs?: string }) => {
+  .option('--scripts-dir <dir>', 'the scripts folder new executions run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .action(async (opts: { run: string; execs?: string; runs?: number; pageExecs?: string; scriptsDir?: string }) => {
     const controller = new AbortController();
     const onSignal = () => {
       console.error('\nStopping Playwright and the app...');
@@ -239,6 +242,7 @@ agent
         ...(execs ? { executions: execs } : {}),
         ...(opts.runs !== undefined ? { runs: opts.runs } : {}),
         ...(opts.pageExecs ? { pageExecutions: opts.pageExecs.split(',').map((x) => x.trim()).filter(Boolean) } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
         signal: controller.signal,
         log: (m) => console.log(m),
       });

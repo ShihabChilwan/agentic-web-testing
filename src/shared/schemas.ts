@@ -30,12 +30,14 @@ export const FeatureId = z.string().regex(/^F-\d{2,}$/, 'expected a feature id l
 export const RequirementId = z.string().regex(/^REQ-\d{3,}$/, 'expected a requirement id like REQ-001');
 export const TestCaseId = z.string().regex(/^TC-\d{3,}$/, 'expected a test case id like TC-001');
 export const OnePromptScriptId = z.string().regex(/^OP-\d{3,}$/, 'expected a one-prompt script id like OP-001');
+/** Scenario tests added to a suite by the scenario generator (SPEC §6.5), kept apart from the TC cases. */
+export const ScenarioId = z.string().regex(/^SC-\d{3,}$/, 'expected a scenario id like SC-001');
 export const ExpectationId = z.string().regex(/^E\d+$/, 'expected an expectation id like E1');
 export const DiagnosisId = z.string().regex(/^DX-\d{3,}$/, 'expected a diagnosis id like DX-001');
 export const CodeVariantId = z.string().regex(/^bug-\d{3,}$/, 'expected a code variant id like bug-001');
 export const EnvVariantId = z.string().regex(/^env-\d{2,}$/, 'expected an environment variant id like env-01');
-/** Results from the full suite use TC ids; the one-prompt ablation uses OP ids. */
-export const ScriptTestId = z.union([TestCaseId, OnePromptScriptId]);
+/** Results from the full suite use TC ids; the one-prompt ablation uses OP ids; scenario tests use SC ids. */
+export const ScriptTestId = z.union([TestCaseId, OnePromptScriptId, ScenarioId]);
 /** Execution ids appear in folder names, so they are restricted to safe characters. Opaque in practice: x-01, x-02, … */
 export const ExecId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'expected an execution id like x-07');
 export const CommitSha = z.string().regex(/^[0-9a-f]{7,40}$/, 'expected a git commit sha');
@@ -572,6 +574,16 @@ export const TestCases = z.object({
 
 export type TestCase = z.infer<typeof TestCase>;
 export type TestCases = z.infer<typeof TestCases>;
+
+/**
+ * `<scripts folder>/cases.json` of a suite built from more than one source (SPEC §6.5): every case the folder's scripts
+ * were written from, TC and SC ids together. Read in place of testcases.json by the execution and the analyzer.
+ */
+export const SuiteCases = z.object({
+  schemaVersion: SchemaVersion,
+  testCases: z.array(TestCase.extend({ id: ScriptTestId })),
+});
+export type SuiteCases = z.infer<typeof SuiteCases>;
 export type Expectation = z.infer<typeof Expectation>;
 export type TestCategory = z.infer<typeof TestCategory>;
 export type UncoveredReasonKind = z.infer<typeof UncoveredReasonKind>;
@@ -1263,6 +1275,8 @@ export const RunExecution = z.object({
   skipSeed: z.boolean().optional(),
   /** Values merged over the target config for this execution (environment variants). */
   configOverride: ConfigOverride.optional(),
+  /** The scripts folder the execution ran (relative to the run folder) when it was not scripts/ (e.g. a suite with scenarios, §6.5). */
+  scriptsDir: RelPath.optional(),
   executeStatus: ExecutionStepStatus,
   analyzeStatus: ExecutionStepStatus,
   /** Why the execution or its analysis failed. No secrets. */
