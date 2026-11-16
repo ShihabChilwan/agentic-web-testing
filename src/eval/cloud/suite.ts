@@ -12,10 +12,14 @@ async function filesUnder(dir: string, prefix = ''): Promise<string[]> {
   return out;
 }
 
-/** sha256 over testcases.json and every file in scripts/ (paths and contents, sorted): what the image executes. */
-export async function suiteHash(runDir: string): Promise<string> {
+/**
+ * sha256 over testcases.json and every file in scripts/ (paths and contents, sorted): what the image executes. With another
+ * scripts folder (a suite with scenarios, §6.5), its files count too.
+ */
+export async function suiteHash(runDir: string, scriptsDir?: string): Promise<string> {
   const hash = createHash('sha256');
-  const files = ['testcases.json', ...(await filesUnder(path.join(runDir, 'scripts'), 'scripts'))].sort();
+  const extra = scriptsDir ? await filesUnder(path.join(runDir, scriptsDir), scriptsDir) : [];
+  const files = [...new Set(['testcases.json', ...(await filesUnder(path.join(runDir, 'scripts'), 'scripts')), ...extra])].sort();
   for (const rel of files) {
     hash.update(`${rel}\0`);
     hash.update(await readFile(path.join(runDir, rel)));

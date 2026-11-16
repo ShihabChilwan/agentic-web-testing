@@ -2,10 +2,15 @@ import { createHash } from 'node:crypto';
 import type { CloudBuild, CloudVersion, Variants } from '../../shared/schemas.js';
 import { shuffle } from '../sample.js';
 
-/** The image's task list (SPEC §11.7): golden first, then every variant in variants.json order. */
-export function versionsFrom(variants: Variants, variantsDir: string): CloudVersion[] {
+/**
+ * The image's task list (SPEC §11.7): golden first, then `goldenRuns - 1` further golden runs (golden-2, …; noise runs for
+ * the comparator), then every variant in variants.json order.
+ */
+export function versionsFrom(variants: Variants, variantsDir: string, goldenRuns = 1): CloudVersion[] {
+  if (!Number.isInteger(goldenRuns) || goldenRuns < 1) throw new Error(`goldenRuns must be a whole number of at least 1: ${goldenRuns}`);
   return [
     { version: 'golden', skipSeed: false },
+    ...Array.from({ length: goldenRuns - 1 }, (_, i): CloudVersion => ({ version: `golden-${i + 2}`, skipSeed: false })),
     ...variants.variants.map((v): CloudVersion =>
       v.kind === 'code'
         ? { version: v.id, patch: `${variantsDir}/${v.patch}`, skipSeed: false }

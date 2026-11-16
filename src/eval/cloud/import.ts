@@ -54,11 +54,14 @@ export async function importRepeat(options: ImportRepeatOptions): Promise<Import
     const stale = statuses.find((s) => !s.imageTag.startsWith(options.frozenCommit!.slice(0, 7)));
     if (stale) throw new Error(`The image ${stale.imageTag} was not built at the frozen commit ${options.frozenCommit.slice(0, 7)}; rebuild it from the tagged commit`);
   }
+  const scriptsDirs = new Set(statuses.map((s) => s.execution.scriptsDir ?? 'scripts'));
+  if (scriptsDirs.size > 1) throw new Error(`Results mix scripts folders: ${[...scriptsDirs].join(', ')}`);
+  const scriptsDir = first.execution.scriptsDir;
   const execIds = statuses.flatMap((s) => (s.execId === null ? [] : [s.execId]));
   if (new Set(execIds).size !== execIds.length) throw new Error(`Two versions share an execution id: ${execIds.join(', ')}`);
 
   const source = runPaths(first.sourceRunId, runsDir);
-  const sourceHash = await suiteHash(source.dir);
+  const sourceHash = await suiteHash(source.dir, scriptsDir);
   if (sourceHash !== first.suiteHash) {
     throw new Error(`The suite of ${first.sourceRunId} changed since the image was built (${sourceHash.slice(0, 12)} vs ${first.suiteHash.slice(0, 12)}); rebuild the image`);
   }
@@ -72,6 +75,7 @@ export async function importRepeat(options: ImportRepeatOptions): Promise<Import
     await writeRunManifest(paths.runJson, { ...manifest, runId, executions: [] });
     for (const name of ['prd.json', 'testcases.json']) await cp(path.join(source.dir, name), path.join(paths.dir, name));
     await cp(source.scriptsDir, paths.scriptsDir, { recursive: true });
+    if (scriptsDir) await cp(path.join(source.dir, scriptsDir), path.join(paths.dir, scriptsDir), { recursive: true });
 
     for (const s of statuses) {
       if (s.execId === null) {

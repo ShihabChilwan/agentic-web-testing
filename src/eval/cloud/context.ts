@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { resolveCommit } from '../../modules/execution-engine/index.js';
+import { scriptsDirIn } from '../../modules/execution-engine/execute.js';
 import { readRunManifest } from '../../shared/run-manifest.js';
 import { PROJECT_ROOT, RUNS_DIR, runPaths, TARGETS_DIR, targetPaths } from '../../shared/paths.js';
 import { CloudBuild, Variants, type EvaluationConfig, type TargetConfig } from '../../shared/schemas.js';
@@ -34,6 +35,13 @@ export interface CloudContextOptions {
   variantsFile?: string;
   /** Install production dependencies in a temp folder and load the task's CLI there (default true; off in unit tests). */
   checkInstall?: boolean;
+  /** Every task runs this scripts folder of the run instead of scripts/ (e.g. scripts-with-scenarios, §6.5). */
+  scriptsDir?: string;
+  /** Every task records responses and page snapshots for the comparator (§7.6). */
+  recordResponses?: boolean;
+  recordPages?: boolean;
+  /** Executions of the correct version per repeat (default 1); the further ones are golden-2, … (noise runs). */
+  goldenRuns?: number;
   log?: (message: string) => void;
 }
 
@@ -147,7 +155,11 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
   if (manifest.stages.scripts?.status !== 'done') throw new Error(`The scripts stage of ${options.runId} is not done`);
   const goldenCommit = await resolveCommit(repoDir, manifest.generationRef);
   if (goldenCommit !== variants.goldenCommit) throw new Error(`variants.json was made at ${variants.goldenCommit}, the run's ${manifest.generationRef} is ${goldenCommit}`);
-  const hash = await suiteHash(runDir);
+  const scriptsDir = options.scriptsDir ? scriptsDirIn(runDir, options.scriptsDir) : undefined;
+  if (scriptsDir) await readFile(path.join(runDir, scriptsDir, 'manifest.json'), 'utf8').catch(() => {
+    throw new Error(`${scriptsDir}/manifest.json is missing in ${options.runId}`);
+  });
+  const hash = await suiteHash(runDir, scriptsDir);
   const imageTag = `${frameworkCommit.slice(0, 7)}-${hash.slice(0, 8)}`;
 
   await rm(outDir, { recursive: true, force: true });
@@ -183,6 +195,12 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
   await writeFile(path.join(imageRun, 'run.json'), `${JSON.stringify({ ...manifest, executions: [] }, null, 2)}\n`);
   await cp(path.join(runDir, 'testcases.json'), path.join(imageRun, 'testcases.json'));
   await cp(path.join(runDir, 'scripts'), path.join(imageRun, 'scripts'), { recursive: true });
+  if (scriptsDir) await cp(path.join(runDir, scriptsDir), path.join(imageRun, scriptsDir), { recursive: true });
+  const execution = {
+    ...(scriptsDir ? { scriptsDir } : {}),
+    ...(options.recordResponses ? { recordResponses: true } : {}),
+    ...(options.recordPages ? { recordPages: true } : {}),
+  };
 
   const projectTargetDir = path.relative(projectRoot, targetDir).split(path.sep).join('/');
   const build = CloudBuild.parse({
@@ -196,7 +214,8 @@ export async function createCloudContext(options: CloudContextOptions): Promise<
     imageTag,
     createdAt: new Date().toISOString(),
     replace: cloud.replace,
-    versions: replaceDeep(versionsFrom(variants, projectTargetDir), cloud.replace),
+    ...(Object.keys(execution).length > 0 ? { execution } : {}),
+    versions: replaceDeep(versionsFrom(variants, projectTargetDir, options.goldenRuns ?? 1), cloud.replace),
   });
   await writeFile(path.join(imageDir, 'build.json'), `${JSON.stringify(build, null, 2)}\n`);
 

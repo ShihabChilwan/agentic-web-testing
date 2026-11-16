@@ -1514,7 +1514,9 @@ export type EvaluationConfig = z.infer<typeof EvaluationConfig>;
 // Cloud executor (§11.7): image/build.json, <repeat>/<version>/status.json, eval/mapping.json
 // ---------------------------------------------------------------------------
 
-export const VersionId = z.union([z.literal('golden'), CodeVariantId, EnvVariantId]);
+/** golden-2, golden-3, …: further executions of the correct version in one repeat (noise runs for the comparator, §7.6). */
+export const GoldenRepeatId = z.string().regex(/^golden-\d+$/, 'expected a further golden run like golden-2');
+export const VersionId = z.union([z.literal('golden'), GoldenRepeatId, CodeVariantId, EnvVariantId]);
 
 export const CloudVersion = z.strictObject({
   version: VersionId,
@@ -1535,6 +1537,13 @@ export const CloudBuild = z.strictObject({
   imageTag: z.string().min(1),
   createdAt: Timestamp,
   replace: z.record(z.string(), z.string()),
+  /**
+   * How every task executes (absent: scripts/ without recordings, as before): another scripts folder of the run (a suite
+   * with scenarios, §6.5) and the recordings the comparator reads (§7.6).
+   */
+  execution: z
+    .strictObject({ scriptsDir: RelPath.optional(), recordResponses: z.boolean().optional(), recordPages: z.boolean().optional() })
+    .optional(),
   /** Task index = position in this list. */
   versions: z.array(CloudVersion).min(1),
 });
@@ -1561,6 +1570,7 @@ export const CloudTaskStatus = z.strictObject({
     patch: RelPath.optional(),
     configOverride: ConfigOverride.optional(),
     skipSeed: z.boolean().optional(),
+    scriptsDir: RelPath.optional(),
   }),
   /** From the container's cgroup; null where it cannot be read. */
   memory: z.strictObject({

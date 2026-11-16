@@ -406,15 +406,23 @@ evaluation
   .requiredOption('--target <name>', 'target under targets/<name>/')
   .requiredOption('--run <runId>', 'run whose scripts the image executes')
   .option('--variants <file>', 'variant list relative to targets/<name>/ (default variants.json; e.g. dev-bugs/<draw>/variants.json)')
+  .option('--scripts-dir <dir>', 'every task runs this scripts folder of the run instead of scripts/ (e.g. scripts-with-scenarios)')
+  .option('--record-responses', 'every task records responses (responses.jsonl, for the comparator)')
+  .option('--record-pages', 'every task records page snapshots (pages.jsonl, for the comparator)')
+  .option('--golden-runs <n>', 'executions of the correct version per repeat (default 1; further ones are golden-2, …)', (v) => Number.parseInt(v, 10))
   .option('--allow-unfrozen', 'development only: build although the framework is not the frozen one')
   .option('--freeze <tag>', 'the freeze to require (default freeze-v1; a later one such as scenarios-v1 is recorded in freeze/<tag>.json)', DEFAULT_FREEZE_TAG)
-  .action(async (opts: { target: string; run: string; variants?: string; allowUnfrozen?: boolean; freeze: string }) => {
+  .action(async (opts: { target: string; run: string; variants?: string; allowUnfrozen?: boolean; freeze: string; scriptsDir?: string; recordResponses?: boolean; recordPages?: boolean; goldenRuns?: number }) => {
     try {
       await requireFrozen({ target: opts.target, tag: opts.freeze, allowUnfrozen: opts.allowUnfrozen === true, log: (m) => console.log(m) });
       const { outDir, build } = await createCloudContext({
         target: opts.target,
         runId: opts.run,
         ...(opts.variants ? { variantsFile: opts.variants } : {}),
+        ...(opts.scriptsDir ? { scriptsDir: opts.scriptsDir } : {}),
+        ...(opts.recordResponses ? { recordResponses: true } : {}),
+        ...(opts.recordPages ? { recordPages: true } : {}),
+        ...(opts.goldenRuns !== undefined ? { goldenRuns: opts.goldenRuns } : {}),
         log: (m) => console.log(m),
       });
       console.log(`build folder: ${outDir}`);
