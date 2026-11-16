@@ -67,11 +67,11 @@ Without them: S1 suite 14 of 25, S3 13, Kutt 9; all suites 49 by the suite alone
 | mern bug-004 | S2 | product page review list shown only when there are no reviews | No S2 test shows a product page that has approved reviews after they load (likely). |
 | mern bug-005, bug-006 | S1, S2, S3 | support chat message list | The support chat needs a live socket conversation; tests open `/support` only with "No users connected" (evidence). |
 | mern bug-007 | S2, S3 | order loading flag `true` → `false` | Changes only a spinner while orders load; the final page is the same (likely). |
-| mern bug-009 | S1, S2, S3 | item status change picks the cart's first product | Differs only for an order with two or more products; tests call it 1–3 times with single-product orders (likely). |
+| mern bug-009 | S1, S2, S3 | item status change picks the cart's first product | Differs only when the changed item is not the cart's first; tests with two-item orders (S1 TC-080, S2 SC-031) cancel the first item (evidence; corrected in `DIAGNOSTIC.md`). |
 | mern bug-010 | S3 | admin/member branches of `GET /api/order/:id` swapped | A member reading their own order gets the same answer from either branch; S3 calls it 4 times in 2 tests, never across users (likely). |
 | mern bug-011 | S1, S3 | brand activation also disables its products | S1 and S3 only deactivate brands, the branch the correct code already takes (likely). |
 | mern bug-012 | S2, S3 | approve returns the old document | The route answers only `{success: true}` either way and the update still happens: no observable effect through the API (evidence). |
-| mern bug-016 | S1, S2, S3 | pagination boundary `count > limit` → `>=` in the brand product list | No test calls `GET /api/product/list/brand/:slug` (evidence: 0 calls). |
+| mern bug-016 | S1, S2, S3 | pagination boundary `count > limit` → `>=` in the product list | The line runs in every suite; it differs only when exactly `limit` products match and the page is above 1, and tests reach count = limit only on page 1 (evidence; corrected in `DIAGNOSTIC.md`). |
 | mern bug-023 | S1, S2 | merchant fields no longer trimmed | No S1/S2 test sends merchant input with surrounding spaces (likely). |
 | mern bug-025 | S1, S2 | newsletter always answers "You must enter an email address." | S1/S2 call subscribe only with an empty email, which gets that answer anyway (evidence). |
 | Kutt bug-005 | Kutt | `host.queries.js:37` an existing host is inserted again instead of updated | Reached only by banning a domain host that already exists; no test does (likely). |
