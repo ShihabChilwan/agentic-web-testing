@@ -103,6 +103,19 @@ export const pointKey = (p: Pick<VariationPoint, 'kind' | 'endpoint' | 'page' | 
   JSON.stringify([p.kind, p.endpoint ?? null, p.page ?? null, [...p.values].map(String).sort(), p.user]);
 
 const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
+const tokens = (s: string) => s.match(/[A-Za-z0-9_]+/g) ?? [];
+
+/**
+ * Whether a value appears in cited code: as written (whitespace collapsed), or every word and number of it appears
+ * there (a JSON sort value {"price":1} against code that builds { price: 1 }).
+ */
+export function appearsIn(value: string | number | boolean, cited: string): boolean {
+  const text = collapse(String(value));
+  if (cited.includes(text)) return true;
+  const words = new Set(tokens(cited));
+  const own = tokens(text);
+  return own.length > 0 && own.every((t) => words.has(t));
+}
 
 export interface CheckContext {
   prd: Prd;
@@ -146,7 +159,7 @@ export async function checkProposed(points: readonly ProposedVariationPoint[], f
       if (p.values.length === 0) problems.push(`${at}: an unused-option point lists the values to use`);
       const cited = lines ? collapse(lines.slice(p.citation.lines[0] - 1, p.citation.lines[1]).join(' ')) : '';
       for (const v of p.values) {
-        if (lines && !cited.includes(collapse(String(v)))) problems.push(`${at}: the value ${JSON.stringify(v)} does not appear in the cited lines ${p.citation.file}:${p.citation.lines.join('-')}`);
+        if (lines && !appearsIn(v, cited)) problems.push(`${at}: the value ${JSON.stringify(v)} does not appear in the cited lines ${p.citation.file}:${p.citation.lines.join('-')}`);
       }
       const used = endpoint ? ctx.usage.endpoints.get(endpointKey(endpoint))?.query : undefined;
       const sent = new Set([...(used?.values() ?? [])].flatMap((s) => [...s]));

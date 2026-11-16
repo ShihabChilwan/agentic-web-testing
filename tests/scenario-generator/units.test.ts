@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioCase } from '../../src/modules/scenario-generator/cases.js';
-import { checkProposed, rolePoints, roleUsers, selectPoints } from '../../src/modules/scenario-generator/points.js';
+import { appearsIn, checkProposed, rolePoints, roleUsers, selectPoints } from '../../src/modules/scenario-generator/points.js';
 import { sameRequest, unstableScenarios, type CheckRun } from '../../src/modules/scenario-generator/stability.js';
 import { asRanges, scriptCalls, suiteUsage, unrunLines, VISITOR, CREATED_USER } from '../../src/modules/scenario-generator/usage.js';
 import { FIXTURES, PRD } from './fixture.js';
@@ -107,6 +107,9 @@ describe('variation points', () => {
       expect.stringMatching(/^points\[6\]: a state-after-action point does the earlier action in setup/),
       expect.stringMatching(/^points\[7\]: a ui point names the page it opens/),
     ]);
+    expect(appearsIn('{"price":1}', "const sort = { price: 1 };")).toBe(true);
+    expect(appearsIn('{"price":-1}', "const sort = { name: -1 };")).toBe(false);
+    expect(appearsIn('---', 'anything')).toBe(false);
     const twice = await checkProposed([{ ...base, kind: 'boundary', values: [] }, { ...base, kind: 'boundary', values: [] }], 'F-01', ctx);
     expect(twice.problems).toEqual([expect.stringMatching(/points\[1\]: the same scenario/)]);
   });
