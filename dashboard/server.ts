@@ -235,6 +235,8 @@ async function handleStart(body: Record<string, unknown>, res: ServerResponse) {
 
 async function handleStartInner(body: Record<string, unknown>, res: ServerResponse) {
   if (job?.state === 'running') return json(res, 409, { error: 'A job is already running. Stop it first.' });
+  // A stopped job's CLI may still be shutting down (saving progress, stopping the app on the fixed ports).
+  if (child) return json(res, 409, { error: 'The previous job is still stopping. Try again in a few seconds.' });
   const action = str(body.action);
   const runId = str(body.run);
   const targetOk = async (t: string | null) => Boolean(t && isRunId(t) && (await listTargets()).includes(t));
