@@ -180,7 +180,8 @@ Scoring is code, run outside the frozen product paths (`scoring/` has its own ts
 npx tsx scoring/cli.ts --suite <imported run> [--suite ...] \
   --variants targets/mern-ecommerce/variants.json \
   [--equivalents scoring/equivalents.json] [--out scoring/out]
-npx tsx scoring/cli.ts hash                      # protocol and code hashes
+npx tsx scoring/cli.ts hash                      # protocol and code hashes of every .ts file under scoring/
+node scoring/hash-check.mjs                      # the same, without the later measurement folders: checks the pre-registered hashes
 npx vitest run --config scoring/vitest.config.ts # scoring tests
 npx tsx scoring/differential/score.ts [hash]     # comparator diagnosis scoring (scoring/differential/PROTOCOL.md)
 npx tsx scoring/scenarios/score.ts detect --suite <label>=<run dir> ...   # scenario measurement (scoring/scenarios/PROTOCOL.md)
