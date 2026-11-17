@@ -1,6 +1,6 @@
 # Agentic Web Testing
 
-An agentic framework in which LLM agents read the source code of Node.js web applications, generate API and end-to-end (browser) tests for them, run them, and diagnose every failure as an application defect, an environment issue or a faulty test. The repository also contains an empirical study of how well this works: planted bugs with known answers, three independent test suites, a pre-registered scoring protocol and held-out applications.
+An agentic framework in which LLM agents read the source code of Node.js web applications, generate API and end-to-end (browser) tests for them, run them, and diagnose every failure as an application defect, an environment issue or a faulty test. The repository also contains an empirical study of how well this works: planted bugs with known answers, three independent test suites, a pre-specified scoring protocol and held-out applications.
 
 Given the source of an app, the framework:
 
@@ -70,10 +70,10 @@ Planka was not opened until the freeze. With a configuration file only, 64 of 13
 
 ### Response comparator and scenario generator (after the freeze)
 
-Two later additions, measured under their own pre-registered protocols:
+Two later additions, measured under their own pre-specified protocols (details in [Differential comparator](#differential-comparator), [Scenario generator](#scenario-generator) and [Sealed fault sets](#sealed-fault-sets)):
 
-- **Response comparator** (`comparator-v1`): records every response and page snapshot of an execution and compares a version with the correct one, after removing the fields that differ between three correct runs (noise). On the 12 code bugs × 3 suites it caught 20 bug-suite pairs against 10 for failing tests alone (22 by either). The analyzer, given the comparator's differences, classified 90.0% of the 20 cases correctly and named the right file and lines in 91.7% (3 repeats). Details: [`scoring/differential/`](scoring/differential/) (protocol, `out/scores.md`); a check on Kutt in [`scoring/differential-kutt/RESULTS.md`](scoring/differential-kutt/RESULTS.md).
-- **Scenario generator** (`scenarios-v1`): adds up to 40 multi-step scenario tests to a generated suite. On a fresh set of 87 bugs (25 per mern-ecommerce suite, 12 for Kutt), the suites with the comparator caught 53, with scenarios 56 (3 added, all in one suite); 31 were caught by nothing. Details, false alarms and deviations: [`scoring/scenarios/RESULTS.md`](scoring/scenarios/RESULTS.md).
+- **Response comparator** (`comparator-v1`): on the 12 code bugs × 3 suites it caught 20 bug-suite pairs against 10 for failing tests alone (22 by either). Given the comparator's differences, the analyzer classified 90.0% of the 20 cases correctly and named the right file and lines in 91.7% (3 repeats).
+- **Scenario generator** (`scenarios-v1`): on the sealed-2 set (87 bug-suite pairs: 25 bugs × 3 mern-ecommerce suites, 12 Kutt bugs × 1 suite), the suites with the comparator caught 53, with scenarios 56 (3 added, all in one suite); 31 were caught by nothing.
 
 ## How it works
 
@@ -181,7 +181,7 @@ npx tsx scoring/cli.ts --suite <imported run> [--suite ...] \
   --variants targets/mern-ecommerce/variants.json \
   [--equivalents scoring/equivalents.json] [--out scoring/out]
 npx tsx scoring/cli.ts hash                      # protocol and code hashes of every .ts file under scoring/
-node scoring/hash-check.mjs                      # the same, without the later measurement folders: checks the pre-registered hashes
+node scoring/hash-check.mjs                      # the same, without the later measurement folders: checks the pre-specified hashes
 npx vitest run --config scoring/vitest.config.ts # scoring tests
 npx tsx scoring/differential/score.ts [hash]     # comparator diagnosis scoring (scoring/differential/PROTOCOL.md)
 npx tsx scoring/scenarios/score.ts detect --suite <label>=<run dir> ...   # scenario measurement (scoring/scenarios/PROTOCOL.md)
@@ -216,9 +216,76 @@ Screenshots: see `docs/screenshots/`.
 - **Freeze.** The framework, prompts, model settings and limits are fixed at the tag `freeze-v1` (`freeze/freeze.json` records the model `z-ai/glm-5.3-flash` pinned to one provider, temperature 1, top-p 1, reasoning effort per module, context 131072 tokens, at most 250 cases per run and the hashes of the lock file and project documents).
 - **Held-out bugs.** After the freeze, 12 code mutants (StrykerJS, fixed seed) and 5 environment faults (for example an unreachable database) were drawn for mern-ecommerce. Every bug used during development was excluded by a ±5-line rule. Mutants and faults are patch or configuration versions of the correct app; no analysis prompt was tuned against them.
 - **Three independent suites.** Three complete generations (S1, S2, S3) with the same frozen settings, each executed against golden, the 12 code variants and the 5 environment faults on Cloud Run Jobs, then analyzed in one local batch. Runs differ by design (no seed is sent to the model).
-- **Pre-registered scoring.** `scoring/PROTOCOL.md` defines the rules before any diagnosis of a drawn bug existed: a version is caught when at least one test that passed on golden fails or errors on it; the primary diagnosis is the highest-confidence group; classification, file and line (±5) are scored on caught bugs; environment faults are scored by category. Protocol SHA-256 `554b1969f726ea6617786a7bf9de360862413cacb3612814cd86a040de504142`; a different hash at scoring time means the protocol changed afterwards.
+- **Pre-specified scoring.** `scoring/PROTOCOL.md` defines the rules before any diagnosis of a drawn bug existed: a version is caught when at least one test that passed on golden fails or errors on it; the primary diagnosis is the highest-confidence group; classification, file and line (±5) are scored on caught bugs; environment faults are scored by category. Protocol SHA-256 `554b1969f726ea6617786a7bf9de360862413cacb3612814cd86a040de504142`; a different hash at scoring time means the protocol changed afterwards.
 - **Held-out application.** Planka was not opened until the freeze and was given only a target configuration; whatever it needed beyond that is reported as adaptation cost.
 - **Ablation.** The same executions analysed without the analyzer's tools.
+
+## Differential comparator
+
+The comparator (`src/modules/differential/`, no model calls) catches bugs that change behaviour without failing a test. An execution run with `--record-responses --record-pages` saves every HTTP response (full body, secrets redacted) and an accessibility snapshot of the page after each navigation and at the end of each browser test. `agent noise` runs the correct version three times and learns which fields, list orders and page lines differ between correct runs. `agent compare` then compares a version with a correct run, leaves the noise out, and marks each remaining difference **strong** (a changed value, status or request) or **weak** (for example a call or page line seen in one run only). A bug counts as caught by the comparator when at least one test has a strong difference. `agent analyze --differences <comparison>` gives the strong differences to the failure analyzer as evidence, so passing tests that differ also get a diagnosis.
+
+| Measurement | Bugs | Comparator version | Result | Files |
+|---|---|---|---|---|
+| Detection, mern-ecommerce | the 12 freeze-v1 code bugs × suites S1–S3 (36 pairs) | `comparator-v1` (reported); `comparator-v2` re-compared | tests 10, comparator 20, either 22, neither 14; 0 strong differences between correct runs in every suite. One false strong difference (S2 bug-002, a page line from a test race) is not counted; v2 makes such lines weak and catches the same 20 | [`scoring/evidence/comparator-v1-detection.md`](scoring/evidence/comparator-v1-detection.md) |
+| Diagnosis with differences | the 20 comparator-caught pairs, 3 repeats | cases chosen with v2 | class right 90.0% (85–95), file 91.7%, lines ±5 91.7%; the 8 test-caught cases without differences: 100% | [`scoring/differential/`](scoring/differential/): `PROTOCOL.md`, `cases.json`, `out/scores.md` (every primary diagnosis) |
+| Second app | 12 Kutt code bugs (Kutt comparator set) | v2, then `comparator-v3` | v3 rules made general from this check: correct-app check 4 → 0 strong differences; all 51 mern comparisons unchanged | [`scoring/differential-kutt/RESULTS.md`](scoring/differential-kutt/RESULTS.md), `V3.md` |
+
+The diagnosis rules were pre-specified on 11 Nov 2026 07:53 UTC, before any analysis with differences existed: `PROTOCOL.md` SHA-256 `ea7c7179a53283782924d960d2a2aa9354f65d03dc35cf391dfeb438754fbfce`, `cases.json` `96d96c290465c7a2cec542d1448d1fb799d8e98155b41a007318e3d0adad341f`, `score.ts` `e72912bd2c9c6075fc712e923d292c6d6de7ae606cf13111a0f9e7dde10a845b` (`npx tsx scoring/differential/score.ts hash`).
+
+## Scenario generator
+
+`agent scenarios --from <runId>` (`src/modules/scenario-generator/`) copies a finished suite to `<runId>-scn` and adds up to 40 scenario tests (ids `SC-<n>`) for situations the suite never sets up. An agent reads the code of each feature and proposes variation points of four kinds, each citing the code that shows the variation: lists read with sorting, paging or filtering after creating several records; options and values the code accepts that no test sent; views whose content depends on an earlier action; and empty or boundary inputs. Code adds a fifth kind, role points: each login-protected endpoint or page sent as each fixture role and as a visitor where the suite never did. A scenario prepares the situation through the API, performs one action and keeps the answer; the comparator decides whether the answer changed. The suite's own test cases and scripts are never changed; the scenario scripts are written to `scripts-with-scenarios/` and run in the same executions as the suite, so the suite alone is the baseline measured on the same runs.
+
+It was measured once, at the tag `scenarios-v1`, on the sealed-2 bugs, which were not opened while the generator was built. Pre-specified on 16 Nov 2026 before any scenario test ran against a planted bug: [`scoring/scenarios/PROTOCOL.md`](scoring/scenarios/PROTOCOL.md) SHA-256 `60079d0632939284d9196be650dc47d4bf7cb4c3bc3066e684b452ab120b1777`, `scoring/scenarios/score.ts` `240e418755f5bd6f67d6ccb848697e02d96b458446e60d9b5e0d9a45c84c6011`; model settings in `freeze/scenarios-v1.json`.
+
+| Suite | Bugs | Caught by the suite (tests or comparator) | With scenarios | Added by scenarios | Caught by nothing | False alarms (strong, fresh correct run) |
+|---|---|---|---|---|---|---|
+| S1, S2, S3 (mern-ecommerce) | 25 each | 17, 12, 14 | 17, 15, 14 | 0, 3, 0 | 8, 10, 11 | 0, 0, 0 |
+| Kutt | 12 | 10 | 10 | 0 | 2 | 2 (clock time, a page load) |
+| **All** | **87** | **53** | **56** | **3** | **31** | |
+
+Five catches rest on evidence unrelated to the changed code; without them 48 by the suite and 51 with scenarios. Diagnosis on a seeded sample of 10 caught pairs: 7 analysed, class right 7/7, file and lines 6/7 (3 stopped on a cost-ledger file race, reported as not analysed). Full write-up, every miss with its reason and five deviations from the protocol's commands: [`scoring/scenarios/RESULTS.md`](scoring/scenarios/RESULTS.md). Per-bug detection with test ids: `scoring/scenarios/out/detection.md`. How often each mern-ecommerce bug was caught across the three suites: [`scoring/evidence/sealed-2-suite-agreement.md`](scoring/evidence/sealed-2-suite-agreement.md).
+
+## Sealed fault sets
+
+Each set of planted bugs was drawn with Stryker from the golden commit with a fixed seed, every bug was installed, seeded and started, and no test was run on any of them. The list was committed before any bug execution; for the later sets the SHA-256 of `variants.json` is written in the commit message, so a later change to a list is visible (`sha256sum <file>` and `git show -s <commit>`). Bugs within 5 lines of any earlier bug were excluded.
+
+| Set | Files | Drawn | Committed | `variants.json` SHA-256 | Used by |
+|---|---|---|---|---|---|
+| Final evaluation, mern-ecommerce | `targets/mern-ecommerce/variants.json`, `variants/` | 12 code bugs + 5 environment faults, seed 20261101, golden `7f73dfb` | `390f0de` (30 Oct 2026, after `freeze-v1`) | `cf8ddfe8b1833fd371c72073c12056a29cf258ca47fc4334f949e2b6476fe6d1` (not in the commit message; the file is unchanged since that commit) | freeze-v1 evaluation (S1–S3, with and without tools); comparator measurement and its diagnosis |
+| Kutt comparator set | `targets/kutt/variants.json`, `variants/` | 12 code bugs, seed 20261111, golden `6ca8033` | `5fa7aae` (11 Nov 2026) | `c9a74de1df65491d49d5ba868f7b2e9f1b1a8a4f7cb092c1e245b7943c2b91a0` | comparator check on Kutt (`scoring/differential-kutt/`) |
+| **Sealed-2**, mern-ecommerce | `targets/mern-ecommerce/sealed-2/` | 25 code bugs (19 backend, 6 frontend), seed 20261112, golden `7f73dfb` | `77c4011` (11 Nov 2026) | `5884850ef4e3dc4edc8275a244396109da8f74bb9d9e81f9d5e5f66083da3dd4` | scenario measurement only (16 Nov 2026, `scenarios-v1`) |
+| **Sealed-2**, Kutt | `targets/kutt/sealed-2/` | 12 code bugs, seed 20261113, golden `6ca8033` | `77c4011` (11 Nov 2026) | `9778e8a44d8e93126590b01833adf5167cec74b9ac8418010cc4528fd0f7fe7d` | scenario measurement only (16 Nov 2026, `scenarios-v1`) |
+
+The sealed-2 folders were not opened until the `scenarios-v1` tag existed. For the cloud builds, `scoring/scenarios/measurement/*-sealed-2.json` are copies of the two sealed-2 lists with only the patch paths prefixed by `sealed-2/` (every patch in every build was byte-compared with the sealed one; deviation 2 in `scoring/scenarios/RESULTS.md`). The bugs used during development (`targets/mern-ecommerce/dev-bugs/`) were never scored.
+
+## Git tags
+
+| Tag | Commit | Date | What it froze |
+|---|---|---|---|
+| `freeze-v1` | `07a9eaf` | 30 Oct 2026 | The framework, prompts, model settings and limits for the final evaluation (`freeze/freeze.json`: model, provider, sampling, reasoning effort per module, context size, case cap, file hashes). All "Key results" above except the two later additions are from this tag. |
+| `comparator-v1` | `e68c8df` | 10 Nov 2026 | Response and page recording and the comparator rules of the reported detection result (20 of 36). |
+| `comparator-v2` | `e020b7b` | 11 Nov 2026 | v1 plus one rule: a page line present in one run only is weak. Same catches; removes the one false strong difference. Used to choose the 20 diagnosis cases. |
+| `comparator-v3` | `93264a8` | 11 Nov 2026 | Noise rules made general on Kutt (varying path parts, relative times, HTML compared element by element, unrelated page snapshots weak) and the analyzer's `--cost-cap` / `--cost-ledger`. The comparator inside `scenarios-v1`. |
+| `scenarios-v1` | `4d267e0` | 16 Nov 2026 | The scenario generator as measured, with comparator v3 (`freeze/scenarios-v1.json`, provider routing included). |
+
+`freeze-v1` and `scenarios-v1` are annotated tags; the comparator tags are lightweight. `npx tsx src/cli.ts freeze check [--tag <tag>] --target <name>` tells whether the checked-out code is a frozen framework.
+
+## Verifying the results
+
+The run folders under `runs/` (executions, traces, recorded responses, transcripts) are git-ignored and are not in the repository. What is committed lets a reader check every reported number down to the individual bug, test and diagnosis, but not re-derive those per-case records from raw executions:
+
+| What | Where | What it lets you check |
+|---|---|---|
+| Scoring rules and their hashes | `scoring/PROTOCOL.md`, `scoring/differential/PROTOCOL.md`, `scoring/scenarios/PROTOCOL.md`; `node scoring/hash-check.mjs`, `npx tsx scoring/differential/score.ts hash` | that the rules and scoring code are the pre-specified ones |
+| Bug lists | the sealed sets above | which bugs were planted, their files, lines and expected class |
+| Per-version scores | `scoring/out/scores.json`, `scoring/out-notools/scores.json` | every caught / class / file / line value behind the freeze-v1 tables |
+| Per-version evidence | `scoring/evidence/` | failing test ids, primary diagnoses (with and without tools), per-case script outcomes, endpoints reached, comparator catches per bug |
+| Misses and accidental catches | `scoring/out/why-not-caught.md`, `scoring/out/final-review.md`, `scoring/scenarios/RESULTS.md`, `scoring/scenarios/DIAGNOSTIC.md` | the reason for every bug a suite missed and every catch removed as accidental |
+| Comparator diagnoses | `scoring/differential/out/scores.json`, `scoring/differential-kutt/out/scores.json` | each primary diagnosis per case and repeat |
+| Scenario measurement | `scoring/scenarios/out/` | detection per bug with test ids, the diagnosis sample |
+
+Re-running the scoring code itself, or re-deriving the per-case records, needs the run folders, which are not distributed with the repository.
 
 ## Repository structure
 
@@ -237,11 +304,11 @@ Screenshots: see `docs/screenshots/`.
 | `src/modules/differential/` | Response comparator: recorded responses and pages, noise, comparison |
 | `src/modules/scenario-generator/` | Scenario tests added to a generated suite |
 | `src/eval/` | Variants, environment faults, cloud executor, import |
-| `scoring/` | Scoring code, protocol, and result tables (`scoring/out/`); comparator scoring in `scoring/differential/` and `scoring/differential-kutt/`, scenario measurement in `scoring/scenarios/` |
+| `scoring/` | Scoring code, protocol, and result tables (`scoring/out/`); comparator scoring in `scoring/differential/` and `scoring/differential-kutt/`, scenario measurement in `scoring/scenarios/`, per-case evidence in `scoring/evidence/` |
 | `dashboard/` | Live dashboard server and page |
 | `cloud/` | PowerShell scripts for the Cloud Run Jobs executor |
 | `freeze/` | Recorded freeze (settings and hashes) |
-| `targets/<name>/` | Target configuration, seed and snapshot scripts, facts, variants |
+| `targets/<name>/` | Target configuration, seed and snapshot scripts, facts, variants, sealed bug sets (`sealed-2/`) |
 | `tools/postgres/` | Generic PostgreSQL reset and snapshot scripts |
 | `tests/` | Unit and integration tests |
 | `runs/` | Generated output (git-ignored) |
