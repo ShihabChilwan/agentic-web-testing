@@ -1,0 +1,880 @@
+{
+ "note": "Comparator v1 (tag comparator-v1) on the 12 freeze-v1 code bugs x 3 suites. caughtByTests: the protocol catch of the cloud executions (scoring/out/scores.json); caughtByComparator: at least one strong difference in a comparison saved in runs/<suite>-diff/differential-v1/. S2 bug-002 has one strong difference that is a test race (TC-121 page line on a page the bug does not touch); it was not counted in the reported result (caughtByComparatorCounted = false); comparator-v2 makes such a line weak.",
+ "pairs": [
+  {
+   "suite": "S1",
+   "bug": "bug-001",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-07",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-07.json",
+     "strongTests": [],
+     "strongFindings": 0
+    },
+    {
+     "base": "x-02",
+     "other": "x-23",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-23.json",
+     "strongTests": [],
+     "strongFindings": 0
+    },
+    {
+     "base": "x-19",
+     "other": "x-23",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-19-x-23.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-002",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-08",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-08.json",
+     "strongTests": [],
+     "strongFindings": 0
+    },
+    {
+     "base": "x-02",
+     "other": "x-24",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-24.json",
+     "strongTests": [],
+     "strongFindings": 0
+    },
+    {
+     "base": "x-19",
+     "other": "x-24",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-19-x-24.json",
+     "strongTests": [
+      "TC-139"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-003",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-09",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-09.json",
+     "strongTests": [
+      "TC-032"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-004",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-10",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-10.json",
+     "strongTests": [
+      "TC-049"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-005",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-11",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-11.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-006",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-12",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-12.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-007",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-13",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-13.json",
+     "strongTests": [
+      "TC-087"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-008",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-14",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-14.json",
+     "strongTests": [
+      "TC-142"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-009",
+   "caughtByTests": true,
+   "accidentalTestCatch": true,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-15",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-15.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-010",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-16",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-16.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-011",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-17",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-17.json",
+     "strongTests": [
+      "TC-018",
+      "TC-019",
+      "TC-032",
+      "TC-033",
+      "TC-037",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-045",
+      "TC-048",
+      "TC-049",
+      "TC-057",
+      "TC-058",
+      "TC-078",
+      "TC-079",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-089",
+      "TC-093",
+      "TC-097",
+      "TC-099",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-114",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-122",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-138",
+      "TC-139"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S1",
+   "bug": "bug-012",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-18",
+     "file": "runs/mern-ecommerce-20261030-125711-diff/differential-v1/compare-x-02-x-18.json",
+     "strongTests": [
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-001",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-06",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-06.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-002",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-07",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-07.json",
+     "strongTests": [
+      "TC-121"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": true,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-003",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-08",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-08.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-004",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-09",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-09.json",
+     "strongTests": [
+      "TC-123"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-005",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-10",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-10.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-006",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-11",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-11.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-007",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-12",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-12.json",
+     "strongTests": [
+      "TC-035"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-008",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-13",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-13.json",
+     "strongTests": [
+      "TC-145"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-009",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-14",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-14.json",
+     "strongTests": [
+      "TC-152"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-010",
+   "caughtByTests": true,
+   "accidentalTestCatch": true,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-15",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-15.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-011",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-16",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-16.json",
+     "strongTests": [
+      "TC-007",
+      "TC-008",
+      "TC-018",
+      "TC-019",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-034",
+      "TC-041",
+      "TC-042",
+      "TC-043",
+      "TC-050",
+      "TC-051",
+      "TC-065",
+      "TC-070",
+      "TC-078",
+      "TC-079",
+      "TC-088",
+      "TC-089",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-115",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-122",
+      "TC-123",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-138",
+      "TC-139"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S2",
+   "bug": "bug-012",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-17",
+     "file": "runs/mern-ecommerce-20261030-211147-diff/differential-v1/compare-x-02-x-17.json",
+     "strongTests": [
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-121"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-001",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-06",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-06.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-002",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-07",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-07.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-003",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-08",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-08.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-004",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-09",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-09.json",
+     "strongTests": [
+      "TC-083",
+      "TC-111"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-005",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-10",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-10.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-006",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-11",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-11.json",
+     "strongTests": [
+      "TC-033"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-007",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-12",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-12.json",
+     "strongTests": [
+      "TC-050",
+      "TC-051"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-008",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-13",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-13.json",
+     "strongTests": [
+      "TC-043"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-009",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-14",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-14.json",
+     "strongTests": [
+      "TC-133"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-010",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": false,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-15",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-15.json",
+     "strongTests": [],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": false
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-011",
+   "caughtByTests": false,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-16",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-16.json",
+     "strongTests": [
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-017",
+      "TC-018",
+      "TC-019",
+      "TC-020",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-063",
+      "TC-064",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-094",
+      "TC-095",
+      "TC-097",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  },
+  {
+   "suite": "S3",
+   "bug": "bug-012",
+   "caughtByTests": true,
+   "accidentalTestCatch": false,
+   "caughtByComparator": true,
+   "comparisons": [
+    {
+     "base": "x-02",
+     "other": "x-17",
+     "file": "runs/mern-ecommerce-20261031-201456-diff/differential-v1/compare-x-02-x-17.json",
+     "strongTests": [
+      "TC-089",
+      "TC-090",
+      "TC-100"
+     ],
+     "strongFindings": 0
+    }
+   ],
+   "falseStrongDifference": false,
+   "caughtByComparatorCounted": true
+  }
+ ]
+}

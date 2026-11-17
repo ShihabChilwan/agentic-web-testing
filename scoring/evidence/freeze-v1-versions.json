@@ -1,0 +1,3294 @@
+{
+ "note": "Per-version evidence of the freeze-v1 evaluation (3 suites x 17 versions). Extracted from the git-ignored imported runs; rules as in scoring/PROTOCOL.md.",
+ "suites": [
+  {
+   "suite": "S1",
+   "sourceRun": "mern-ecommerce-20261030-125711",
+   "importedRun": "mern-ecommerce-20261030-175229",
+   "repeatId": "eval-9b-gdn7w",
+   "versions": [
+    {
+     "version": "golden",
+     "kind": "golden",
+     "execId": "x-03",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "goldenFailing": [
+      "TC-033"
+     ],
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "test_defect",
+       "confidence": 0.8,
+       "file": null,
+       "lines": null,
+       "summary": "The test reads the first product's name immediately after the pagination 'active' class flips, before the product list re-renders, so it compares two page-1 reads."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.4,
+       "file": null,
+       "lines": null,
+       "summary": "Pagination did not change the displayed product list: after using the controls the first product is still 'Generic Steel Gloves', but the evidence available does not show whether this comes from application code, an environment problem, or a faulty test interaction."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-001",
+     "kind": "code",
+     "execId": "x-17",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/OrderItems/index.js",
+      "lines": [
+       51,
+       51
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-002",
+     "kind": "code",
+     "execId": "x-01",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/Support/index.js",
+      "lines": [
+       121,
+       121
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-003",
+     "kind": "code",
+     "execId": "x-09",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/containers/Product/actions.js",
+      "lines": [
+       530,
+       530
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-004",
+     "kind": "code",
+     "execId": "x-12",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/user.js",
+      "lines": [
+       43,
+       44
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-005",
+     "kind": "code",
+     "execId": "x-04",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/order.js",
+      "lines": [
+       131,
+       132
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-006",
+     "kind": "code",
+     "execId": "x-16",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/auth.js",
+      "lines": [
+       10,
+       11
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-007",
+     "kind": "code",
+     "execId": "x-18",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/wishlist.js",
+      "lines": [
+       25,
+       25
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-008",
+     "kind": "code",
+     "execId": "x-15",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/cart.js",
+      "lines": [
+       76,
+       76
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-009",
+     "kind": "code",
+     "execId": "x-05",
+     "failingTests": [
+      "TC-130"
+     ],
+     "caught": true,
+     "accidental": true,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+       240,
+       240
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.55,
+       "file": "client/app/containers/Notification/index.js",
+       "lines": [
+        14,
+        39
+       ],
+       "summary": "The seller application POST succeeds (200) but the success notification toast is never rendered, so the E4 assertion waits until the 30s test timeout."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.55,
+       "file": "client/app/containers/Notification/index.js",
+       "lines": [
+        14,
+        39
+       ],
+       "summary": "The seller application POST succeeds (200) but the success notification toast is never rendered, so the E4 assertion waits until the 30s test timeout."
+      },
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.4,
+       "file": null,
+       "lines": null,
+       "summary": "The seller application form submission times out after 30s, but the error alone does not show which layer (app, environment, test) is at fault."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-010",
+     "kind": "code",
+     "execId": "x-07",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/queries.js",
+      "lines": [
+       31,
+       31
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-011",
+     "kind": "code",
+     "execId": "x-08",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/models/category.js",
+      "lines": [
+       26,
+       26
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-012",
+     "kind": "code",
+     "execId": "x-02",
+     "failingTests": [
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/contact.js",
+      "lines": [
+       14,
+       14
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-004",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "The email presence check in POST /api/contact/add is inverted, so any submission that includes an email is rejected with 400 before the duplicate check is ever reached."
+      },
+      "primaryAppDefect": {
+       "id": "DX-004",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "The email presence check in POST /api/contact/add is inverted, so any submission that includes an email is rejected with 400 before the duplicate check is ever reached."
+      },
+      "groups": 5
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-004",
+       "classification": "test_defect",
+       "confidence": 0.6,
+       "file": null,
+       "lines": null,
+       "summary": "The test asserts 200 for a duplicate contact email, but the server correctly rejects the duplicate with 400, so the test's expectation contradicts the requirement."
+      },
+      "primaryAppDefect": null,
+      "groups": 5
+     }
+    },
+    {
+     "version": "env-01",
+     "kind": "environment",
+     "execId": "x-14",
+     "failingTests": [
+      "TC-001",
+      "TC-003",
+      "TC-004",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-025",
+      "TC-026",
+      "TC-028",
+      "TC-030",
+      "TC-032",
+      "TC-034",
+      "TC-035",
+      "TC-037",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-079",
+      "TC-080",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-088",
+      "TC-089",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-097",
+      "TC-101",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-114",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-122",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-132",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-138",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-147",
+      "TC-148",
+      "TC-149",
+      "TC-150",
+      "TC-153",
+      "TC-155",
+      "TC-156"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": null,
+       "lines": null,
+       "summary": "The backend never came up (MongoDB unreachable), so every test timed out waiting on requests that never got a response."
+      },
+      "primaryAppDefect": null,
+      "groups": 11
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.85,
+       "file": null,
+       "lines": null,
+       "summary": "Every test across unrelated features times out at 30s, indicating the application under test (frontend/backend server) is not running or unreachable in the test environment."
+      },
+      "primaryAppDefect": null,
+      "groups": 11
+     }
+    },
+    {
+     "version": "env-02",
+     "kind": "environment",
+     "execId": "x-11",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-017",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-025",
+      "TC-026",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-032",
+      "TC-034",
+      "TC-035",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-079",
+      "TC-080",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-088",
+      "TC-089",
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-097",
+      "TC-101",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-114",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-122",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-132",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-138",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-146",
+      "TC-147",
+      "TC-148",
+      "TC-149",
+      "TC-150",
+      "TC-151",
+      "TC-153",
+      "TC-155",
+      "TC-156"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": "server/config/keys.js",
+       "lines": [
+        11,
+        14
+       ],
+       "summary": "The backend never starts because the JWT_SECRET environment variable is unset, so every request gets ECONNREFUSED on port 3000."
+      },
+      "primaryAppDefect": null,
+      "groups": 12
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.98,
+       "file": null,
+       "lines": null,
+       "summary": "The backend API server is not running on localhost:3000, so every HTTP request the tests make is refused."
+      },
+      "primaryAppDefect": null,
+      "groups": 13
+     }
+    },
+    {
+     "version": "env-03",
+     "kind": "environment",
+     "execId": "x-06",
+     "failingTests": [
+      "TC-032",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-045",
+      "TC-049",
+      "TC-078",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-089",
+      "TC-093",
+      "TC-097",
+      "TC-101",
+      "TC-103",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-134",
+      "TC-136",
+      "TC-138",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-005",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "The backend process crashed and was never restarted, so all API requests are refused and every one of these UI tests times out waiting for data."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.85,
+       "file": "server/routes/api/address.js",
+       "lines": [
+        52,
+        60
+       ],
+       "summary": "TC-032 fails because the backend process crashed earlier in the run due to a missing return in the address API, so /api/product/list never answered and the shop counter never rendered."
+      },
+      "groups": 26
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-005",
+       "classification": "environment_issue",
+       "confidence": 0.6,
+       "file": null,
+       "lines": null,
+       "summary": "All 12 tests across unrelated features (cart, orders, dashboard, contact, wishlist, admin, sell, forgot password, support) fail only with a 30s timeout, indicating a shared infrastructure problem rather than feature-specific defects."
+      },
+      "primaryAppDefect": null,
+      "groups": 26
+     }
+    },
+    {
+     "version": "env-04",
+     "kind": "environment",
+     "execId": "x-13",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-017",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-025",
+      "TC-026",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-032",
+      "TC-034",
+      "TC-035",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-079",
+      "TC-080",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-088",
+      "TC-089",
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-097",
+      "TC-101",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-114",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-122",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-132",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-138",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-146",
+      "TC-147",
+      "TC-148",
+      "TC-149",
+      "TC-150",
+      "TC-151",
+      "TC-153",
+      "TC-155",
+      "TC-156"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": "server/config/keys.js",
+       "lines": [
+        3,
+        5
+       ],
+       "summary": "The backend environment lacks BASE_API_URL, so all API routes are mounted under the path '/undefined' and every /api/* request returns 404 instead of the intended 400 validation responses."
+      },
+      "primaryAppDefect": null,
+      "groups": 23
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-015",
+       "classification": "test_defect",
+       "confidence": 0.85,
+       "file": null,
+       "lines": null,
+       "summary": "The test's title checks for the page heading 'Login', but its assertion instead waits for a '.notification' element with text 'Please try to login again!', which does not exist on the login page."
+      },
+      "primaryAppDefect": null,
+      "groups": 23
+     }
+    },
+    {
+     "version": "env-05",
+     "kind": "environment",
+     "execId": "x-10",
+     "failingTests": [
+      "TC-018",
+      "TC-019",
+      "TC-032",
+      "TC-037",
+      "TC-038",
+      "TC-039",
+      "TC-040",
+      "TC-045",
+      "TC-048",
+      "TC-049",
+      "TC-078",
+      "TC-079",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-089",
+      "TC-093",
+      "TC-097",
+      "TC-099",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-113",
+      "TC-114",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-122",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-138",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-031",
+       "classification": "environment_issue",
+       "confidence": 0.98,
+       "file": null,
+       "lines": null,
+       "summary": "The frontend dev server crashed with a JavaScript heap out-of-memory error and never came back up, so every navigation to localhost:8080 is refused."
+      },
+      "primaryAppDefect": null,
+      "groups": 34
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "All three tests fail at navigation because the application server on http://localhost:8080 is not running or not reachable."
+      },
+      "primaryAppDefect": null,
+      "groups": 34
+     }
+    }
+   ]
+  },
+  {
+   "suite": "S2",
+   "sourceRun": "mern-ecommerce-20261030-211147",
+   "importedRun": "mern-ecommerce-20261031-193116",
+   "repeatId": "eval-9b-kd8w2",
+   "versions": [
+    {
+     "version": "golden",
+     "kind": "golden",
+     "execId": "x-12",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "goldenFailing": [],
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-001",
+     "kind": "code",
+     "execId": "x-17",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/OrderItems/index.js",
+      "lines": [
+       51,
+       51
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-002",
+     "kind": "code",
+     "execId": "x-05",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/Support/index.js",
+      "lines": [
+       121,
+       121
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-003",
+     "kind": "code",
+     "execId": "x-01",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/containers/Product/actions.js",
+      "lines": [
+       530,
+       530
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-004",
+     "kind": "code",
+     "execId": "x-04",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/user.js",
+      "lines": [
+       43,
+       44
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-005",
+     "kind": "code",
+     "execId": "x-15",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/order.js",
+      "lines": [
+       131,
+       132
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-006",
+     "kind": "code",
+     "execId": "x-09",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/auth.js",
+      "lines": [
+       10,
+       11
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-007",
+     "kind": "code",
+     "execId": "x-10",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/wishlist.js",
+      "lines": [
+       25,
+       25
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-008",
+     "kind": "code",
+     "execId": "x-08",
+     "failingTests": [
+      "TC-099",
+      "TC-145"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/cart.js",
+      "lines": [
+       76,
+       76
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/cart.js",
+       "lines": [
+        75,
+        77
+       ],
+       "summary": "DELETE /api/cart/delete/:cartId/:productId responds 200 but with success:false instead of success:true."
+      },
+      "primaryAppDefect": {
+       "id": "DX-002",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/cart.js",
+       "lines": [
+        75,
+        77
+       ],
+       "summary": "DELETE /api/cart/delete/:cartId/:productId responds 200 but with success:false instead of success:true."
+      },
+      "groups": 2
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "test_defect",
+       "confidence": 0.85,
+       "file": null,
+       "lines": null,
+       "summary": "The locator getByRole('navigation') matches two navigation elements on the page, causing a strict mode violation, so the test fails even though the dashboard loaded."
+      },
+      "primaryAppDefect": null,
+      "groups": 2
+     }
+    },
+    {
+     "version": "bug-009",
+     "kind": "code",
+     "execId": "x-11",
+     "failingTests": [
+      "TC-152"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+       240,
+       240
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.95,
+       "file": "server/routes/api/brand.js",
+       "lines": [
+        235,
+        251
+       ],
+       "summary": "DELETE /api/brand/delete/:id returns 400 because deactivateMerchant throws on brands without a merchant due to a wrong boolean guard."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.95,
+       "file": "server/routes/api/brand.js",
+       "lines": [
+        235,
+        251
+       ],
+       "summary": "DELETE /api/brand/delete/:id returns 400 because deactivateMerchant throws on brands without a merchant due to a wrong boolean guard."
+      },
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.3,
+       "file": null,
+       "lines": null,
+       "summary": "The brand delete endpoint returned 400 instead of the expected 200, but the error messages provide no evidence of whether this is an app, test, or environment fault."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-010",
+     "kind": "code",
+     "execId": "x-02",
+     "failingTests": [
+      "TC-099"
+     ],
+     "caught": true,
+     "accidental": true,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/queries.js",
+      "lines": [
+       31,
+       31
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "test_defect",
+       "confidence": 0.93,
+       "file": null,
+       "lines": null,
+       "summary": "The dashboard loaded correctly after login; the test fails only because its locator getByRole('navigation') matches two nav bars on the page and causes a Playwright strict-mode violation."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "test_defect",
+       "confidence": 0.85,
+       "file": null,
+       "lines": null,
+       "summary": "The test's locator getByRole('navigation') is ambiguous because the page renders two navigation elements, causing a Playwright strict mode violation rather than an app failure."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-011",
+     "kind": "code",
+     "execId": "x-14",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/models/category.js",
+      "lines": [
+       26,
+       26
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-012",
+     "kind": "code",
+     "execId": "x-06",
+     "failingTests": [
+      "TC-085",
+      "TC-087"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/contact.js",
+      "lines": [
+       14,
+       14
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.98,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "The email validation check is inverted (`if (email)` instead of `if (!email)`), so requests missing an email fall through to the name check and return the name error message."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.98,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "The email validation check is inverted (`if (email)` instead of `if (!email)`), so requests missing an email fall through to the name check and return the name error message."
+      },
+      "groups": 2
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "inconclusive",
+       "confidence": 0.5,
+       "file": null,
+       "lines": null,
+       "summary": "The failure occurs in a precondition step (E1-pre) where creating a contact returned 400 instead of the expected 200, so the actual duplicate-email assertion never ran and the root cause cannot be determined from the available evidence."
+      },
+      "primaryAppDefect": null,
+      "groups": 2
+     }
+    },
+    {
+     "version": "env-01",
+     "kind": "environment",
+     "execId": "x-07",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-008",
+      "TC-009",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-018",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-032",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-037",
+      "TC-040",
+      "TC-041",
+      "TC-042",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-076",
+      "TC-077",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-086",
+      "TC-087",
+      "TC-092",
+      "TC-093",
+      "TC-094",
+      "TC-095",
+      "TC-096",
+      "TC-097",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-107",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-112",
+      "TC-115",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-122",
+      "TC-123",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-137",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-147",
+      "TC-148",
+      "TC-150",
+      "TC-151",
+      "TC-152",
+      "TC-153",
+      "TC-154",
+      "TC-155",
+      "TC-157"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "The backend never became healthy because MongoDB was unreachable (ECONNREFUSED on 127.0.0.1:27999), so every API call hung and all tests timed out."
+      },
+      "primaryAppDefect": null,
+      "groups": 7
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.9,
+       "file": null,
+       "lines": null,
+       "summary": "Every test in the suite times out at 30s, indicating the application/backend service is down or unreachable rather than any feature defect."
+      },
+      "primaryAppDefect": null,
+      "groups": 7
+     }
+    },
+    {
+     "version": "env-02",
+     "kind": "environment",
+     "execId": "x-03",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-018",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-032",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-042",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-076",
+      "TC-077",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-094",
+      "TC-095",
+      "TC-096",
+      "TC-097",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-107",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-112",
+      "TC-115",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-122",
+      "TC-123",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-137",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-147",
+      "TC-148",
+      "TC-150",
+      "TC-151",
+      "TC-152",
+      "TC-153",
+      "TC-154",
+      "TC-155",
+      "TC-157",
+      "TC-159"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": null,
+       "lines": null,
+       "summary": "The backend never starts because the JWT_SECRET environment variable is not set in the production environment, so every test fails with 'fetch failed' and seed data restore fails."
+      },
+      "primaryAppDefect": null,
+      "groups": 9
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.98,
+       "file": null,
+       "lines": null,
+       "summary": "Every test fails because the backend API server was not running: all HTTP requests to http://localhost:3000 were refused with connect ECONNREFUSED 127.0.0.1:3000."
+      },
+      "primaryAppDefect": null,
+      "groups": 9
+     }
+    },
+    {
+     "version": "env-03",
+     "kind": "environment",
+     "execId": "x-18",
+     "failingTests": [
+      "TC-018",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-034",
+      "TC-042",
+      "TC-043",
+      "TC-050",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-107",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-115",
+      "TC-116",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-123",
+      "TC-125",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-005",
+       "classification": "environment_issue",
+       "confidence": 0.94,
+       "file": null,
+       "lines": null,
+       "summary": "All tests time out because the browser's API calls target http://localhost:3999 where no service listens, so pages never load data."
+      },
+      "primaryAppDefect": {
+       "id": "DX-015",
+       "classification": "app_defect",
+       "confidence": 0.6,
+       "file": "server/routes/api/order.js",
+       "lines": [
+        163,
+        198
+       ],
+       "summary": "The order created via POST /api/order/add is not listed: /api/order/me returns no orders, so dashboard/orders renders 'You have no orders yet.' and the order row link is never present."
+      },
+      "groups": 24
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-005",
+       "classification": "environment_issue",
+       "confidence": 0.8,
+       "file": null,
+       "lines": null,
+       "summary": "All tests time out because the application under test does not respond (server down or misconfigured base URL), so pages never load."
+      },
+      "primaryAppDefect": null,
+      "groups": 24
+     }
+    },
+    {
+     "version": "env-04",
+     "kind": "environment",
+     "execId": "x-13",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-016",
+      "TC-018",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-032",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-042",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-050",
+      "TC-051",
+      "TC-052",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-062",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-071",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-076",
+      "TC-077",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-090",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-094",
+      "TC-095",
+      "TC-096",
+      "TC-097",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-107",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-112",
+      "TC-115",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-122",
+      "TC-123",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-137",
+      "TC-139",
+      "TC-140",
+      "TC-141",
+      "TC-142",
+      "TC-143",
+      "TC-144",
+      "TC-145",
+      "TC-147",
+      "TC-148",
+      "TC-150",
+      "TC-151",
+      "TC-152",
+      "TC-153",
+      "TC-154",
+      "TC-155",
+      "TC-157"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-003",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "The backend environment variable BASE_API_URL is missing, so all API routes are mounted under /undefined and every /api/* request (health check, seed registration, loginViaApi, test API calls) returns 404."
+      },
+      "primaryAppDefect": {
+       "id": "DX-012",
+       "classification": "app_defect",
+       "confidence": 0.85,
+       "file": "server/config/keys.js",
+       "lines": [
+        2,
+        6
+       ],
+       "summary": "All API routes are mounted at '/undefined/...' because BASE_API_URL is unset and config/keys.js has no fallback, so every /api/* request returns an Express HTML 404 and the tests err out."
+      },
+      "groups": 22
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.8,
+       "file": null,
+       "lines": null,
+       "summary": "All API endpoints across unrelated domains return 404, indicating the backend service/routes are not mounted (app server down, wrong base URL, or routes not registered)."
+      },
+      "primaryAppDefect": null,
+      "groups": 22
+     }
+    },
+    {
+     "version": "env-05",
+     "kind": "environment",
+     "execId": "x-16",
+     "failingTests": [
+      "TC-007",
+      "TC-008",
+      "TC-018",
+      "TC-019",
+      "TC-023",
+      "TC-024",
+      "TC-025",
+      "TC-026",
+      "TC-034",
+      "TC-041",
+      "TC-042",
+      "TC-043",
+      "TC-050",
+      "TC-051",
+      "TC-078",
+      "TC-079",
+      "TC-088",
+      "TC-089",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-102",
+      "TC-103",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-107",
+      "TC-108",
+      "TC-109",
+      "TC-110",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-115",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-119",
+      "TC-120",
+      "TC-121",
+      "TC-122",
+      "TC-123",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-129",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-138",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-021",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": null,
+       "lines": null,
+       "summary": "All three tests failed to load /dashboard/orders because the frontend dev server is down (connection refused on port 8080)."
+      },
+      "primaryAppDefect": null,
+      "groups": 31
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "The dev server at http://localhost:8080 is not running, so every navigation fails with ERR_CONNECTION_REFUSED."
+      },
+      "primaryAppDefect": null,
+      "groups": 31
+     }
+    }
+   ]
+  },
+  {
+   "suite": "S3",
+   "sourceRun": "mern-ecommerce-20261031-201456",
+   "importedRun": "mern-ecommerce-20261031-222406",
+   "repeatId": "eval-9b-52nwg",
+   "versions": [
+    {
+     "version": "golden",
+     "kind": "golden",
+     "execId": "x-06",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "goldenFailing": [],
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-001",
+     "kind": "code",
+     "execId": "x-07",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/OrderItems/index.js",
+      "lines": [
+       51,
+       51
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-002",
+     "kind": "code",
+     "execId": "x-18",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/components/Manager/Support/index.js",
+      "lines": [
+       121,
+       121
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-003",
+     "kind": "code",
+     "execId": "x-09",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "client/app/containers/Product/actions.js",
+      "lines": [
+       530,
+       530
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-004",
+     "kind": "code",
+     "execId": "x-05",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/user.js",
+      "lines": [
+       43,
+       44
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-005",
+     "kind": "code",
+     "execId": "x-04",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/order.js",
+      "lines": [
+       131,
+       132
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-006",
+     "kind": "code",
+     "execId": "x-11",
+     "failingTests": [
+      "TC-033"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/auth.js",
+      "lines": [
+       10,
+       11
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.92,
+       "file": "server/utils/auth.js",
+       "lines": [
+        9,
+        16
+       ],
+       "summary": "The authenticated product list never marks liked products because checkAuth returns a hardcoded `true` instead of the decoded user, so the wishlist flag lookup uses an undefined user id."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.92,
+       "file": "server/utils/auth.js",
+       "lines": [
+        9,
+        16
+       ],
+       "summary": "The authenticated product list never marks liked products because checkAuth returns a hardcoded `true` instead of the decoded user, so the wishlist flag lookup uses an undefined user id."
+      },
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.5,
+       "file": null,
+       "lines": null,
+       "summary": "The test expects a truthy value marking the user's liked products in the product list but receives undefined, so the like state is missing, though the evidence is insufficient to pinpoint the fault location."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-007",
+     "kind": "code",
+     "execId": "x-02",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/wishlist.js",
+      "lines": [
+       25,
+       25
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-008",
+     "kind": "code",
+     "execId": "x-17",
+     "failingTests": [
+      "TC-043"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/cart.js",
+      "lines": [
+       76,
+       76
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.98,
+       "file": "server/routes/api/cart.js",
+       "lines": [
+        75,
+        77
+       ],
+       "summary": "The DELETE /api/cart/delete/:cartId/:productId handler responds success:false instead of success:true on success."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.98,
+       "file": "server/routes/api/cart.js",
+       "lines": [
+        75,
+        77
+       ],
+       "summary": "The DELETE /api/cart/delete/:cartId/:productId handler responds success:false instead of success:true on success."
+      },
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.4,
+       "file": null,
+       "lines": null,
+       "summary": "The cart update/removal operation returned an error (code E5) instead of succeeding, so the assertion expecting true failed, but the evidence does not identify whether the fault is in the app, the test, or the environment."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-009",
+     "kind": "code",
+     "execId": "x-03",
+     "failingTests": [
+      "TC-133"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/brand.js",
+      "lines": [
+       240,
+       240
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.93,
+       "file": "server/routes/api/brand.js",
+       "lines": [
+        235,
+        251
+       ],
+       "summary": "DELETE /api/brand/delete/:id returns 400 because deactivateMerchant crashes on brands that have no merchant."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.93,
+       "file": "server/routes/api/brand.js",
+       "lines": [
+        235,
+        251
+       ],
+       "summary": "DELETE /api/brand/delete/:id returns 400 because deactivateMerchant crashes on brands that have no merchant."
+      },
+      "groups": 1
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "inconclusive",
+       "confidence": 0.4,
+       "file": null,
+       "lines": null,
+       "summary": "DELETE /api/brand/delete/:id returns 400 instead of 200, but the available evidence (only error code 'E1' and status mismatch) does not identify whether the app, the test, or the environment is at fault."
+      },
+      "primaryAppDefect": null,
+      "groups": 1
+     }
+    },
+    {
+     "version": "bug-010",
+     "kind": "code",
+     "execId": "x-15",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/utils/queries.js",
+      "lines": [
+       31,
+       31
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-011",
+     "kind": "code",
+     "execId": "x-08",
+     "failingTests": [],
+     "caught": false,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/models/category.js",
+      "lines": [
+       26,
+       26
+      ]
+     },
+     "withTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     },
+     "withoutTools": {
+      "primary": null,
+      "primaryAppDefect": null,
+      "groups": 0
+     }
+    },
+    {
+     "version": "bug-012",
+     "kind": "code",
+     "execId": "x-10",
+     "failingTests": [
+      "TC-089",
+      "TC-090",
+      "TC-100"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "app_defect",
+      "file": "server/routes/api/contact.js",
+      "lines": [
+       14,
+       14
+      ]
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-003",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "Contact form submission fails with 'You must enter an email address.' although an email is provided, because the email presence check is inverted (if (email) instead of if (!email))."
+      },
+      "primaryAppDefect": {
+       "id": "DX-003",
+       "classification": "app_defect",
+       "confidence": 0.99,
+       "file": "server/routes/api/contact.js",
+       "lines": [
+        14,
+        18
+       ],
+       "summary": "Contact form submission fails with 'You must enter an email address.' although an email is provided, because the email presence check is inverted (if (email) instead of if (!email))."
+      },
+      "groups": 3
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-002",
+       "classification": "test_defect",
+       "confidence": 0.8,
+       "file": null,
+       "lines": null,
+       "summary": "The test wrongly expects a 200 response for a whitespace-only message, which the API correctly rejects with 400."
+      },
+      "primaryAppDefect": null,
+      "groups": 3
+     }
+    },
+    {
+     "version": "env-01",
+     "kind": "environment",
+     "execId": "x-16",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-017",
+      "TC-018",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-041",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-080",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-089",
+      "TC-090",
+      "TC-092",
+      "TC-097",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-120",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "All tests timed out because the backend could not connect to MongoDB (ECONNREFUSED 127.0.0.1:27999), so the backend never became healthy and every API request/login hung until the 30s timeout."
+      },
+      "primaryAppDefect": null,
+      "groups": 9
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.9,
+       "file": null,
+       "lines": null,
+       "summary": "All 99 tests time out uniformly, indicating the application/backend is not reachable in the test environment."
+      },
+      "primaryAppDefect": null,
+      "groups": 9
+     }
+    },
+    {
+     "version": "env-02",
+     "kind": "environment",
+     "execId": "x-14",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-017",
+      "TC-018",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-032",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-041",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-080",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-088",
+      "TC-089",
+      "TC-090",
+      "TC-092",
+      "TC-097",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-120",
+      "TC-121",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-003",
+       "classification": "environment_issue",
+       "confidence": 0.97,
+       "file": "server/config/passport.js",
+       "lines": [
+        14,
+        21
+       ],
+       "summary": "The backend crashed on startup because JWT_SECRET is unset, so passport-jwt throws 'JwtStrategy requires a secret or key'; every request from the tests then fails with 'TypeError: fetch failed'."
+      },
+      "primaryAppDefect": null,
+      "groups": 11
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.98,
+       "file": null,
+       "lines": null,
+       "summary": "All 33 tests fail because nothing is listening on localhost:3000 — the backend API server is not running in the test environment."
+      },
+      "primaryAppDefect": null,
+      "groups": 12
+     }
+    },
+    {
+     "version": "env-03",
+     "kind": "environment",
+     "execId": "x-01",
+     "failingTests": [
+      "TC-012",
+      "TC-017",
+      "TC-018",
+      "TC-020",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-092",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-007",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "The backend had crashed (incident before TC-027), so all product API calls were refused and the product page never rendered the Add To Bag button."
+      },
+      "primaryAppDefect": {
+       "id": "DX-001",
+       "classification": "app_defect",
+       "confidence": 0.88,
+       "file": "server/routes/api/address.js",
+       "lines": [
+        46,
+        66
+       ],
+       "summary": "The backend Node process crashed (exit code 1) during the run on an ERR_HTTP_HEADERS_SENT error in GET /api/address/:id, so all API requests were refused and the UI tests timed out waiting for the app."
+      },
+      "groups": 18
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-010",
+       "classification": "environment_issue",
+       "confidence": 0.75,
+       "file": null,
+       "lines": null,
+       "summary": "The contact form submission fails because the backend API is unreachable, producing 'Network Error' notifications instead of the success message."
+      },
+      "primaryAppDefect": null,
+      "groups": 18
+     }
+    },
+    {
+     "version": "env-04",
+     "kind": "environment",
+     "execId": "x-12",
+     "failingTests": [
+      "TC-001",
+      "TC-002",
+      "TC-003",
+      "TC-004",
+      "TC-005",
+      "TC-006",
+      "TC-007",
+      "TC-008",
+      "TC-009",
+      "TC-010",
+      "TC-012",
+      "TC-013",
+      "TC-014",
+      "TC-015",
+      "TC-017",
+      "TC-018",
+      "TC-019",
+      "TC-020",
+      "TC-021",
+      "TC-022",
+      "TC-023",
+      "TC-024",
+      "TC-026",
+      "TC-027",
+      "TC-028",
+      "TC-029",
+      "TC-030",
+      "TC-031",
+      "TC-032",
+      "TC-033",
+      "TC-034",
+      "TC-035",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-041",
+      "TC-043",
+      "TC-044",
+      "TC-045",
+      "TC-046",
+      "TC-047",
+      "TC-048",
+      "TC-049",
+      "TC-050",
+      "TC-051",
+      "TC-053",
+      "TC-054",
+      "TC-055",
+      "TC-056",
+      "TC-057",
+      "TC-058",
+      "TC-059",
+      "TC-060",
+      "TC-061",
+      "TC-063",
+      "TC-064",
+      "TC-065",
+      "TC-066",
+      "TC-067",
+      "TC-068",
+      "TC-069",
+      "TC-070",
+      "TC-072",
+      "TC-073",
+      "TC-074",
+      "TC-075",
+      "TC-076",
+      "TC-077",
+      "TC-078",
+      "TC-080",
+      "TC-081",
+      "TC-082",
+      "TC-083",
+      "TC-084",
+      "TC-085",
+      "TC-086",
+      "TC-087",
+      "TC-088",
+      "TC-089",
+      "TC-090",
+      "TC-092",
+      "TC-097",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118",
+      "TC-120",
+      "TC-121",
+      "TC-123",
+      "TC-124",
+      "TC-125",
+      "TC-126",
+      "TC-127",
+      "TC-128",
+      "TC-130",
+      "TC-131",
+      "TC-132",
+      "TC-133",
+      "TC-134",
+      "TC-135",
+      "TC-136",
+      "TC-137",
+      "TC-139"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-010",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": "server/config/keys.js",
+       "lines": [
+        2,
+        5
+       ],
+       "summary": "The backend has no .env file, so BASE_API_URL is undefined and all API routes are mounted at /undefined instead of /api, making every API request return 404."
+      },
+      "primaryAppDefect": null,
+      "groups": 22
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-011",
+       "classification": "environment_issue",
+       "confidence": 0.75,
+       "file": null,
+       "lines": null,
+       "summary": "Every test fails in the shared loginViaApi helper because the login API request returns 404, so no test reaches its actual assertion."
+      },
+      "primaryAppDefect": null,
+      "groups": 24
+     }
+    },
+    {
+     "version": "env-05",
+     "kind": "environment",
+     "execId": "x-13",
+     "failingTests": [
+      "TC-011",
+      "TC-012",
+      "TC-013",
+      "TC-017",
+      "TC-018",
+      "TC-019",
+      "TC-020",
+      "TC-036",
+      "TC-037",
+      "TC-039",
+      "TC-040",
+      "TC-091",
+      "TC-092",
+      "TC-093",
+      "TC-094",
+      "TC-095",
+      "TC-097",
+      "TC-098",
+      "TC-099",
+      "TC-100",
+      "TC-101",
+      "TC-104",
+      "TC-105",
+      "TC-106",
+      "TC-108",
+      "TC-111",
+      "TC-112",
+      "TC-113",
+      "TC-114",
+      "TC-116",
+      "TC-117",
+      "TC-118"
+     ],
+     "caught": true,
+     "accidental": false,
+     "expected": {
+      "classification": "environment_issue",
+      "file": null,
+      "lines": null
+     },
+     "withTools": {
+      "primary": {
+       "id": "DX-007",
+       "classification": "environment_issue",
+       "confidence": 0.98,
+       "file": null,
+       "lines": null,
+       "summary": "The frontend dev server crashed with a JavaScript heap out-of-memory error, so nothing listens on port 8080 and the test cannot reach the app."
+      },
+      "primaryAppDefect": null,
+      "groups": 23
+     },
+     "withoutTools": {
+      "primary": {
+       "id": "DX-001",
+       "classification": "environment_issue",
+       "confidence": 0.95,
+       "file": null,
+       "lines": null,
+       "summary": "All four tests fail because the web server on localhost:8080 is not running (connection refused), an infrastructure problem rather than an application defect."
+      },
+      "primaryAppDefect": null,
+      "groups": 23
+     }
+    }
+   ]
+  }
+ ]
+}
