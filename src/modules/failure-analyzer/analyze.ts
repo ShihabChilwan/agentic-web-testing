@@ -8,6 +8,7 @@ import type { CostCapOptions } from '../../llm/budget.js';
 import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig, type LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, PROJECT_ROOT, RUNS_DIR, runPaths } from '../../shared/paths.js';
+import { untilAborted } from '../../shared/abort.js';
 import { errorSummary, latestRunWith, readRunManifest, setExecution } from '../../shared/run-manifest.js';
 import { Diagnoses, ExecutionResults, Prd, SCHEMA_VERSION, ScriptManifest, SuiteCases, TestCases } from '../../shared/schemas.js';
 import type { Diagnosis, DiagnosesSummary, RunExecution, TestResult } from '../../shared/schemas.js';
@@ -37,6 +38,8 @@ export interface AnalyzeOptions {
   projectRoot?: string;
   llmConfig?: LLMConfig;
   createLlm?: (config: LLMConfig, callLogFile: string) => Promise<LLMClient>;
+  /** Ctrl+C or SIGTERM: abandons the sessions, removes the source tree, records the analysis as failed ("Interrupted") and throws. */
+  signal?: AbortSignal;
   log?: (message: string) => void;
   /**
    * A comparison of this execution with a reference run (SPEC §7.6, §8.5): its strong differences are
@@ -285,7 +288,7 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
           unstable,
           ...(differences ? { differences } : {}),
         };
-        outcomes = await Promise.all(sessions.map((session) => diagnoseGroup(session, deps)));
+        outcomes = await untilAborted(Promise.all(sessions.map((session) => diagnoseGroup(session, deps))), options.signal);
       } finally {
         await tree.remove();
       }
@@ -317,7 +320,7 @@ export async function analyzeExecution(options: AnalyzeOptions = {}): Promise<An
     for (const o of outcomes) if (o.failure) log(`Warning: a session failed (${o.failure}); its tests are marked inconclusive`);
     return { runId, execId, file, diagnoses: output };
   } catch (err) {
-    await setStatus('failed', errorSummary(err));
+    await setStatus('failed', options.signal?.aborted ? 'Interrupted' : errorSummary(err));
     throw err;
   }
 }

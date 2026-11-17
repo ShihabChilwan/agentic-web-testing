@@ -643,6 +643,32 @@ describe('cases see the page', () => {
     expect(appStarts).toBe(1);
   });
 
+  it('stops the app and marks the stage interrupted when stopped during the page snapshots', async () => {
+    const { runsDir, runId, paths } = await makeRun(withLogin());
+    const controller = new AbortController();
+    let stopped = 0;
+    const { llm } = fakeBySession({});
+    const result = generateTestCases({
+      runId,
+      runsDir,
+      targetsDir: path.join(root, 'targets'),
+      projectRoot: root,
+      llmConfig,
+      createLlm: async () => llm,
+      startApp: async () => ({ stop: async () => void stopped++ }),
+      // The snapshots never finish: only the signal ends the stage.
+      takeSnapshots: () => {
+        setTimeout(() => controller.abort(), 10);
+        return new Promise(() => {});
+      },
+      signal: controller.signal,
+    });
+    await expect(result).rejects.toThrow('Interrupted');
+    expect(stopped).toBe(1);
+    expect(llm.requests).toHaveLength(0);
+    expect((await readRunManifest(paths.runJson)).stages.cases).toMatchObject({ status: 'failed', error: 'Interrupted' });
+  });
+
   it('counts afterAction expectations in the summary', async () => {
     fakePages = { '/login': '- heading "Please sign in" [level=1]' };
     const { runsDir } = await makeRun(withLogin());

@@ -170,7 +170,7 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
           const result = await fns.generatePrd({ target, ...common, onRunCreated: (dir) => (runId = path.basename(dir)) });
           runId = result.runId;
         } else if (stage === 'cases') {
-          await fns.generateTestCases({ runId: runId!, ...common });
+          await fns.generateTestCases({ runId: runId!, ...common, ...signal });
         } else {
           // After the gaps stage only the new cases need scripts: keep every earlier outcome, invalid ones too.
           const afterGaps = manifest?.stages.gaps?.status === 'done' ? { redo: [] } : {};
@@ -213,7 +213,7 @@ export async function runAll(options: RunAllOptions = {}): Promise<RunAllResult>
         const diagnosesFile = runPaths(runId!, runsDir).diagnoses(execId!);
         if (entry?.analyzeStatus !== 'done' || !(await exists(diagnosesFile))) {
           options.onStage?.(stage, { runDir, execId });
-          await fns.analyzeExecution({ runId: runId!, execId: execId!, ...common });
+          await fns.analyzeExecution({ runId: runId!, execId: execId!, ...common, ...signal });
           reports.push({ stage, action: 'ran', ...(await analysisCost(diagnosesFile)) });
         } else {
           reports.push({ stage, action: 'reused', ...(await analysisCost(diagnosesFile)) });

@@ -9,6 +9,7 @@ import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig } from '../../shared/config.js';
 import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
+import { untilAborted } from '../../shared/abort.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
 import {
   FIRST_PASS_TEST_CASES,
@@ -57,6 +58,8 @@ export interface GenerateTestCasesOptions {
   startApp?: (config: TargetConfig, ref: string, logsDir: string) => Promise<{ stop(): Promise<void> }>;
   /** For tests: replaces taking page snapshots on the running app (default: the Execution Engine's pageSnapshots). */
   takeSnapshots?: TakeSnapshots;
+  /** Ctrl+C or SIGTERM: stops the app if it is up for the page snapshots, marks the stage failed ("Interrupted") and throws. */
+  signal?: AbortSignal;
   log?: (message: string) => void;
 }
 
@@ -398,9 +401,9 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
         const logsDir = path.join(paths.dir, 'cases-server');
         const app = options.startApp
           ? await options.startApp(config, manifest.generationRef, logsDir)
-          : await startTarget(config, { ref: manifest.generationRef, generationRef: manifest.generationRef, repoDir, targetDir, logsDir, log });
+          : await startTarget(config, { ref: manifest.generationRef, generationRef: manifest.generationRef, repoDir, targetDir, logsDir, log, ...(options.signal ? { signal: options.signal } : {}) });
         try {
-          return await (options.takeSnapshots ?? takePageSnapshots)(config, missing.map((r) => ({ path: r.path, ...(r.user ? { user: r.user } : {}) })));
+          return await untilAborted((options.takeSnapshots ?? takePageSnapshots)(config, missing.map((r) => ({ path: r.path, ...(r.user ? { user: r.user } : {}) }))), options.signal);
         } finally {
           await app.stop();
         }
@@ -415,8 +418,9 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     const quotas = featureQuotas(features.map((f) => f.requirements.length));
     log(`${features.length} features, ${prd.requirements.length} requirements`);
 
-    const first = await Promise.all(
-      features.map((f, i) => runSession({ ...f, quota: quotas[i]!, gapRound: false }, deps)),
+    const first = await untilAborted(
+      Promise.all(features.map((f, i) => runSession({ ...f, quota: quotas[i]!, gapRound: false }, deps))),
+      options.signal,
     );
 
     // Gap round: requirements with neither a case nor a decline get one more, fresh session per feature.
@@ -437,7 +441,7 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
       }
     });
     if (gapInputs.length > 0) log(`Gap round: ${gapInputs.reduce((n, g) => n + g.requirements.length, 0)} requirements in ${gapInputs.length} features`);
-    const gap = await Promise.all(gapInputs.map((g) => runSession(g, deps)));
+    const gap = await untilAborted(Promise.all(gapInputs.map((g) => runSession(g, deps))), options.signal);
     remaining -= gap.reduce((n, o) => n + o.cases.length, 0) - gapInputs.reduce((n, g) => n + g.quota, 0);
 
     // Page round: pages no ui case opens get one session per feature, built from the ui/e2e requirements naming them.
@@ -528,7 +532,8 @@ export async function generateTestCases(options: GenerateTestCasesOptions = {}):
     if (stages.gaps) await setStage(paths.dir, 'gaps', { status: 'stale' });
     return { runId, file: paths.testCases, testCases: result, summary };
   } catch (err) {
-    await setStage(paths.dir, 'cases', { status: 'failed', startedAt, finishedAt: new Date().toISOString(), error: errorSummary(err) });
+    const error = options.signal?.aborted ? 'Interrupted' : errorSummary(err);
+    await setStage(paths.dir, 'cases', { status: 'failed', startedAt, finishedAt: new Date().toISOString(), error });
     throw err;
   }
 }

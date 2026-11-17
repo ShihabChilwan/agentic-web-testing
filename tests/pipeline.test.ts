@@ -166,6 +166,31 @@ describe('runAll', () => {
     expect(calls).toEqual(['scripts(redo none)', 'execute', 'analyze']);
   });
 
+  it('passes the stop signal to every stage that can stop itself, and reports a stop as "Interrupted"', async () => {
+    const controller = new AbortController();
+    const seen: string[] = [];
+    const base = fakes();
+    const record = <F extends (o: never) => unknown>(name: string, fn: F) =>
+      (async (o: { signal?: AbortSignal }) => {
+        if (o.signal === controller.signal) seen.push(name);
+        if (name === 'analyze') {
+          controller.abort();
+          throw new Error('Interrupted');
+        }
+        return fn(o as never);
+      }) as never;
+    const stages: StageFunctions = {
+      ...base,
+      generateTestCases: record('cases', base.generateTestCases),
+      generateScripts: record('scripts', base.generateScripts),
+      executeRun: record('execute', base.executeRun),
+      analyzeExecution: record('analyze', base.analyzeExecution),
+    };
+    const result = await runAll({ target: 'shop', runsDir, stages, signal: controller.signal });
+    expect(seen).toEqual(['cases', 'scripts', 'execute', 'analyze']);
+    expect(result.failure).toMatchObject({ stage: 'analyze', error: 'Interrupted' });
+  });
+
   it('needs a target when there is no run to continue', async () => {
     await expect(runAll({ runsDir, stages: fakes() })).rejects.toThrow('give --target');
   });

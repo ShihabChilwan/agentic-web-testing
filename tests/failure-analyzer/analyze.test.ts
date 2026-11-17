@@ -202,6 +202,19 @@ describe('analyzeExecution', () => {
     expect(result.diagnoses.summary?.costUsd).toBeCloseTo(0.03);
   });
 
+  it('a stopped analysis records analyzeStatus failed with "Interrupted" and writes no diagnoses', async () => {
+    const controller = new AbortController();
+    // The model never answers: only the signal ends the analysis.
+    const llm = new FakeLLMClient(Array.from({ length: 4 }, () => () => {
+      setTimeout(() => controller.abort(), 10);
+      return new Promise<never>(() => {});
+    }));
+    await expect(run(llm, { signal: controller.signal })).rejects.toThrow('Interrupted');
+    const entry = (await readRunManifest(f.paths.runJson)).executions.find((e) => e.execId === 'x-04');
+    expect(entry).toMatchObject({ analyzeStatus: 'failed', error: 'Interrupted' });
+    await expect(readFile(f.paths.diagnoses('x-04'), 'utf8')).rejects.toThrow();
+  });
+
   it('an execution without failures needs no model call', async () => {
     const results = JSON.parse(await readFile(f.paths.results('x-04'), 'utf8'));
     results.results = results.results.filter((r: { status: string }) => r.status === 'passed');
