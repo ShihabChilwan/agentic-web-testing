@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { LLMRequestError } from '../../src/llm/errors.js';
 import { FakeLLMClient } from '../../src/llm/fake.js';
 import type { ChatRequest, ChatResponse } from '../../src/llm/types.js';
 import { analyzeExecution, unstableTests } from '../../src/modules/failure-analyzer/analyze.js';
@@ -200,6 +201,39 @@ describe('analyzeExecution', () => {
     });
     const result = await run(llm);
     expect(result.diagnoses.summary?.costUsd).toBeCloseTo(0.03);
+  });
+
+  it('a provider error in one group makes that group inconclusive and keeps the other groups', async () => {
+    const { llm } = fakeByGroup({
+      'TC-001': [submit([appDefect])],
+      'TC-003': [],
+    });
+    // The fake throws for an unscripted group; make that a provider error that outlasted the retries.
+    const failing = new FakeLLMClient(Array.from({ length: 4 }, () => async (req: ChatRequest) => {
+      if (taskOf(req).includes('- TC-003')) throw new LLMRequestError('429 Too Many Requests', 'rate_limit', 429);
+      return llm.chat(req);
+    }));
+    const result = await run(failing);
+    expect(result.diagnoses.diagnoses.map((d) => [d.classification, d.testCaseIds])).toEqual([
+      ['app_defect', ['TC-001', 'TC-002']],
+      ['inconclusive', ['TC-003']],
+    ]);
+    expect(result.diagnoses.diagnoses[1]).toMatchObject({ confidence: 0, rootCause: expect.stringContaining('LLMRequestError') });
+    expect(result.diagnoses.summary).toMatchObject({ sessions: 2, failedSessions: 1 });
+    expect((await readRunManifest(f.paths.runJson)).executions.find((e) => e.execId === 'x-04')?.analyzeStatus).toBe('done');
+  });
+
+  it('a stopped analysis records analyzeStatus failed with "Interrupted" and writes no diagnoses', async () => {
+    const controller = new AbortController();
+    // The model never answers: only the signal ends the analysis.
+    const llm = new FakeLLMClient(Array.from({ length: 4 }, () => () => {
+      setTimeout(() => controller.abort(), 10);
+      return new Promise<never>(() => {});
+    }));
+    await expect(run(llm, { signal: controller.signal })).rejects.toThrow('Interrupted');
+    const entry = (await readRunManifest(f.paths.runJson)).executions.find((e) => e.execId === 'x-04');
+    expect(entry).toMatchObject({ analyzeStatus: 'failed', error: 'Interrupted' });
+    await expect(readFile(f.paths.diagnoses('x-04'), 'utf8')).rejects.toThrow();
   });
 
   it('an execution without failures needs no model call', async () => {

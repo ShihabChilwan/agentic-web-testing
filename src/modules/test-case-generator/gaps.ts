@@ -6,6 +6,7 @@ import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig } from '../../shared/config.js';
 import type { LLMConfig } from '../../shared/config.js';
 import { PRICING_FILE, RUNS_DIR, runPaths } from '../../shared/paths.js';
+import { untilAborted } from '../../shared/abort.js';
 import { errorSummary, latestRunWith, readRunManifest, setStage } from '../../shared/run-manifest.js';
 import { CoverageReport, MAX_TEST_CASES, Prd, SCHEMA_VERSION, ScriptManifest, TestCases } from '../../shared/schemas.js';
 import type { PartlyCoveredRequirement, PrdRequirement, StageGapsSummary, TestCase } from '../../shared/schemas.js';
@@ -134,7 +135,7 @@ export async function generateGaps(options: GenerateGapsOptions = {}): Promise<G
     const inputs: SessionInput[] = plan.sessions.map((x) => ({ ...x, gapRound: true, endpointRound: x.endpoints }));
     const asked = new Set<Endpoint>(plan.sessions.flatMap((x) => x.endpoints));
     if (inputs.length > 0) log(`Endpoint round: ${asked.size} endpoints in ${inputs.length} features`);
-    const outcomes = await Promise.all(inputs.map((input) => runSession(input, deps)));
+    const outcomes = await untilAborted(Promise.all(inputs.map((input) => runSession(input, deps))), options.signal);
 
     // New ids after the existing ones; existing cases keep their ids, so their scripts stay valid.
     const order = new Map(prd.requirements.map((r, i) => [r.id, i]));

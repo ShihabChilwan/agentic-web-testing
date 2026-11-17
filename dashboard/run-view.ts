@@ -4,9 +4,10 @@
 // (run.json, scripts/manifest.json, testcases.json, prd.json, coverage via run.json, executions/x-NN/*).
 import { readdir, readFile, stat, open } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { redactLine, shortError } from './redact.js';
 
-export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const RUNS_DIR = process.env.DASHBOARD_RUNS_DIR ?? path.join(ROOT, 'runs');
 export const TARGETS_DIR = process.env.DASHBOARD_TARGETS_DIR ?? path.join(ROOT, 'targets');
 

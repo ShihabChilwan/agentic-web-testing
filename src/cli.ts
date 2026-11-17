@@ -71,13 +71,25 @@ agent
   .description('Generate testcases.json from the run\'s prd.json')
   .option('--run <runId>', 'run to use (default: the newest run with a prd.json)')
   .action(async (opts: { run?: string }) => {
+    // Ctrl+C or SIGTERM: stop the app if it is up for the page snapshots, mark the stage failed.
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
     try {
-      const result = await generateTestCases({ ...(opts.run ? { runId: opts.run } : {}), log: (m) => console.log(m) });
+      const result = await generateTestCases({ ...(opts.run ? { runId: opts.run } : {}), signal: controller.signal, log: (m) => console.log(m) });
       console.log(`testcases.json: ${result.file}`);
       for (const line of describeCasesSummary(result)) console.log(line);
     } catch (err) {
       console.error(`cases failed: ${errorSummary(err)}`);
+      if (controller.signal.aborted) process.exit(130); // sessions still waiting on the model are abandoned
       process.exitCode = 1;
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
     }
   });
 
@@ -171,7 +183,8 @@ agent
       for (const line of lines) console.log(line);
     } catch (err) {
       console.error(`gaps failed: ${errorSummary(err)}`);
-      process.exitCode = controller.signal.aborted ? 130 : 1;
+      if (controller.signal.aborted) process.exit(130); // sessions still waiting on the model are abandoned
+      process.exitCode = 1;
     } finally {
       process.off('SIGINT', onSignal);
       process.off('SIGTERM', onSignal);
@@ -326,6 +339,14 @@ agent
   .option('--cost-cap <usd>', 'stop before any model call once the spend reaches 80% of this many US dollars', parseFloat)
   .option('--cost-ledger <dir>', 'with --cost-cap: a folder shared by parallel analyses, so the cap counts all of them')
   .action(async (opts: { run?: string; exec?: string; tools: boolean; differences?: string; output?: string; costCap?: number; costLedger?: string }) => {
+    // Ctrl+C or SIGTERM: remove the source tree and record the analysis as failed before exiting.
+    const controller = new AbortController();
+    const onSignal = () => {
+      console.error('\nStopping...');
+      controller.abort();
+    };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
     try {
       if (opts.costLedger && opts.costCap === undefined) throw new Error('--cost-ledger needs --cost-cap');
       const result = await analyzeExecution({
@@ -335,13 +356,18 @@ agent
         noTools: !opts.tools,
         ...(opts.differences ? { differencesFile: path.resolve(opts.differences) } : {}),
         ...(opts.output ? { outputName: opts.output } : {}),
+        signal: controller.signal,
         log: (m) => console.log(m),
       });
       console.log(`diagnoses: ${result.file}`);
       for (const line of describeAnalysis(result)) console.log(line);
     } catch (err) {
       console.error(`analyze failed: ${errorSummary(err)}`);
+      if (controller.signal.aborted) process.exit(130); // sessions still waiting on the model are abandoned
       process.exitCode = 1;
+    } finally {
+      process.off('SIGINT', onSignal);
+      process.off('SIGTERM', onSignal);
     }
   });
 
@@ -352,13 +378,14 @@ agent
   .option('--run <runId>', 'run to continue (default: the newest run of --target, else the newest run)')
   .option('--fresh', 'start a new run and redo every stage')
   .action(async (opts: { target?: string; run?: string; fresh?: boolean }) => {
-    // Ctrl+C or SIGTERM: scripts and execute stop themselves; the other stages are marked interrupted here.
+    // Ctrl+C or SIGTERM: every stage but prd stops itself (stopping the app it started) and is marked
+    // interrupted; prd starts no app and is marked interrupted here.
     const controller = new AbortController();
     let current: { stage: PipelineStage; at: { runDir: string | null; execId: string | null } } | null = null;
     const onSignal = () => {
       console.error('\nStopping...');
       controller.abort();
-      if (current && current.stage !== 'scripts' && current.stage !== 'execute') {
+      if (current?.stage === 'prd') {
         void markInterrupted(current.stage, current.at).finally(() => process.exit(130));
       }
     };
@@ -377,9 +404,12 @@ agent
         },
       });
       for (const line of describeRunAll(result)) console.log(line);
-      if (result.failure) process.exitCode = controller.signal.aborted ? 130 : 1;
+      // The stopped stage has stopped its app; model sessions still waiting are abandoned.
+      if (controller.signal.aborted) process.exit(130);
+      if (result.failure) process.exitCode = 1;
     } catch (err) {
       console.error(`all failed: ${errorSummary(err)}`);
+      if (controller.signal.aborted) process.exit(130);
       process.exitCode = 1;
     }
   });
