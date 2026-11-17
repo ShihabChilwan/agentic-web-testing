@@ -54,7 +54,7 @@ Reading the evidence of every comparator-only catch (14) and of the catches that
 | Kutt bug-011 | a validator rule | TC-094 clock time (as in the fresh check) |
 | S1 bug-007 | order page loading flag | TC-130 (`/sell` form) timeout, which also times out in two other unrelated versions |
 
-Without them: S1 suite 14 of 25, S3 13, Kutt 9; all suites 49 by the suite alone and 52 with scenarios (added by scenarios unchanged at 3). Catches by failing tests were not audited one by one beyond this check.
+Without them: S1 suite 14 of 25, S3 13, Kutt 9; all suites 48 by the suite alone and 51 with scenarios (added by scenarios unchanged at 3). (Corrected 17 Nov 2026: this sentence first said 49 and 52, an arithmetic slip; 14 + 12 + 13 + 9 = 48, and 51 = 48 + 3. Recomputed from `out/detection.json`.) Catches by failing tests were not audited one by one beyond this check.
 
 ### Caught by nothing
 
