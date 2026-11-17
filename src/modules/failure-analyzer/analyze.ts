@@ -4,6 +4,7 @@ import { createRepoTools, type RepoScope } from '../../agent/tools/repo-tools.js
 import { runAgent } from '../../agent/runtime.js';
 import { AgentBudgetError, AgentSubmitError } from '../../agent/types.js';
 import { createLLMClient } from '../../llm/client.js';
+import { LLMRequestError } from '../../llm/errors.js';
 import type { CostCapOptions } from '../../llm/budget.js';
 import type { LLMClient } from '../../llm/types.js';
 import { loadLLMConfig, type LLMConfig } from '../../shared/config.js';
@@ -141,7 +142,9 @@ async function diagnoseGroup(session: SessionGroup, deps: SessionDeps): Promise<
       toolCalls: result.toolCalls,
     };
   } catch (err) {
-    if (!(err instanceof AgentSubmitError || err instanceof AgentBudgetError)) throw err;
+    // A provider error that outlasted the client's retries ends this group only; the other groups keep their diagnoses.
+    if (!(err instanceof AgentSubmitError || err instanceof AgentBudgetError || err instanceof LLMRequestError)) throw err;
+    const details = err instanceof LLMRequestError ? { turns: 0, toolCalls: 0 } : err.details;
     const failure = errorSummary(err);
     const durationMs = Date.now() - started;
     return {
@@ -156,13 +159,13 @@ async function diagnoseGroup(session: SessionGroup, deps: SessionDeps): Promise<
           evidence: [],
           violatedRequirementIds: [],
           suggestedFix: null,
-          toolCalls: err.details.toolCalls,
+          toolCalls: details.toolCalls,
           durationMs,
           ...basis,
         },
       ],
-      turns: err.details.turns,
-      toolCalls: err.details.toolCalls,
+      turns: details.turns,
+      toolCalls: details.toolCalls,
       failure,
     };
   }
