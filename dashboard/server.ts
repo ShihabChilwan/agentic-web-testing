@@ -1,4 +1,4 @@
-// Live dashboard: `npx tsx dashboard/server.ts` (default http://localhost:4000, env PORT / DASHBOARD_PORT).
+// Live dashboard: `npx tsx dashboard/server.ts` (default http://localhost:4000 on 127.0.0.1 only, env PORT / DASHBOARD_PORT).
 // A small HTTP server with server-sent events. It reads runs/<id>/ and starts the existing CLI commands
 // as child processes; it contains no pipeline logic.
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -14,6 +14,7 @@ import {
 } from './run-view.js';
 
 const PORT = Number(process.env.DASHBOARD_PORT ?? process.env.PORT ?? 4000);
+const HOST = '127.0.0.1';
 const PUBLIC_DIR = path.join(ROOT, 'dashboard', 'public');
 const TSX = path.join(ROOT, 'node_modules', '.bin', 'tsx');
 
@@ -364,6 +365,10 @@ async function handle(req: IncomingMessage, res: ServerResponse) {
       return json(res, 409, { error: shortError(err instanceof Error ? err.message : err) });
     }
   }
+  // Only JSON posts: a form on another site cannot send application/json without a CORS preflight.
+  if (req.method === 'POST' && !/^application\/json\s*(;|$)/i.test(req.headers['content-type'] ?? '')) {
+    return json(res, 415, { error: 'POST requests must be application/json' });
+  }
   if (req.method === 'POST' && p === '/api/start') return handleStart(await readBody(req), res);
   if (req.method === 'POST' && p === '/api/stop') return json(res, 200, { stopped: stopJob() });
   if (req.method === 'GET') return serveStatic(p, res);
@@ -415,6 +420,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
 }
 
 void stat(PUBLIC_DIR).then(
-  () => server.listen(PORT, () => console.log(`Dashboard: http://localhost:${PORT}  (runs: ${RUNS_DIR})`)),
+  // Loopback only: the dashboard starts commands and must not be reachable from the network.
+  () => server.listen(PORT, HOST, () => console.log(`Dashboard: http://localhost:${PORT}  (runs: ${RUNS_DIR})`)),
   () => { console.error(`Missing ${PUBLIC_DIR}`); process.exit(1); },
 );

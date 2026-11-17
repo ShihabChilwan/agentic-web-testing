@@ -1134,7 +1134,7 @@ function wire() {
   $('#tab-run').onclick = () => setTab('run');
   $('#tab-results').onclick = () => setTab('results');
   $('#run-picker').onchange = (e) => openRun(e.target.value);
-  $('#btn-stop').onclick = () => api('/api/stop', { method: 'POST' }).catch((e) => toast(e.message));
+  $('#btn-stop').onclick = () => api('/api/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch((e) => toast(e.message));
   const newDlg = $('#dlg-new');
   const openNew = () => {
     $('#new-target').replaceChildren(...state.targets.map((t) => h('option', { value: t }, t)));
