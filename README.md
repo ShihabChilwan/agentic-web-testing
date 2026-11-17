@@ -50,7 +50,7 @@ Generation cost per suite³: $0.37–0.44. Endpoint coverage on the final develo
 | Environment faults classified correctly | 100% (15 / 15) | 93.3% (14 / 15) |
 | Analysis cost per suite | $0.287 | $0.017 |
 
-On genuine catches only (8 catches), classification, file and line were each 100%. Golden false-alarm rate: 0.0% (measured on the one suite where golden had a failure). "Without tools" gives the analyzer only the failing tests' titles and errors.
+On genuine catches only (8 catches), classification, file and line were each 100%. Golden false-alarm rate: 0.0% (measured on the one suite where golden had a failure). "Without tools" gives the analyzer only the failing tests' titles and errors. The 0% classification without tools follows from a submit rule, not from weaker reasoning alone: an `app_defect` must name a file and line range that exist in the executed source, and without tools the analyzer sees no file names, so it cannot get an `app_defect` accepted and falls back to the other classes.
 
 ### Transfer to other applications
 
@@ -67,6 +67,13 @@ Planka was not opened until the freeze. With a configuration file only, 64 of 13
 ² Endpoints reached = PRD API endpoints that a passing script reached, measured by V8 coverage of the backend on the correct version, divided by the endpoints of the PRD; Planka also counts 27 endpoints by request.<br>
 ³ Cost = model calls for the PRD, test cases, scripts and the coverage round, as reported by the provider. The review of failed scripts adds $0.008–0.026 per suite (total $0.40–0.45).<br>
 ⁴ Two of the ten catches were accidental (the failing test did not run the mutated line) and are removed.</sub>
+
+### Response comparator and scenario generator (after the freeze)
+
+Two later additions, measured under their own pre-registered protocols:
+
+- **Response comparator** (`comparator-v1`): records every response and page snapshot of an execution and compares a version with the correct one, after removing the fields that differ between three correct runs (noise). On the 12 code bugs × 3 suites it caught 20 bug-suite pairs against 10 for failing tests alone (22 by either). The analyzer, given the comparator's differences, classified 90.0% of the 20 cases correctly and named the right file and lines in 91.7% (3 repeats). Details: [`scoring/differential/`](scoring/differential/) (protocol, `out/scores.md`); a check on Kutt in [`scoring/differential-kutt/RESULTS.md`](scoring/differential-kutt/RESULTS.md).
+- **Scenario generator** (`scenarios-v1`): adds up to 40 multi-step scenario tests to a generated suite. On a fresh set of 87 bugs (25 per mern-ecommerce suite, 12 for Kutt), the suites with the comparator caught 53, with scenarios 56 (3 added, all in one suite); 31 were caught by nothing. Details, false alarms and deviations: [`scoring/scenarios/RESULTS.md`](scoring/scenarios/RESULTS.md).
 
 ## How it works
 
@@ -92,13 +99,18 @@ The pipeline in `src/` contains nothing specific to one app. A target is a folde
 
 ## Getting started
 
-Everything runs inside the VS Code dev container (user `node`, Node.js ≥ 22.12, TypeScript, ESM). There is no Docker inside the container: target apps run as child processes.
+Everything runs inside the VS Code dev container (user `node`, TypeScript, ESM). There is no Docker inside the container: target apps run as child processes.
 
-- Database services (compose): MongoDB at `mongo:27017` for mern-ecommerce, PostgreSQL at `db:5432` for Planka and the Kutt PostgreSQL target.
+You need:
+
+- **Node.js 22.12 or later.**
+- **MongoDB** reachable at host `mongo`, port 27017 (mern-ecommerce) and **PostgreSQL** at host `db`, port 5432 (Planka and the Kutt PostgreSQL target). In the dev container these are compose services; elsewhere, run them yourself and change the host names in `targets/<name>/target.config.json`. Kutt on SQLite needs no database service.
+- **A target repository you do not edit by hand.** `agent prd`, `cases`, `scripts` and `scenarios`, and `target:up` and `target:facts`, run `git checkout --force <ref>` in `targets/<name>/repo/`, which discards uncommitted changes there. Executions and analyses use temporary source trees and never touch it.
 - Install: `npm ci`, then `sudo npx playwright install-deps chromium && npx playwright install chromium` (Playwright is pinned to 1.64.0). Re-run the Playwright step after a container rebuild.
 - Clone a target at its pinned version (see [Target applications](#target-applications)) into `targets/<name>/repo/` and create a `golden` branch at that commit. Target repositories are git-ignored.
 - Copy `.env.example` to `.env` (git-ignored; never commit it). Variables:
   - Endpoint: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_EXTRA_HEADERS`, `LLM_EXTRA_BODY`, `LLM_REASONING_PARAM`, `LLM_TIMEOUT_MS`
+  - Provider routing (OpenRouter): `LLM_PROVIDER_ORDER`, comma-separated provider or endpoint slugs tried in that order, no other provider (e.g. `wafer/us,wafer`). Do not also set `provider` in `LLM_EXTRA_BODY`; `npm run llm:ping` prints the routing in use.
   - Sampling and reasoning: `LLM_TEMPERATURE`, `LLM_TOP_P`, `LLM_REASONING_EFFORT`, `LLM_REASONING_EFFORT_PRD`, `_CASES`, `_SCRIPTS`, `_ANALYZER`
   - Limits: `LLM_CONCURRENCY`, `LLM_CONTEXT_TOKENS`, `LLM_MAX_TOKENS_PER_RUN`, `LLM_MAX_COST_USD_PER_RUN`
   - Per-module models: `LLM_MODEL_PRD`, `LLM_MODEL_CASES`, `LLM_MODEL_SCRIPTS`, `LLM_MODEL_ANALYZER`
@@ -123,6 +135,19 @@ Run outputs go to `runs/<runId>/` (git-ignored). Commands that take `--run` defa
 | `report` | Write `runs/<runId>/report.html`, one self-contained page | `npm run agent -- report` |
 
 Useful options: `scripts --fresh` regenerates every script; `scripts --redo passed,assertion_failed,invalid|none` regenerates only those outcomes; `execute --ref <ref>`, `--skip-seed` and `--exec-id <id>`; `analyze --no-tools` runs the ablation without tools; `all --fresh` starts a new run. Ctrl+C saves progress and stops the app.
+
+### Response comparator and scenarios (`npm run agent -- <command>`, no model except `scenarios` and `analyze`)
+
+| Command | Purpose | Writes |
+|---|---|---|
+| `execute ... --record-responses --record-pages` | Record every response (secrets redacted) and the page snapshots of an execution | `executions/<x>/responses.jsonl`, `pages.jsonl` |
+| `noise --run <runId> [--runs 3 \| --execs a,b,c] [--page-execs a,b,c]` | Run the correct version several times and learn which fields differ between correct runs | `noise-fields.json` and `.md` |
+| `compare --run <runId> --base <x> --other <y> [--noise <file> \| --no-noise]` | Compare two executions, leaving out the noise fields; differences are strong or weak | `differential/compare-<x>-<y>.json` and `.md` |
+| `analyze --exec <y> --differences <compare file>` | Diagnose with the strong differences as evidence; passing tests that differ get sessions too | `diagnoses.differential.json` |
+| `scenarios --from <runId> [--max 40] [--cost-cap 1]` | Copy a done suite to `<runId>-scn` and add scenario tests (SC ids) | `scenarios/`, `scripts-with-scenarios/` |
+| `execute --scripts-dir scripts-with-scenarios` | Run the suite with its scenario tests | as `execute` |
+
+The suite itself (`testcases.json`, `scripts/`) is never changed by `scenarios`.
 
 ### Helpers
 
@@ -157,6 +182,8 @@ npx tsx scoring/cli.ts --suite <imported run> [--suite ...] \
   [--equivalents scoring/equivalents.json] [--out scoring/out]
 npx tsx scoring/cli.ts hash                      # protocol and code hashes
 npx vitest run --config scoring/vitest.config.ts # scoring tests
+npx tsx scoring/differential/score.ts [hash]     # comparator diagnosis scoring (scoring/differential/PROTOCOL.md)
+npx tsx scoring/scenarios/score.ts detect --suite <label>=<run dir> ...   # scenario measurement (scoring/scenarios/PROTOCOL.md)
 ```
 
 ### Freeze
@@ -206,8 +233,10 @@ Screenshots: see `docs/screenshots/`.
 | `src/modules/execution-engine/` | App lifecycle, source trees, snapshot restore, isolation, execution |
 | `src/modules/failure-analyzer/` | Failure grouping, tools, checks, analysis |
 | `src/modules/report/` | Run view model and the static HTML report |
+| `src/modules/differential/` | Response comparator: recorded responses and pages, noise, comparison |
+| `src/modules/scenario-generator/` | Scenario tests added to a generated suite |
 | `src/eval/` | Variants, environment faults, cloud executor, import |
-| `scoring/` | Scoring code, protocol, and result tables (`scoring/out/`) |
+| `scoring/` | Scoring code, protocol, and result tables (`scoring/out/`); comparator scoring in `scoring/differential/` and `scoring/differential-kutt/`, scenario measurement in `scoring/scenarios/` |
 | `dashboard/` | Live dashboard server and page |
 | `cloud/` | PowerShell scripts for the Cloud Run Jobs executor |
 | `freeze/` | Recorded freeze (settings and hashes) |
@@ -233,6 +262,7 @@ The framework never modifies target source. Live third-party services (email, pa
 - `main` is not frozen: it contains a later generic adapter patch made for Planka (extra browser-storage values and a CSS locator). Evaluation runs use the `freeze-v1` tag; check it out to reproduce the results.
 - Generated tests are weak at checking behaviour they reach: 7 of the 12 planted code bugs were never caught in any of the three suites.
 - Grounding proves that an expected value exists in the code, not that it applies to the tested path.
+- The comparator matches records across runs by normalising ids by where they appear: an id seen in two or more tests is a shared (seeded) record, an id seen in one test is that test's own. A seeded record that a version shows in only one test is therefore treated as test-local, and the aliases of the shared ids after it shift, which can report differences that are not behaviour changes. Generated values are only recognised in the forms the scripts' helpers produce; other run-to-run values must be learned as noise (Kutt's clock time on the stats page was not, see `scoring/scenarios/RESULTS.md`).
 - Results are from one model and one provider; the evaluation has no human baseline.
 
 ## Licence
